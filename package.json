@@ -1,0 +1,28 @@
+{
+  "name": "piscina",
+  "version": "1.0.0-pre",
+  "description": "A fast, efficient Node.js Worker Thread Pool implementation",
+  "main": "index.js",
+  "scripts": {
+    "test": "standard | snazzy && tap --100 test/*test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jasnell/piscina"
+  },
+  "keywords": [
+    "fast",
+    "worker threads",
+    "thread pool",
+    "wade wilson"
+  ],
+  "author": "James M Snell <piscina@jasnell.me>",
+  "contributors": [],
+  "license": "MIT",
+  "devDependencies": {
+    "snazzy": "^8.0.0",
+    "standard": "^14.3.3",
+    "tap": "^14.10.7",
+    "tape": "^4.13.2"
+  }
+}
