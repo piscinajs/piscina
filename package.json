@@ -2,9 +2,13 @@
   "name": "piscina",
   "version": "1.0.0-pre",
   "description": "A fast, efficient Node.js Worker Thread Pool implementation",
-  "main": "index.js",
+  "main": "./build/src/index.js",
   "scripts": {
-    "test": "standard | snazzy && tap --100 test/*test.js"
+    "build": "tsc",
+    "lint": "standardx **/*.ts | snazzy",
+    "test": "npm run lint && npm run build && npm run test-only",
+    "test-only": "TS_NODE_PROJECT=test/tsconfig.json tap --ts --no-browser --coverage-report=html --100 test/*.ts",
+    "prepack": "npm run build"
   },
   "repository": {
     "type": "git",
@@ -17,12 +21,39 @@
     "wade wilson"
   ],
   "author": "James M Snell <piscina@jasnell.me>",
-  "contributors": [],
+  "contributors": [
+    "Anna Henningsen <anna@addaleax.net>"
+  ],
   "license": "MIT",
   "devDependencies": {
+    "@types/node": "^13.13.0",
+    "@typescript-eslint/eslint-plugin": "^2.28.0",
+    "@typescript-eslint/parser": "^2.28.0",
     "snazzy": "^8.0.0",
-    "standard": "^14.3.3",
+    "source-map-support": "^0.5.16",
+    "standardx": "^5.0.0",
     "tap": "^14.10.7",
-    "tape": "^4.13.2"
+    "tape": "^4.13.2",
+    "typescript": "^3.8.3"
+  },
+  "eslintConfig": {
+    "rules": {
+      "semi": [
+        "error",
+        "always"
+      ],
+      "no-unused-vars": "off",
+      "@typescript-eslint/no-unused-vars": "error"
+    },
+    "globals": {
+      "SharedArrayBuffer": true,
+      "Atomics": true
+    }
+  },
+  "standardx": {
+    "parser": "@typescript-eslint/parser",
+    "plugins": [
+      "@typescript-eslint/eslint-plugin"
+    ]
   }
 }
