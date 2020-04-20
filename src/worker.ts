@@ -1,8 +1,9 @@
-import { parentPort, MessagePort } from 'worker_threads';
-import { commonState, RequestMessage, ResponseMessage, WarmupMessage } from './common';
+import { parentPort, MessagePort, receiveMessageOnPort } from 'worker_threads';
+import { commonState, RequestMessage, ResponseMessage, WarmupMessage, kResponseCountField, kRequestCountField } from './common';
 commonState.isWorkerThread = true;
 
 const handlerCache : Map<string, Function> = new Map();
+let useAtomics : boolean = true;
 
 async function getHandler (fileName : string) : Promise<Function | null> {
   let handler = handlerCache.get(fileName);
@@ -22,13 +23,38 @@ async function getHandler (fileName : string) : Promise<Function | null> {
   return handler;
 }
 
-const port = parentPort as MessagePort;
-port.on('message', (message : RequestMessage | WarmupMessage) => {
-  if (message.warmup) {
-    getHandler(message.fileName).catch(throwInNextTick);
-    return;
+parentPort!.on('message', (message : WarmupMessage) => {
+  useAtomics = message.useAtomics;
+  const { port, sharedBuffer, fileName } = message;
+  if (fileName !== null) {
+    getHandler(fileName).catch(throwInNextTick);
   }
 
+  port.on('message', onMessage.bind(null, port, sharedBuffer));
+  atomicsWaitLoop(port, sharedBuffer);
+});
+
+let currentTasks : number = 0;
+let lastSeenRequestCount : number = 0;
+function atomicsWaitLoop (port : MessagePort, sharedBuffer : Int32Array) {
+  if (!useAtomics) return;
+
+  while (currentTasks === 0) {
+    Atomics.wait(sharedBuffer, kRequestCountField, lastSeenRequestCount);
+    lastSeenRequestCount = Atomics.load(sharedBuffer, kRequestCountField);
+
+    let entry;
+    while ((entry = receiveMessageOnPort(port)) !== undefined) {
+      onMessage(port, sharedBuffer, entry.message);
+    }
+  }
+}
+
+function onMessage (
+  port : MessagePort,
+  sharedBuffer : Int32Array,
+  message : RequestMessage) {
+  currentTasks++;
   const { taskId, task, fileName } = message;
 
   (async function () {
@@ -51,9 +77,12 @@ port.on('message', (message : RequestMessage | WarmupMessage) => {
         error
       };
     }
+    currentTasks--;
     port.postMessage(response);
+    Atomics.add(sharedBuffer, kResponseCountField, 1);
+    atomicsWaitLoop(port, sharedBuffer);
   })().catch(throwInNextTick);
-});
+}
 
 function throwInNextTick (error : Error) {
   process.nextTick(() => { throw error; });

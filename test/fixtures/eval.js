@@ -1,1 +1,1 @@
-module.exports = function(code) { return eval(code); }
+module.exports = function (code) { return eval(code); };

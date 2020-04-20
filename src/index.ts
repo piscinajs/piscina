@@ -1,11 +1,11 @@
-import { Worker } from 'worker_threads';
+import { Worker, MessageChannel, MessagePort, receiveMessageOnPort } from 'worker_threads';
 import { EventEmitter, once } from 'events';
 import { AsyncResource } from 'async_hooks';
 import { cpus } from 'os';
 import { resolve } from 'path';
 import { inspect } from 'util';
 import assert from 'assert';
-import { RequestMessage, ResponseMessage, commonState } from './common';
+import { RequestMessage, ResponseMessage, WarmupMessage, commonState, kResponseCountField, kRequestCountField, kFieldCount } from './common';
 import { version } from '../package.json';
 
 const cpuCount : number = (() => {
@@ -25,6 +25,7 @@ interface Options {
   idleTimeout? : number,
   maxQueue? : number,
   concurrentTasksPerWorker? : number
+  useAtomics? : boolean
 }
 
 interface FilledOptions extends Options {
@@ -33,7 +34,8 @@ interface FilledOptions extends Options {
   maxThreads : number,
   idleTimeout : number,
   maxQueue : number,
-  concurrentTasksPerWorker : number
+  concurrentTasksPerWorker : number,
+  useAtomics: boolean
 }
 
 const kDefaultOptions : FilledOptions = {
@@ -42,7 +44,8 @@ const kDefaultOptions : FilledOptions = {
   maxThreads: cpuCount * 1.5,
   idleTimeout: 0,
   maxQueue: Infinity,
-  concurrentTasksPerWorker: 1
+  concurrentTasksPerWorker: 1,
+  useAtomics: true
 };
 
 let taskIdCounter = 0;
@@ -75,14 +78,28 @@ class TaskInfo extends AsyncResource {
   }
 }
 
+type ResponseCallback = (response : ResponseMessage) => void;
+
 class WorkerInfo {
   worker : Worker;
   taskInfos : Map<number, TaskInfo>;
   idleTimeout : NodeJS.Timeout | null = null;
+  port : MessagePort;
+  sharedBuffer : Int32Array;
+  lastSeenResponseCount : number = 0;
+  onMessage : ResponseCallback;
 
-  constructor (worker : Worker) {
+  constructor (
+    worker : Worker,
+    port : MessagePort,
+    onMessage : ResponseCallback) {
     this.worker = worker;
+    this.port = port;
+    this.port.on('message',
+      (message : ResponseMessage) => this._handleResponse(message));
+    this.onMessage = onMessage;
     this.taskInfos = new Map();
+    this.sharedBuffer = new Int32Array(new SharedArrayBuffer(kFieldCount * 4));
   }
 
   destroy () : void {
@@ -98,6 +115,52 @@ class WorkerInfo {
     if (this.idleTimeout !== null) {
       clearTimeout(this.idleTimeout);
       this.idleTimeout = null;
+    }
+  }
+
+  ref () : void {
+    this.worker.ref();
+    this.port.ref();
+  }
+
+  unref () : void {
+    this.worker.unref();
+    this.port.unref();
+  }
+
+  _handleResponse (message : ResponseMessage) : void {
+    this.onMessage(message);
+
+    if (this.taskInfos.size === 0) {
+      this.unref();
+    }
+  }
+
+  postTask (taskInfo : TaskInfo) {
+    assert(!this.taskInfos.has(taskInfo.taskId));
+    this.taskInfos.set(taskInfo.taskId, taskInfo);
+    const message : RequestMessage = {
+      task: taskInfo.releaseTask(),
+      taskId: taskInfo.taskId,
+      fileName: taskInfo.fileName
+    };
+    this.ref();
+    this.clearIdleTimeout();
+    this.port.postMessage(message);
+    Atomics.add(this.sharedBuffer, kRequestCountField, 1);
+    Atomics.notify(this.sharedBuffer, kRequestCountField, 1);
+  }
+
+  processPendingMessages () {
+    const actualResponseCount =
+      Atomics.load(this.sharedBuffer, kResponseCountField);
+    if (actualResponseCount !== this.lastSeenResponseCount) {
+      this.lastSeenResponseCount = actualResponseCount;
+
+      let entry;
+      while ((entry = receiveMessageOnPort(this.port)) !== undefined) {
+        this._handleResponse(entry.message);
+      }
     }
   }
 }
@@ -128,15 +191,26 @@ class ThreadPool {
 
   _ensureMinimumWorkers () : void {
     while (this.workers.length < this.options.minThreads) {
-      this._addNewWorker(true);
+      this._addNewWorker();
     }
   }
 
-  _addNewWorker (needsWarmup : boolean) : WorkerInfo {
+  _addNewWorker () : WorkerInfo {
+    const pool = this;
     const worker = new Worker(resolve(__dirname, 'worker.js'));
 
-    const workerInfo = new WorkerInfo(worker);
-    worker.on('message', (message : ResponseMessage) => {
+    const { port1, port2 } = new MessageChannel();
+    const workerInfo = new WorkerInfo(worker, port1, onMessage);
+
+    const message : WarmupMessage = {
+      fileName: this.options.fileName,
+      port: port2,
+      sharedBuffer: workerInfo.sharedBuffer,
+      useAtomics: this.options.useAtomics
+    };
+    worker.postMessage(message, [port2]);
+
+    function onMessage (message : ResponseMessage) {
       const { taskId, result } = message;
       // In case of success: Call the callback that was passed to `runTask`,
       // remove the `TaskInfo` associated with the Worker, which marks it as
@@ -144,16 +218,27 @@ class ThreadPool {
       const taskInfo = workerInfo.taskInfos.get(taskId);
       workerInfo.taskInfos.delete(taskId);
 
-      this._onWorkerFree(workerInfo);
+      pool._onWorkerFree(workerInfo);
 
       /* istanbul ignore if */
       if (taskInfo === undefined) {
         const err = new Error(
           `Unexpected message from Worker: ${inspect(message)}`);
-        this.publicInterface.emit('error', err);
+        pool.publicInterface.emit('error', err);
       } else {
         taskInfo.done(message.error, result);
       }
+
+      if (pool.options.useAtomics) {
+        for (const workerInfo of pool.workers) {
+          workerInfo.processPendingMessages();
+        }
+      }
+    }
+
+    worker.on('message', (message) => {
+      worker.emit('error', new Error(
+          `Unexpected message on Worker: ${inspect(message)}`));
     });
 
     worker.on('error', (err : Error) => {
@@ -176,11 +261,7 @@ class ThreadPool {
       }
     });
 
-    if (needsWarmup && this.options.fileName !== null) {
-      worker.postMessage({ fileName: this.options.fileName, warmup: true });
-    }
-
-    worker.unref();
+    workerInfo.unref();
 
     this.workers.push(workerInfo);
     return workerInfo;
@@ -193,10 +274,8 @@ class ThreadPool {
   }
 
   _onWorkerFree (workerInfo : WorkerInfo) : void {
-    workerInfo.worker.unref();
-
     if (this.taskQueue.length > 0) {
-      this._postTask(this.taskQueue.shift() as TaskInfo, workerInfo);
+      workerInfo.postTask(this.taskQueue.shift() as TaskInfo);
       return;
     }
 
@@ -209,20 +288,6 @@ class ThreadPool {
         }
       }, this.options.idleTimeout).unref();
     }
-  }
-
-  _postTask (taskInfo : TaskInfo, workerInfo : WorkerInfo) {
-    assert(!workerInfo.taskInfos.has(taskInfo.taskId));
-    workerInfo.taskInfos.set(taskInfo.taskId, taskInfo);
-    const message : RequestMessage = {
-      warmup: false,
-      task: taskInfo.releaseTask(),
-      taskId: taskInfo.taskId,
-      fileName: taskInfo.fileName
-    };
-    workerInfo.worker.ref();
-    workerInfo.worker.postMessage(message);
-    workerInfo.clearIdleTimeout();
   }
 
   // Implement some kind of task cancellation mechanism?
@@ -282,7 +347,7 @@ class ThreadPool {
         this.workers.length < this.options.maxThreads) {
       // This doesn't account for Worker startup time yet. If another Worker
       // becomes available beefore the new one is up, we should use that.
-      workerInfo = this._addNewWorker(false);
+      workerInfo = this._addNewWorker();
     }
 
     // If no Worker is found, try to put the task into the queue.
@@ -297,7 +362,7 @@ class ThreadPool {
       return ret;
     }
 
-    this._postTask(taskInfo, workerInfo);
+    workerInfo.postTask(taskInfo);
     return ret;
   }
 
@@ -351,6 +416,10 @@ class Piscina extends EventEmitter {
          options.concurrentTasksPerWorker < 1)) {
       throw new TypeError(
         'options.concurrentTasksPerWorker must be a positive integer');
+    }
+    if (options.useAtomics !== undefined &&
+        typeof options.useAtomics !== 'boolean') {
+      throw new TypeError('options.useAtomics must be a boolean value');
     }
 
     this.#pool = new ThreadPool(this, options);
