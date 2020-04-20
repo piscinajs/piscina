@@ -95,7 +95,7 @@ test('will reject items when task queue is unavailable', async ({ is, rejects })
   await pool.destroy();
 });
 
-test('tasks can share a Worker if requests', async ({ is, rejects }) => {
+test('tasks can share a Worker if requested (both tests blocking)', async ({ is, rejects }) => {
   const pool = new Piscina({
     fileName: resolve(__dirname, 'fixtures/wait-for-notify.ts'),
     minThreads: 0,
@@ -116,4 +116,82 @@ test('tasks can share a Worker if requests', async ({ is, rejects }) => {
   is(pool.queueSize, 0);
 
   await pool.destroy();
+});
+
+test('tasks can share a Worker if requested (one test finishes)', async ({ is, rejects }) => {
+  const pool = new Piscina({
+    fileName: resolve(__dirname, 'fixtures/wait-for-notify.ts'),
+    minThreads: 0,
+    maxThreads: 1,
+    maxQueue: 0,
+    concurrentTasksPerWorker: 2
+  });
+
+  const buffers = [
+    new Int32Array(new SharedArrayBuffer(4)),
+    new Int32Array(new SharedArrayBuffer(4))
+  ];
+
+  is(pool.threads.length, 0);
+  is(pool.queueSize, 0);
+
+  const firstTask = pool.runTask(buffers[0]);
+  is(pool.threads.length, 1);
+  is(pool.queueSize, 0);
+
+  rejects(pool.runTask(
+    'new Promise((resolve) => setTimeout(resolve, 1000000))',
+    resolve(__dirname, 'fixtures/eval.js')), /Terminating worker thread/);
+  is(pool.threads.length, 1);
+  is(pool.queueSize, 0);
+
+  Atomics.store(buffers[0], 0, 1);
+  Atomics.notify(buffers[0], 0, 1);
+
+  await firstTask;
+  is(pool.threads.length, 1);
+  is(pool.queueSize, 0);
+
+  await pool.destroy();
+});
+
+test('tasks can share a Worker if requested (both tests finish)', async ({ is }) => {
+  const pool = new Piscina({
+    fileName: resolve(__dirname, 'fixtures/wait-for-notify.ts'),
+    minThreads: 0,
+    maxThreads: 1,
+    maxQueue: 0,
+    concurrentTasksPerWorker: 2
+  });
+
+  const buffers = [
+    new Int32Array(new SharedArrayBuffer(4)),
+    new Int32Array(new SharedArrayBuffer(4))
+  ];
+
+  is(pool.threads.length, 0);
+  is(pool.queueSize, 0);
+
+  const firstTask = pool.runTask(buffers[0]);
+  is(pool.threads.length, 1);
+  is(pool.queueSize, 0);
+
+  const secondTask = pool.runTask(buffers[1]);
+  is(pool.threads.length, 1);
+  is(pool.queueSize, 0);
+
+  Atomics.store(buffers[0], 0, 1);
+  Atomics.store(buffers[1], 0, 1);
+  Atomics.notify(buffers[0], 0, 1);
+  Atomics.notify(buffers[1], 0, 1);
+  Atomics.wait(buffers[0], 0, 1);
+  Atomics.wait(buffers[1], 0, 1);
+
+  await firstTask;
+  is(buffers[0][0], -1);
+  await secondTask;
+  is(buffers[1][0], -1);
+
+  is(pool.threads.length, 1);
+  is(pool.queueSize, 0);
 });

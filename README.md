@@ -54,10 +54,12 @@ module.exports = ({ a, b }) => {
     to run, but not yet running due to lack of available threads, at a given
     time. By default, there is no limit.
   * `concurrentTasksPerWorker`: (`number`) Specifies how many tasks can share
-    a single Worker thread simulatneously. The default is `1`. This generally
+    a single Worker thread simultaneously. The default is `1`. This generally
     only makes sense to specify if there is some kind of asynchronous component
     to the task. Keep in mind that Worker threads are generally not built for
     handling I/O in parallel.
+  * `useAtomics`: (`boolean`) Use the [`Atomics`][] API for faster communication
+    between threads. This is on by default.
 
 ### Method: `runTask(task[, fileName])`
 
@@ -103,3 +105,5 @@ Provides the current version of this library as a semver string.
 
 * James M Snell <piscina@jasnell.me>
 * Anna Henningsen <anna@addaleax.net>
+
+[`Atomics`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Atomics

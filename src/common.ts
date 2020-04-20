@@ -1,19 +1,26 @@
+import type { MessagePort } from 'worker_threads';
+
 export interface WarmupMessage {
-  warmup: true;
-  fileName: string;
+  fileName : string | null;
+  port : MessagePort;
+  sharedBuffer : Int32Array;
+  useAtomics : boolean;
 }
 
 export interface RequestMessage {
-  warmup: false;
-  taskId: number;
+  taskId : number;
   task : any;
   fileName: string;
 }
 
 export interface ResponseMessage {
-  taskId: number;
+  taskId : number;
   result : any;
   error: Error | null;
 }
 
 export const commonState = { isWorkerThread: false };
+
+export const kRequestCountField = 0;
+export const kResponseCountField = 1;
+export const kFieldCount = 2;

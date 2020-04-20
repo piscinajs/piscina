@@ -65,3 +65,13 @@ test('maxQueue must be non-negative integer', async ({ throws }) => {
     maxQueue: 'string'
   }) as any), /options.maxQueue must be a non-negative integer/);
 });
+
+test('useAtomics must be a boolean', async ({ throws }) => {
+  throws(() => new Piscina(({
+    useAtomics: -1
+  }) as any), /options.useAtomics must be a boolean/);
+
+  throws(() => new Piscina(({
+    useAtomics: 'string'
+  }) as any), /options.useAtomics must be a boolean/);
+});

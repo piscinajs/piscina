@@ -26,7 +26,8 @@ test('uncaught exception in immediate resets Worker', async ({ rejects }) => {
 test('uncaught exception in immediate after task yields error event', async ({ is }) => {
   const pool = new Piscina({
     fileName: resolve(__dirname, 'fixtures/eval.js'),
-    maxThreads: 1
+    maxThreads: 1,
+    useAtomics: false
   });
 
   const errorEvent : Promise<Error[]> = once(pool, 'error');
@@ -44,4 +45,15 @@ test('uncaught exception in immediate after task yields error event', async ({ i
 
   // This is the main aassertion here.
   is((await errorEvent)[0].message, 'not_caught');
+});
+
+test('using parentPort is treated as an error', async ({ rejects }) => {
+  const pool = new Piscina({
+    fileName: resolve(__dirname, 'fixtures/eval.js')
+  });
+  await rejects(
+    pool.runTask(`
+      require('worker_threads').parentPort.postMessage("some message");
+      new Promise(() => {}) /* act as if we were doing some work */
+    `), /Unexpected message on Worker: 'some message'/);
 });
