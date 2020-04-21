@@ -51,17 +51,27 @@ const kDefaultOptions : FilledOptions = {
 let taskIdCounter = 0;
 
 type TaskCallback = (err : Error, result: any) => void;
+// Grab the type of `transferList` off `MessagePort`. At the time of writing,
+// only ArrayBuffer and MessagePort are valid, but let's avoid having to update
+// our types here every time Node.js adds support for more objects.
+type TransferList = MessagePort extends { postMessage(value : any, transferList : infer T) : any; } ? T : never;
 
 class TaskInfo extends AsyncResource {
   callback : TaskCallback;
   task : any;
+  transferList : TransferList;
   fileName : string;
   taskId : number;
 
-  constructor (task : any, fileName : string, callback : TaskCallback) {
+  constructor (
+    task : any,
+    transferList : TransferList,
+    fileName : string,
+    callback : TaskCallback) {
     super('Piscina.TaskInfo', { requireManualDestroy: false });
     this.callback = callback;
     this.task = task;
+    this.transferList = transferList;
     this.fileName = fileName;
     this.taskId = taskIdCounter++;
   }
@@ -138,15 +148,22 @@ class WorkerInfo {
 
   postTask (taskInfo : TaskInfo) {
     assert(!this.taskInfos.has(taskInfo.taskId));
-    this.taskInfos.set(taskInfo.taskId, taskInfo);
     const message : RequestMessage = {
       task: taskInfo.releaseTask(),
       taskId: taskInfo.taskId,
       fileName: taskInfo.fileName
     };
+
+    try {
+      this.port.postMessage(message, taskInfo.transferList);
+    } catch (err) {
+      taskInfo.done(err);
+      return;
+    }
+
+    this.taskInfos.set(taskInfo.taskId, taskInfo);
     this.ref();
     this.clearIdleTimeout();
-    this.port.postMessage(message);
     Atomics.add(this.sharedBuffer, kRequestCountField, 1);
     Atomics.notify(this.sharedBuffer, kRequestCountField, 1);
   }
@@ -291,7 +308,10 @@ class ThreadPool {
   }
 
   // Implement some kind of task cancellation mechanism?
-  runTask (task : any, fileName : string | null) : Promise<any> {
+  runTask (
+    task : any,
+    transferList : TransferList,
+    fileName : string | null) : Promise<any> {
     if (fileName === null) {
       fileName = this.options.fileName;
     }
@@ -305,7 +325,7 @@ class ThreadPool {
     // eslint-disable-next-line
     const ret = new Promise((res, rej) => { resolve = res; reject = rej; });
     const taskInfo = new TaskInfo(
-      task, fileName, (err : Error | null, result : any) => {
+      task, transferList, fileName, (err : Error | null, result : any) => {
         if (err !== null) {
           reject(err);
         } else {
@@ -425,8 +445,12 @@ class Piscina extends EventEmitter {
     this.#pool = new ThreadPool(this, options);
   }
 
-  runTask (task : any, fileName? : string) : Promise<any> {
-    return this.#pool.runTask(task, fileName || null);
+  runTask (task : any, transferList? : TransferList | string, fileName? : string) {
+    if (typeof transferList === 'string') {
+      fileName = transferList;
+      transferList = undefined;
+    }
+    return this.#pool.runTask(task, transferList, fileName || null);
   }
 
   destroy () {

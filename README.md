@@ -63,12 +63,15 @@ This class extends [`EventEmitter`][] from Node.js.
   * `useAtomics`: (`boolean`) Use the [`Atomics`][] API for faster communication
     between threads. This is on by default.
 
-### Method: `runTask(task[, fileName])`
+### Method: `runTask(task[, transferList][, fileName])`
 
 Schedules a task to be run on a Worker thread.
 
 * `task`: Any value. This will be passed to the function that is exported from
   `fileName`.
+* `transferList`: An optional lists of objects that is passed to
+  [`postMessage()`] when posting `task` to the Worker, which are transferred
+  rather than cloned.
 * `fileName`: Optionally overrides the `fileName` option passed to the
   constructor for this task. If no `fileName` was specified to the constructor,
   this is mandatory.
@@ -118,3 +121,4 @@ Provides the current version of this library as a semver string.
 
 [`Atomics`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Atomics
 [`EventEmitter`]: https://nodejs.org/api/events.html
+[`postMessage`]: https://nodejs.org/api/worker_threads.html#worker_threads_port_postmessage_value_transferlist
