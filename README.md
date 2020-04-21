@@ -34,6 +34,8 @@ module.exports = ({ a, b }) => {
 
 ## Class: `Piscina`
 
+This class extends [`EventEmitter`][] from Node.js.
+
 ### Constructor: `new Piscina([options])`
 
 * The following options are supported. All options are optional.
@@ -80,6 +82,14 @@ Stops all Workers and rejects all `Promise`s for pending tasks.
 
 This returns a `Promise` that is fulfilled once all threads have stopped.
 
+### Event: `'error'`
+
+An `'error'` event is emitted by instances of this class when:
+
+- Uncaught exceptions occur inside Worker threads that do not currently handle
+  tasks.
+- Unexpected messages are sent from from Worker threads.
+
 ### Property: `options` (readonly)
 
 A copy of the options that are currently being used by this instance. This
@@ -107,3 +117,4 @@ Provides the current version of this library as a semver string.
 * Anna Henningsen <anna@addaleax.net>
 
 [`Atomics`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Atomics
+[`EventEmitter`]: https://nodejs.org/api/events.html
