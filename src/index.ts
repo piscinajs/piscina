@@ -68,7 +68,7 @@ class TaskInfo extends AsyncResource {
     transferList : TransferList,
     fileName : string,
     callback : TaskCallback) {
-    super('Piscina.TaskInfo', { requireManualDestroy: false });
+    super('Piscina.Task', { requireManualDestroy: false });
     this.callback = callback;
     this.task = task;
     this.transferList = transferList;
