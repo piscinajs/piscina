@@ -128,14 +128,16 @@ class WorkerInfo {
     }
   }
 
-  ref () : void {
+  ref () : WorkerInfo {
     this.worker.ref();
     this.port.ref();
+    return this;
   }
 
-  unref () : void {
+  unref () : WorkerInfo {
     this.worker.unref();
     this.port.unref();
+    return this;
   }
 
   _handleResponse (message : ResponseMessage) : void {
