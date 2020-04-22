@@ -77,7 +77,8 @@ Schedules a task to be run on a Worker thread.
   this is mandatory.
 
 This returns a `Promise` for the return value of the (async) function call
-made to the function exported from `fileName`.
+made to the function exported from `fileName`. If the (async) function throws
+an error, the returned `Promise` will be rejected with that error.
 
 ### Method: `destroy()`
 
@@ -92,6 +93,9 @@ An `'error'` event is emitted by instances of this class when:
 - Uncaught exceptions occur inside Worker threads that do not currently handle
   tasks.
 - Unexpected messages are sent from from Worker threads.
+
+All other errors are reported by rejecting the `Promise` returned from
+`runTask()`, including rejections reported by the handler function itself.
 
 ### Property: `options` (readonly)
 
