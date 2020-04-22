@@ -62,7 +62,7 @@ function onMessage (
     try {
       const handler = await getHandler(fileName);
       if (handler === null) {
-        throw new Error(`No handler functionn exported from ${fileName}`);
+        throw new Error(`No handler function exported from ${fileName}`);
       }
       const result = await handler(task);
       response = {
@@ -74,6 +74,8 @@ function onMessage (
       response = {
         taskId,
         result: null,
+        // It may be worth taking a look at the error cloning algorithm we
+        // use in Node.js core here, it's quite a bit more flexible
         error
       };
     }
