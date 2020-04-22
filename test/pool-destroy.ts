@@ -6,7 +6,7 @@ import { resolve } from 'path';
 
 test('can destroy pool while tasks are running', async ({ rejects }) => {
   const pool = new Piscina({
-    fileName: resolve(__dirname, 'fixtures/eval.js')
+    filename: resolve(__dirname, 'fixtures/eval.js')
   });
   setImmediate(() => pool.destroy());
   await rejects(pool.runTask('while(1){}'), /Terminating worker thread/);

@@ -19,7 +19,7 @@ const cpuCount : number = (() => {
 
 interface Options {
   // Probably also support URL here
-  fileName? : string | null,
+  filename? : string | null,
   minThreads? : number,
   maxThreads? : number,
   idleTimeout? : number,
@@ -29,7 +29,7 @@ interface Options {
 }
 
 interface FilledOptions extends Options {
-  fileName : string | null,
+  filename : string | null,
   minThreads : number,
   maxThreads : number,
   idleTimeout : number,
@@ -39,7 +39,7 @@ interface FilledOptions extends Options {
 }
 
 const kDefaultOptions : FilledOptions = {
-  fileName: null,
+  filename: null,
   minThreads: Math.max(cpuCount / 2, 1),
   maxThreads: cpuCount * 1.5,
   idleTimeout: 0,
@@ -60,19 +60,19 @@ class TaskInfo extends AsyncResource {
   callback : TaskCallback;
   task : any;
   transferList : TransferList;
-  fileName : string;
+  filename : string;
   taskId : number;
 
   constructor (
     task : any,
     transferList : TransferList,
-    fileName : string,
+    filename : string,
     callback : TaskCallback) {
     super('Piscina.Task', { requireManualDestroy: false });
     this.callback = callback;
     this.task = task;
     this.transferList = transferList;
-    this.fileName = fileName;
+    this.filename = filename;
     this.taskId = taskIdCounter++;
   }
 
@@ -153,7 +153,7 @@ class WorkerInfo {
     const message : RequestMessage = {
       task: taskInfo.releaseTask(),
       taskId: taskInfo.taskId,
-      fileName: taskInfo.fileName
+      filename: taskInfo.filename
     };
 
     try {
@@ -222,7 +222,7 @@ class ThreadPool {
     const workerInfo = new WorkerInfo(worker, port1, onMessage);
 
     const message : WarmupMessage = {
-      fileName: this.options.fileName,
+      filename: this.options.filename,
       port: port2,
       sharedBuffer: workerInfo.sharedBuffer,
       useAtomics: this.options.useAtomics
@@ -313,13 +313,13 @@ class ThreadPool {
   runTask (
     task : any,
     transferList : TransferList,
-    fileName : string | null) : Promise<any> {
-    if (fileName === null) {
-      fileName = this.options.fileName;
+    filename : string | null) : Promise<any> {
+    if (filename === null) {
+      filename = this.options.filename;
     }
-    if (fileName === null) {
+    if (filename === null) {
       return Promise.reject(new Error(
-        'fileName must be provided to postTask() or in options object'));
+        'filename must be provided to postTask() or in options object'));
     }
 
     let resolve : (result : any) => void;
@@ -327,7 +327,7 @@ class ThreadPool {
     // eslint-disable-next-line
     const ret = new Promise((res, rej) => { resolve = res; reject = rej; });
     const taskInfo = new TaskInfo(
-      task, transferList, fileName, (err : Error | null, result : any) => {
+      task, transferList, filename, (err : Error | null, result : any) => {
         if (err !== null) {
           reject(err);
         } else {
@@ -410,8 +410,8 @@ class Piscina extends EventEmitter {
   constructor (options : Options = {}) {
     super(options as any);
 
-    if (typeof options.fileName !== 'string' && options.fileName != null) {
-      throw new TypeError('options.fileName must be a string or null');
+    if (typeof options.filename !== 'string' && options.filename != null) {
+      throw new TypeError('options.filename must be a string or null');
     }
     if (options.minThreads !== undefined &&
         (typeof options.minThreads !== 'number' || options.minThreads < 0)) {
@@ -447,12 +447,12 @@ class Piscina extends EventEmitter {
     this.#pool = new ThreadPool(this, options);
   }
 
-  runTask (task : any, transferList? : TransferList | string, fileName? : string) {
+  runTask (task : any, transferList? : TransferList | string, filename? : string) {
     if (typeof transferList === 'string') {
-      fileName = transferList;
+      filename = transferList;
       transferList = undefined;
     }
-    return this.#pool.runTask(task, transferList, fileName || null);
+    return this.#pool.runTask(task, transferList, filename || null);
   }
 
   destroy () {

@@ -32,7 +32,7 @@ test('postTask() calls the correct async hooks', async ({ is }) => {
   hook.enable();
 
   const pool = new Piscina({
-    fileName: resolve(__dirname, 'fixtures/eval.js')
+    filename: resolve(__dirname, 'fixtures/eval.js')
   });
 
   await pool.runTask('42');

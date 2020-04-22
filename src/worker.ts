@@ -5,13 +5,13 @@ commonState.isWorkerThread = true;
 const handlerCache : Map<string, Function> = new Map();
 let useAtomics : boolean = true;
 
-async function getHandler (fileName : string) : Promise<Function | null> {
-  let handler = handlerCache.get(fileName);
+async function getHandler (filename : string) : Promise<Function | null> {
+  let handler = handlerCache.get(filename);
   if (handler !== undefined) {
     return handler;
   }
 
-  handler = await import(fileName);
+  handler = await import(filename);
   if (typeof handler !== 'function') {
     handler = (handler as any).default;
   }
@@ -19,15 +19,15 @@ async function getHandler (fileName : string) : Promise<Function | null> {
     return null;
   }
 
-  handlerCache.set(fileName, handler);
+  handlerCache.set(filename, handler);
   return handler;
 }
 
 parentPort!.on('message', (message : WarmupMessage) => {
   useAtomics = message.useAtomics;
-  const { port, sharedBuffer, fileName } = message;
-  if (fileName !== null) {
-    getHandler(fileName).catch(throwInNextTick);
+  const { port, sharedBuffer, filename } = message;
+  if (filename !== null) {
+    getHandler(filename).catch(throwInNextTick);
   }
 
   port.on('message', onMessage.bind(null, port, sharedBuffer));
@@ -55,14 +55,14 @@ function onMessage (
   sharedBuffer : Int32Array,
   message : RequestMessage) {
   currentTasks++;
-  const { taskId, task, fileName } = message;
+  const { taskId, task, filename } = message;
 
   (async function () {
     let response : ResponseMessage;
     try {
-      const handler = await getHandler(fileName);
+      const handler = await getHandler(filename);
       if (handler === null) {
-        throw new Error(`No handler function exported from ${fileName}`);
+        throw new Error(`No handler function exported from ${filename}`);
       }
       const result = await handler(task);
       response = {

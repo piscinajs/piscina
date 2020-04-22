@@ -5,7 +5,7 @@ import { resolve } from 'path';
 
 test('will put items into a task queue until they can run', async ({ is }) => {
   const pool = new Piscina({
-    fileName: resolve(__dirname, 'fixtures/wait-for-notify.ts'),
+    filename: resolve(__dirname, 'fixtures/wait-for-notify.ts'),
     minThreads: 2,
     maxThreads: 3
   });
@@ -51,7 +51,7 @@ test('will put items into a task queue until they can run', async ({ is }) => {
 
 test('will reject items over task queue limit', async ({ is, rejects }) => {
   const pool = new Piscina({
-    fileName: resolve(__dirname, 'fixtures/eval.ts'),
+    filename: resolve(__dirname, 'fixtures/eval.ts'),
     minThreads: 0,
     maxThreads: 1,
     maxQueue: 2
@@ -78,7 +78,7 @@ test('will reject items over task queue limit', async ({ is, rejects }) => {
 
 test('will reject items when task queue is unavailable', async ({ is, rejects }) => {
   const pool = new Piscina({
-    fileName: resolve(__dirname, 'fixtures/eval.ts'),
+    filename: resolve(__dirname, 'fixtures/eval.ts'),
     minThreads: 0,
     maxThreads: 1,
     maxQueue: 0
@@ -97,7 +97,7 @@ test('will reject items when task queue is unavailable', async ({ is, rejects })
 
 test('tasks can share a Worker if requested (both tests blocking)', async ({ is, rejects }) => {
   const pool = new Piscina({
-    fileName: resolve(__dirname, 'fixtures/wait-for-notify.ts'),
+    filename: resolve(__dirname, 'fixtures/wait-for-notify.ts'),
     minThreads: 0,
     maxThreads: 1,
     maxQueue: 0,
@@ -120,7 +120,7 @@ test('tasks can share a Worker if requested (both tests blocking)', async ({ is,
 
 test('tasks can share a Worker if requested (one test finishes)', async ({ is, rejects }) => {
   const pool = new Piscina({
-    fileName: resolve(__dirname, 'fixtures/wait-for-notify.ts'),
+    filename: resolve(__dirname, 'fixtures/wait-for-notify.ts'),
     minThreads: 0,
     maxThreads: 1,
     maxQueue: 0,
@@ -157,7 +157,7 @@ test('tasks can share a Worker if requested (one test finishes)', async ({ is, r
 
 test('tasks can share a Worker if requested (both tests finish)', async ({ is }) => {
   const pool = new Piscina({
-    fileName: resolve(__dirname, 'fixtures/wait-for-notify.ts'),
+    filename: resolve(__dirname, 'fixtures/wait-for-notify.ts'),
     minThreads: 0,
     maxThreads: 1,
     maxQueue: 0,

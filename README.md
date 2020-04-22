@@ -15,7 +15,7 @@ In `main.js`:
 const Piscina = require('piscina');
 
 const piscina = new Piscina({
-  fileName: path.resolve(__dirname, 'worker.js');
+  filename: path.resolve(__dirname, 'worker.js');
 });
 
 (async function() {
@@ -39,7 +39,7 @@ This class extends [`EventEmitter`][] from Node.js.
 ### Constructor: `new Piscina([options])`
 
 * The following options are supported. All options are optional.
-  * `fileName`: (`string | null`) Provides the default source for the code that
+  * `filename`: (`string | null`) Provides the default source for the code that
     runs the tasks on Worker threads. This should be an absolute path to a file
     that exports a JavaScript `function` or `async function` as its default
     export or `module.exports`.
@@ -63,21 +63,21 @@ This class extends [`EventEmitter`][] from Node.js.
   * `useAtomics`: (`boolean`) Use the [`Atomics`][] API for faster communication
     between threads. This is on by default.
 
-### Method: `runTask(task[, transferList][, fileName])`
+### Method: `runTask(task[, transferList][, filename])`
 
 Schedules a task to be run on a Worker thread.
 
 * `task`: Any value. This will be passed to the function that is exported from
-  `fileName`.
+  `filename`.
 * `transferList`: An optional lists of objects that is passed to
   [`postMessage()`] when posting `task` to the Worker, which are transferred
   rather than cloned.
-* `fileName`: Optionally overrides the `fileName` option passed to the
-  constructor for this task. If no `fileName` was specified to the constructor,
+* `filename`: Optionally overrides the `filename` option passed to the
+  constructor for this task. If no `filename` was specified to the constructor,
   this is mandatory.
 
 This returns a `Promise` for the return value of the (async) function call
-made to the function exported from `fileName`. If the (async) function throws
+made to the function exported from `filename`. If the (async) function throws
 an error, the returned `Promise` will be rejected with that error.
 
 ### Method: `destroy()`
