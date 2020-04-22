@@ -18,7 +18,7 @@ test('Piscina.isWorkerThread has the correct value', async ({ is }) => {
 
 test('Piscina.isWorkerThread has the correct value (worker)', async ({ is }) => {
   const worker = new Piscina({
-    fileName: resolve(__dirname, 'fixtures/simple-isworkerthread.ts')
+    filename: resolve(__dirname, 'fixtures/simple-isworkerthread.ts')
   });
   const result = await worker.runTask(null);
   is(result, 'done');
@@ -43,7 +43,7 @@ test('Piscina constructor options are correctly set', async ({ is }) => {
 
 test('trivial eval() handler works', async ({ is }) => {
   const worker = new Piscina({
-    fileName: resolve(__dirname, 'fixtures/eval.js')
+    filename: resolve(__dirname, 'fixtures/eval.js')
   });
   const result = await worker.runTask('42');
   is(result, 42);
@@ -51,7 +51,7 @@ test('trivial eval() handler works', async ({ is }) => {
 
 test('async eval() handler works', async ({ is }) => {
   const worker = new Piscina({
-    fileName: resolve(__dirname, 'fixtures/eval.js')
+    filename: resolve(__dirname, 'fixtures/eval.js')
   });
   const result = await worker.runTask('Promise.resolve(42)');
   is(result, 42);
@@ -66,7 +66,7 @@ test('filename can be provided while posting', async ({ is }) => {
 });
 
 test('filename can be null when initially provided', async ({ is }) => {
-  const worker = new Piscina({ fileName: null });
+  const worker = new Piscina({ filename: null });
   const result = await worker.runTask(
     'Promise.resolve(42)',
     resolve(__dirname, 'fixtures/eval.js'));
@@ -76,5 +76,5 @@ test('filename can be null when initially provided', async ({ is }) => {
 test('filename must be provided while posting', async ({ rejects }) => {
   const worker = new Piscina();
   rejects(worker.runTask('doesn’t matter'),
-    /fileName must be provided to postTask\(\) or in options object/);
+    /filename must be provided to postTask\(\) or in options object/);
 });

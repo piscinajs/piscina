@@ -2,10 +2,10 @@
 import Piscina from '..';
 import { test } from 'tap';
 
-test('fileName cannot be non-null/non-string', async ({ throws }) => {
+test('filename cannot be non-null/non-string', async ({ throws }) => {
   throws(() => new Piscina(({
-    fileName: 12
-  }) as any), /options.fileName must be a string or null/);
+    filename: 12
+  }) as any), /options.filename must be a string or null/);
 });
 
 test('minThreads must be non-negative integer', async ({ throws }) => {

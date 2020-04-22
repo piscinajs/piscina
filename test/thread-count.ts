@@ -6,7 +6,7 @@ import { resolve } from 'path';
 
 test('will start with minThreads and max out at maxThreads', async ({ is, rejects }) => {
   const pool = new Piscina({
-    fileName: resolve(__dirname, 'fixtures/eval.js'),
+    filename: resolve(__dirname, 'fixtures/eval.js'),
     minThreads: 2,
     maxThreads: 4
   });
@@ -26,7 +26,7 @@ test('will start with minThreads and max out at maxThreads', async ({ is, reject
 
 test('low maxThreads sets minThreads', async ({ is }) => {
   const pool = new Piscina({
-    fileName: resolve(__dirname, 'fixtures/eval.js'),
+    filename: resolve(__dirname, 'fixtures/eval.js'),
     maxThreads: 1
   });
   is(pool.threads.length, 1);
@@ -38,7 +38,7 @@ test('high minThreads sets maxThreads', {
   skip: cpus().length > 8
 }, async ({ is }) => {
   const pool = new Piscina({
-    fileName: resolve(__dirname, 'fixtures/eval.js'),
+    filename: resolve(__dirname, 'fixtures/eval.js'),
     minThreads: 16
   });
   is(pool.threads.length, 16);

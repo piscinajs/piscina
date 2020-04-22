@@ -13,7 +13,7 @@ const delay = promisify(setTimeout);
 
 test('idle timeout will let go of threads early', async ({ is }) => {
   const pool = new Piscina({
-    fileName: resolve(__dirname, 'fixtures/eval.js'),
+    filename: resolve(__dirname, 'fixtures/eval.js'),
     idleTimeout: 2000,
     minThreads: 1,
     maxThreads: 2

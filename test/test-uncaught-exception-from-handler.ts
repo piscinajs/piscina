@@ -7,14 +7,14 @@ import { once } from 'events';
 
 test('uncaught exception resets Worker', async ({ rejects }) => {
   const pool = new Piscina({
-    fileName: resolve(__dirname, 'fixtures/eval.js')
+    filename: resolve(__dirname, 'fixtures/eval.js')
   });
   await rejects(pool.runTask('throw new Error("not_caught")'), /not_caught/);
 });
 
 test('uncaught exception in immediate resets Worker', async ({ rejects }) => {
   const pool = new Piscina({
-    fileName: resolve(__dirname, 'fixtures/eval.js')
+    filename: resolve(__dirname, 'fixtures/eval.js')
   });
   await rejects(
     pool.runTask(`
@@ -25,7 +25,7 @@ test('uncaught exception in immediate resets Worker', async ({ rejects }) => {
 
 test('uncaught exception in immediate after task yields error event', async ({ is }) => {
   const pool = new Piscina({
-    fileName: resolve(__dirname, 'fixtures/eval.js'),
+    filename: resolve(__dirname, 'fixtures/eval.js'),
     maxThreads: 1,
     useAtomics: false
   });
@@ -49,7 +49,7 @@ test('uncaught exception in immediate after task yields error event', async ({ i
 
 test('using parentPort is treated as an error', async ({ rejects }) => {
   const pool = new Piscina({
-    fileName: resolve(__dirname, 'fixtures/eval.js')
+    filename: resolve(__dirname, 'fixtures/eval.js')
   });
   await rejects(
     pool.runTask(`

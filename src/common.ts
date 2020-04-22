@@ -1,7 +1,7 @@
 import type { MessagePort } from 'worker_threads';
 
 export interface WarmupMessage {
-  fileName : string | null;
+  filename : string | null;
   port : MessagePort;
   sharedBuffer : Int32Array;
   useAtomics : boolean;
@@ -10,7 +10,7 @@ export interface WarmupMessage {
 export interface RequestMessage {
   taskId : number;
   task : any;
-  fileName: string;
+  filename: string;
 }
 
 export interface ResponseMessage {
