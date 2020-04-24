@@ -1,6 +1,6 @@
 import type { MessagePort } from 'worker_threads';
 
-export interface WarmupMessage {
+export interface StartupMessage {
   filename : string | null;
   port : MessagePort;
   sharedBuffer : Int32Array;

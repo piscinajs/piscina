@@ -1,12 +1,15 @@
-import { Worker, MessageChannel, MessagePort, receiveMessageOnPort } from 'worker_threads';
+import { Worker, MessageChannel, MessagePort } from 'worker_threads'; // eslint-disable-line
 import { EventEmitter, once } from 'events';
 import { AsyncResource } from 'async_hooks';
 import { cpus } from 'os';
 import { resolve } from 'path';
 import { inspect } from 'util';
 import assert from 'assert';
-import { RequestMessage, ResponseMessage, WarmupMessage, commonState, kResponseCountField, kRequestCountField, kFieldCount } from './common';
+import { RequestMessage, ResponseMessage, StartupMessage, commonState, kResponseCountField, kRequestCountField, kFieldCount } from './common';
 import { version } from '../package.json';
+// TODO(addaleax): Undo when https://github.com/DefinitelyTyped/DefinitelyTyped/pull/44034 is released.
+import wt from 'worker_threads'; // eslint-disable-line
+const { receiveMessageOnPort } = wt as any;
 
 const cpuCount : number = (() => {
   try {
@@ -56,6 +59,8 @@ type TaskCallback = (err : Error, result: any) => void;
 // our types here every time Node.js adds support for more objects.
 type TransferList = MessagePort extends { postMessage(value : any, transferList : infer T) : any; } ? T : never;
 
+// Extend AsyncResource so that async relations between posting a task and
+// receiving its result are visible to diagnostic tools.
 class TaskInfo extends AsyncResource {
   callback : TaskCallback;
   task : any;
@@ -109,7 +114,8 @@ class WorkerInfo {
       (message : ResponseMessage) => this._handleResponse(message));
     this.onMessage = onMessage;
     this.taskInfos = new Map();
-    this.sharedBuffer = new Int32Array(new SharedArrayBuffer(kFieldCount * 4));
+    this.sharedBuffer = new Int32Array(
+      new SharedArrayBuffer(kFieldCount * Int32Array.BYTES_PER_ELEMENT));
   }
 
   destroy () : void {
@@ -144,6 +150,8 @@ class WorkerInfo {
     this.onMessage(message);
 
     if (this.taskInfos.size === 0) {
+      // No more tasks running on this Worker means it should not keep the
+      // process running.
       this.unref();
     }
   }
@@ -159,6 +167,8 @@ class WorkerInfo {
     try {
       this.port.postMessage(message, taskInfo.transferList);
     } catch (err) {
+      // This would mostly happen if e.g. message contains unserializable data
+      // or transferList is invalid.
       taskInfo.done(err);
       return;
     }
@@ -166,11 +176,19 @@ class WorkerInfo {
     this.taskInfos.set(taskInfo.taskId, taskInfo);
     this.ref();
     this.clearIdleTimeout();
+
+    // Inform the worker that there are new messages posted, and wake it up
+    // if it is waiting for one.
     Atomics.add(this.sharedBuffer, kRequestCountField, 1);
     Atomics.notify(this.sharedBuffer, kRequestCountField, 1);
   }
 
   processPendingMessages () {
+    // If we *know* that there are more messages than we have received using
+    // 'message' events yet, then try to load and handle them synchronously,
+    // without the need to wait for more expensive events on the event loop.
+    // This would usually break async tracking, but in our case, we already have
+    // the extra TaskInfo/AsyncResource layer that rectifies that situation.
     const actualResponseCount =
       Atomics.load(this.sharedBuffer, kResponseCountField);
     if (actualResponseCount !== this.lastSeenResponseCount) {
@@ -221,7 +239,7 @@ class ThreadPool {
     const { port1, port2 } = new MessageChannel();
     const workerInfo = new WorkerInfo(worker, port1, onMessage);
 
-    const message : WarmupMessage = {
+    const message : StartupMessage = {
       filename: this.options.filename,
       port: port2,
       sharedBuffer: workerInfo.sharedBuffer,
@@ -257,7 +275,7 @@ class ThreadPool {
 
     worker.on('message', (message) => {
       worker.emit('error', new Error(
-          `Unexpected message on Worker: ${inspect(message)}`));
+        `Unexpected message on Worker: ${inspect(message)}`));
     });
 
     worker.on('error', (err : Error) => {
