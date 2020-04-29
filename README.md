@@ -1,5 +1,7 @@
 # piscina - the node.js worker pool
 
+![CI](https://github.com/jasnell/piscina/workflows/CI/badge.svg)
+
 * ✔ Fast communication between threads
 * ✔ Covers both fixed-task and variable-task scenarios
 * ✔ Supports flexible pool sizes
