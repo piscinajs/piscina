@@ -19,7 +19,7 @@ In `main.js`:
 const Piscina = require('piscina');
 
 const piscina = new Piscina({
-  filename: path.resolve(__dirname, 'worker.js');
+  filename: path.resolve(__dirname, 'worker.js')
 });
 
 (async function() {

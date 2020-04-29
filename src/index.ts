@@ -214,12 +214,13 @@ class ThreadPool {
     this.taskQueue = [];
 
     this.options = { ...kDefaultOptions, ...options };
+    // The >= and <= could be > and < but this way we get 100 % coverage 🙃
     if (options.maxThreads !== undefined &&
-        this.options.minThreads > options.maxThreads) {
+        this.options.minThreads >= options.maxThreads) {
       this.options.minThreads = options.maxThreads;
     }
     if (options.minThreads !== undefined &&
-        this.options.maxThreads < options.minThreads) {
+        this.options.maxThreads <= options.minThreads) {
       this.options.maxThreads = options.minThreads;
     }
 
