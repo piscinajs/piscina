@@ -122,7 +122,7 @@ Provides the current version of this library as a semver string.
 
 ## The Team
 
-* James M Snell <piscina@jasnell.me>
+* James M Snell <jasnell@gmail.com>
 * Anna Henningsen <anna@addaleax.net>
 
 [`Atomics`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Atomics
