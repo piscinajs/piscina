@@ -38,7 +38,7 @@ This class extends [`EventEmitter`][] from Node.js.
 
 ### Constructor: `new Piscina([options])`
 
-* The following options are supported. All options are optional.
+* The following optional configuration is supported:
   * `filename`: (`string | null`) Provides the default source for the code that
     runs the tasks on Worker threads. This should be an absolute path to a file
     that exports a JavaScript `function` or `async function` as its default
