@@ -7,6 +7,8 @@
 * ✔ Supports flexible pool sizes
 * ✔ Proper async tracking integration
 
+[MIT Licensed][].
+
 ## Piscina API
 
 ### Example
@@ -125,6 +127,12 @@ Provides the current version of this library as a semver string.
 * James M Snell <jasnell@gmail.com>
 * Anna Henningsen <anna@addaleax.net>
 
+## Acknowledgements
+
+Piscina development is sponsored by [NearForm Research][].
+
 [`Atomics`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Atomics
 [`EventEmitter`]: https://nodejs.org/api/events.html
 [`postMessage`]: https://nodejs.org/api/worker_threads.html#worker_threads_port_postmessage_value_transferlist
+[MIT Licensed]: LICENSE.md
+[NearForm Research]: https://www.nearform.com/research/
