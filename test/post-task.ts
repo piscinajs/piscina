@@ -39,3 +39,30 @@ test('postTask() resolves with a rejection when the handler throws', async ({ re
 
   rejects(pool.runTask('throw new Error("foo")'), /foo/);
 });
+
+test('postTask() validates transferList', async ({ rejects }) => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js')
+  });
+
+  rejects(pool.runTask('0', 42 as any),
+    /transferList argument must be an Array/);
+});
+
+test('postTask() validates filename', async ({ rejects }) => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js')
+  });
+
+  rejects(pool.runTask('0', [], 42 as any),
+    /filename argument must be a string/);
+});
+
+test('postTask() validates abortSignal', async ({ rejects }) => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js')
+  });
+
+  rejects(pool.runTask('0', [], undefined, 42 as any),
+    /abortSignal argument must be an object/);
+});

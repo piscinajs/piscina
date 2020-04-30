@@ -20,6 +20,26 @@ const cpuCount : number = (() => {
   }
 })();
 
+interface AbortSignalEventTarget {
+  addEventListener : (name : 'abort', listener : () => void) => void;
+}
+interface AbortSignalEventEmitter {
+  on : (name : 'abort', listener : () => void) => void;
+}
+type AbortSignalAny = AbortSignalEventTarget | AbortSignalEventEmitter;
+function onabort (abortSignal : AbortSignalAny, listener : () => void) {
+  if ('addEventListener' in abortSignal) {
+    abortSignal.addEventListener('abort', listener);
+  } else {
+    abortSignal.on('abort', listener);
+  }
+}
+class AbortError extends Error {
+  constructor () {
+    super('The task has been aborted');
+  }
+}
+
 interface Options {
   // Probably also support URL here
   filename? : string | null,
@@ -67,18 +87,22 @@ class TaskInfo extends AsyncResource {
   transferList : TransferList;
   filename : string;
   taskId : number;
+  abortSignal : AbortSignalAny | null;
+  workerInfo : WorkerInfo | null = null;
 
   constructor (
     task : any,
     transferList : TransferList,
     filename : string,
-    callback : TaskCallback) {
+    callback : TaskCallback,
+    abortSignal : AbortSignalAny | null) {
     super('Piscina.Task', { requireManualDestroy: false });
     this.callback = callback;
     this.task = task;
     this.transferList = transferList;
     this.filename = filename;
     this.taskId = taskIdCounter++;
+    this.abortSignal = abortSignal;
   }
 
   releaseTask () : any {
@@ -173,6 +197,7 @@ class WorkerInfo {
       return;
     }
 
+    taskInfo.workerInfo = this;
     this.taskInfos.set(taskInfo.taskId, taskInfo);
     this.ref();
     this.clearIdleTimeout();
@@ -199,6 +224,13 @@ class WorkerInfo {
         this._handleResponse(entry.message);
       }
     }
+  }
+
+  isRunningAbortableTask () : boolean {
+    // If there are abortable tasks, we are running one at most per Worker.
+    if (this.taskInfos.size !== 1) return false;
+    const [[, task]] = this.taskInfos;
+    return task.abortSignal !== null;
   }
 }
 
@@ -229,7 +261,7 @@ class ThreadPool {
 
   _ensureMinimumWorkers () : void {
     while (this.workers.length < this.options.minThreads) {
-      this._addNewWorker();
+      this._onWorkerFree(this._addNewWorker());
     }
   }
 
@@ -328,17 +360,17 @@ class ThreadPool {
     }
   }
 
-  // Implement some kind of task cancellation mechanism?
   runTask (
     task : any,
     transferList : TransferList,
-    filename : string | null) : Promise<any> {
+    filename : string | null,
+    abortSignal : AbortSignalAny | null) : Promise<any> {
     if (filename === null) {
       filename = this.options.filename;
     }
-    if (filename === null) {
+    if (typeof filename !== 'string') {
       return Promise.reject(new Error(
-        'filename must be provided to postTask() or in options object'));
+        'filename must be provided to runTask() or in options object'));
     }
 
     let resolve : (result : any) => void;
@@ -352,7 +384,28 @@ class ThreadPool {
         } else {
           resolve(result);
         }
+      },
+      abortSignal);
+
+    if (abortSignal !== null) {
+      onabort(abortSignal, () => {
+        // Call reject() first to make sure we always reject with the AbortError
+        // if the task is aborted, not with an Error from the possible
+        // thread termination below.
+        reject(new AbortError());
+
+        if (taskInfo.workerInfo !== null) {
+          // Already running: We cancel the Worker this is running on.
+          this._removeWorker(taskInfo.workerInfo);
+          this._ensureMinimumWorkers();
+        } else {
+          // Not yet running: Remove it from the queue.
+          const index = this.taskQueue.indexOf(taskInfo);
+          assert.notStrictEqual(index, -1);
+          this.taskQueue.splice(index, 1);
+        }
       });
+    }
 
     // If there is a task queue, there's no point in looking for an available
     // Worker thread. Add this task to the queue, if possible.
@@ -370,7 +423,8 @@ class ThreadPool {
     let workerInfo : WorkerInfo | null = null;
     let minimumCurrentTasks = Infinity;
     for (const candidate of this.workers) {
-      if (candidate.taskInfos.size < minimumCurrentTasks) {
+      if (candidate.taskInfos.size < minimumCurrentTasks &&
+          !candidate.isRunningAbortableTask()) {
         workerInfo = candidate;
         minimumCurrentTasks = candidate.taskInfos.size;
         if (minimumCurrentTasks === 0) break;
@@ -378,7 +432,10 @@ class ThreadPool {
     }
 
     // If all Workers are at maximum usage, do not use any of them.
-    if (minimumCurrentTasks >= this.options.concurrentTasksPerWorker) {
+    // If we want the ability to abort this task, use only workers that have
+    // no running tasks.
+    if (minimumCurrentTasks >= this.options.concurrentTasksPerWorker ||
+        (minimumCurrentTasks > 0 && abortSignal)) {
       workerInfo = null;
     }
 
@@ -466,12 +523,34 @@ class Piscina extends EventEmitter {
     this.#pool = new ThreadPool(this, options);
   }
 
-  runTask (task : any, transferList? : TransferList | string, filename? : string) {
-    if (typeof transferList === 'string') {
+  runTask (task : any, transferList? : TransferList | string | AbortSignalAny, filename? : string | AbortSignalAny, abortSignal? : AbortSignalAny) {
+    // If transferList is a string or AbortSignal, shift it.
+    if ((typeof transferList === 'object' && !Array.isArray(transferList)) ||
+        typeof transferList === 'string') {
+      abortSignal = filename as (AbortSignalAny | undefined);
       filename = transferList;
       transferList = undefined;
     }
-    return this.#pool.runTask(task, transferList, filename || null);
+    // If filename is an AbortSignal, shift it.
+    if (typeof filename === 'object' && !Array.isArray(filename)) {
+      abortSignal = filename;
+      filename = undefined;
+    }
+
+    if (transferList !== undefined && !Array.isArray(transferList)) {
+      return Promise.reject(
+        new TypeError('transferList argument must be an Array'));
+    }
+    if (filename !== undefined && typeof filename !== 'string') {
+      return Promise.reject(
+        new TypeError('filename argument must be a string'));
+    }
+    if (abortSignal !== undefined && typeof abortSignal !== 'object') {
+      return Promise.reject(
+        new TypeError('abortSignal argument must be an object'));
+    }
+    return this.#pool.runTask(
+      task, transferList, filename || null, abortSignal || null);
   }
 
   destroy () {
