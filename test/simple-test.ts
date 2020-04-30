@@ -76,5 +76,5 @@ test('filename can be null when initially provided', async ({ is }) => {
 test('filename must be provided while posting', async ({ rejects }) => {
   const worker = new Piscina();
   rejects(worker.runTask('doesn’t matter'),
-    /filename must be provided to postTask\(\) or in options object/);
+    /filename must be provided to runTask\(\) or in options object/);
 });

@@ -67,7 +67,7 @@ This class extends [`EventEmitter`][] from Node.js.
   * `useAtomics`: (`boolean`) Use the [`Atomics`][] API for faster communication
     between threads. This is on by default.
 
-### Method: `runTask(task[, transferList][, filename])`
+### Method: `runTask(task[, transferList][, filename][, abortSignal])`
 
 Schedules a task to be run on a Worker thread.
 
@@ -79,10 +79,17 @@ Schedules a task to be run on a Worker thread.
 * `filename`: Optionally overrides the `filename` option passed to the
   constructor for this task. If no `filename` was specified to the constructor,
   this is mandatory.
+* `abortSignal`: An [`AbortSignal`][] instance. If passed, this can be used to
+  cancel a task, including already running ones.
+  (More generally, any `EventEmitter` or `EventTarget` that emits `'abort'`
+  events can be passed here.) Abortable tasks cannot share threads regardless
+  of the `concurrentTasksPerWorker` options.
 
 This returns a `Promise` for the return value of the (async) function call
 made to the function exported from `filename`. If the (async) function throws
 an error, the returned `Promise` will be rejected with that error.
+If the task is aborted, the returned `Promise` is rejected with an error
+as well.
 
 ### Method: `destroy()`
 
