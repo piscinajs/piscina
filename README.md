@@ -80,7 +80,8 @@ Schedules a task to be run on a Worker thread.
   constructor for this task. If no `filename` was specified to the constructor,
   this is mandatory.
 * `abortSignal`: An [`AbortSignal`][] instance. If passed, this can be used to
-  cancel a task, including already running ones.
+  cancel a task. If the task is already running, the corresponding `Worker`
+  thread will be stopped.
   (More generally, any `EventEmitter` or `EventTarget` that emits `'abort'`
   events can be passed here.) Abortable tasks cannot share threads regardless
   of the `concurrentTasksPerWorker` options.

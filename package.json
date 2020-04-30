@@ -9,7 +9,7 @@
     "build": "tsc",
     "lint": "standardx \"**/*.ts\" | snazzy",
     "test": "npm run lint && npm run build && npm run test-only",
-    "test-only": "cross-env TS_NODE_PROJECT=test/tsconfig.json tap --ts --no-browser --coverage-report=html --coverage-report=text --100 --jobs=2 test/*.ts",
+    "test-only": "tap",
     "prepack": "npm run build"
   },
   "repository": {
@@ -32,7 +32,6 @@
     "@typescript-eslint/eslint-plugin": "^2.28.0",
     "@typescript-eslint/parser": "^2.28.0",
     "abort-controller": "^3.0.0",
-    "cross-env": "^7.0.2",
     "snazzy": "^8.0.0",
     "standardx": "^5.0.0",
     "tap": "^14.10.7",

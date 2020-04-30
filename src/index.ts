@@ -389,7 +389,11 @@ class ThreadPool {
 
     if (abortSignal !== null) {
       onabort(abortSignal, () => {
+        // Call reject() first to make sure we always reject with the AbortError
+        // if the task is aborted, not with an Error from the possible
+        // thread termination below.
         reject(new AbortError());
+
         if (taskInfo.workerInfo !== null) {
           // Already running: We cancel the Worker this is running on.
           this._removeWorker(taskInfo.workerInfo);
