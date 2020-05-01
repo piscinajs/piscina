@@ -1,0 +1,18 @@
+{
+  "name": "tmp",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "train": "node train",
+    "unpooled": "node -r ./monitor unpooled",
+    "pooled": "node  -r ./monitor pooled"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@tensorflow/tfjs-node": "^1.7.4",
+    "csv-parse": "^4.9.0"
+  }
+}
