@@ -56,7 +56,11 @@ interface Options {
   maxQueue? : number,
   concurrentTasksPerWorker? : number,
   useAtomics? : boolean,
-  resourceLimits? : ResourceLimits
+  resourceLimits? : ResourceLimits,
+  argv? : string[],
+  execArgv? : string[],
+  env? : any,
+  workerData? : any,
 }
 
 interface FilledOptions extends Options {
@@ -285,7 +289,11 @@ class ThreadPool {
   _addNewWorker () : WorkerInfo {
     const pool = this;
     const worker = new Worker(resolve(__dirname, 'worker.js'), {
-      resourceLimits: this.options.resourceLimits
+      env: this.options.env,
+      argv: this.options.argv,
+      execArgv: this.options.execArgv,
+      resourceLimits: this.options.resourceLimits,
+      workerData: this.options.workerData
     });
 
     const { port1, port2 } = new MessageChannel();
@@ -620,6 +628,10 @@ class Piscina extends EventEmitter {
 
   static get isWorkerThread () : boolean {
     return commonState.isWorkerThread;
+  }
+
+  static get workerData () : any {
+    return commonState.workerData;
   }
 
   static get version () : string {

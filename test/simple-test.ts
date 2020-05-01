@@ -78,3 +78,50 @@ test('filename must be provided while posting', async ({ rejects }) => {
   rejects(worker.runTask('doesn’t matter'),
     /filename must be provided to runTask\(\) or in options object/);
 });
+
+test('passing env to workers works', async ({ same }) => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js'),
+    env: { A: 'foo' }
+  });
+
+  const env = await pool.runTask('({...process.env})');
+  same(env, { A: 'foo' });
+});
+
+test('passing argv to workers works', async ({ same }) => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js'),
+    argv: ['a', 'b', 'c']
+  });
+
+  const env = await pool.runTask('process.argv.slice(2)');
+  same(env, ['a', 'b', 'c']);
+});
+
+test('passing execArgv to workers works', async ({ same }) => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js'),
+    execArgv: ['--no-warnings']
+  });
+
+  const env = await pool.runTask('process.execArgv');
+  same(env, ['--no-warnings']);
+});
+
+test('passing valid workerData works', async ({ is }) => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/simple-workerdata.ts'),
+    workerData: 'ABC'
+  });
+  is(Piscina.workerData, undefined);
+
+  await pool.runTask(null);
+});
+
+test('passing invalid workerData does not work', async ({ throws }) => {
+  throws(() => new Piscina(({
+    filename: resolve(__dirname, 'fixtures/simple-workerdata.ts'),
+    workerData: process.env
+  }) as any), /Cannot transfer object of unsupported type./);
+});
