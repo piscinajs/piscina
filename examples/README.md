@@ -1,3 +1,0 @@
-# Piscina Examples
-
-TBD
