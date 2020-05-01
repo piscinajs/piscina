@@ -75,3 +75,9 @@ test('useAtomics must be a boolean', async ({ throws }) => {
     useAtomics: 'string'
   }) as any), /options.useAtomics must be a boolean/);
 });
+
+test('resourceLimits must be an object', async ({ throws }) => {
+  throws(() => new Piscina(({
+    resourceLimits: 0
+  }) as any), /options.resourceLimits must be an object/);
+});
