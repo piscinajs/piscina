@@ -43,6 +43,10 @@ class AbortError extends Error {
   }
 }
 
+type ResourceLimits = Worker extends {
+  resourceLimits? : infer T;
+} ? T : {};
+
 interface Options {
   // Probably also support URL here
   filename? : string | null,
@@ -50,8 +54,9 @@ interface Options {
   maxThreads? : number,
   idleTimeout? : number,
   maxQueue? : number,
-  concurrentTasksPerWorker? : number
-  useAtomics? : boolean
+  concurrentTasksPerWorker? : number,
+  useAtomics? : boolean,
+  resourceLimits? : ResourceLimits
 }
 
 interface FilledOptions extends Options {
@@ -279,7 +284,9 @@ class ThreadPool {
 
   _addNewWorker () : WorkerInfo {
     const pool = this;
-    const worker = new Worker(resolve(__dirname, 'worker.js'));
+    const worker = new Worker(resolve(__dirname, 'worker.js'), {
+      resourceLimits: this.options.resourceLimits
+    });
 
     const { port1, port2 } = new MessageChannel();
     const workerInfo = new WorkerInfo(worker, port1, onMessage);
@@ -541,6 +548,11 @@ class Piscina extends EventEmitter {
     if (options.useAtomics !== undefined &&
         typeof options.useAtomics !== 'boolean') {
       throw new TypeError('options.useAtomics must be a boolean value');
+    }
+    if (options.resourceLimits !== undefined &&
+        (typeof options.resourceLimits !== 'object' ||
+         options.resourceLimits === null)) {
+      throw new TypeError('options.resourceLimits must be an object');
     }
 
     this.#pool = new ThreadPool(this, options);

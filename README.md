@@ -8,6 +8,7 @@
 * ✔ Proper async tracking integration
 * ✔ Tracking statistics for run and wait times
 * ✔ Cancelation Support
+* ✔ Supports enforcing memory resource limits
 
 For Node.js 12.x and higher.
 
@@ -147,6 +148,16 @@ This class extends [`EventEmitter`][] from Node.js.
     handling I/O in parallel.
   * `useAtomics`: (`boolean`) Use the [`Atomics`][] API for faster communication
     between threads. This is on by default.
+  * `resourceLimits`: (`object`)
+    * `maxOldGenerationSizeMb`: (`number`) The maximum size of each worker threads
+      main heap in MB.
+    * `maxYoungGenerationSizeMb`: (`number`) The maximum size of a heap space for
+      recently created objects.
+    * `codeRangeSizeMb`: (`number`) The size of a pre-allocated memory range used
+      for generated code.
+
+Use caution when setting resource limits. Setting limits that are too low may
+result in the `Piscina` worker threads being unusable.
 
 ### Method: `runTask(task[, transferList][, filename][, abortSignal])`
 
