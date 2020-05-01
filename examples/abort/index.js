@@ -1,6 +1,6 @@
 'use strict';
 
-const Piscina = require('../../dist/src');
+const Piscina = require('../..');
 const { AbortController } = require('abort-controller');
 const { resolve } = require('path');
 

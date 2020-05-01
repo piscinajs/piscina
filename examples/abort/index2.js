@@ -1,6 +1,6 @@
 'use strict';
 
-const Piscina = require('../../dist/src');
+const Piscina = require('../..');
 const EventEmitter = require('events');
 const { resolve } = require('path');
 

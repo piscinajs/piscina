@@ -1,6 +1,6 @@
 'use strict';
 
-const Piscina = require('../../dist/src');
+const Piscina = require('../..');
 const { resolve } = require('path');
 
 const piscina = new Piscina({
