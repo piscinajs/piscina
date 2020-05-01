@@ -148,7 +148,7 @@ This class extends [`EventEmitter`][] from Node.js.
     handling I/O in parallel.
   * `useAtomics`: (`boolean`) Use the [`Atomics`][] API for faster communication
     between threads. This is on by default.
-  * `resourceLimits`: (`object`)
+  * `resourceLimits`: (`object`) See [Node.js new Worker options][]
     * `maxOldGenerationSizeMb`: (`number`) The maximum size of each worker threads
       main heap in MB.
     * `maxYoungGenerationSizeMb`: (`number`) The maximum size of a heap space for
@@ -346,5 +346,6 @@ Piscina development is sponsored by [NearForm Research][].
 [`Atomics`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Atomics
 [`EventEmitter`]: https://nodejs.org/api/events.html
 [`postMessage`]: https://nodejs.org/api/worker_threads.html#worker_threads_port_postmessage_value_transferlist
+[Node.js new Worker options]: https://nodejs.org/api/worker_threads.html#worker_threads_new_worker_filename_options
 [MIT Licensed]: LICENSE.md
 [NearForm Research]: https://www.nearform.com/research/
