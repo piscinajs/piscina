@@ -9,6 +9,8 @@
 * ✔ Tracking statistics for run and wait times
 * ✔ Cancelation Support
 
+For Node.js 12.x and higher.
+
 [MIT Licensed][].
 
 ## Introduction
@@ -326,6 +328,7 @@ for example).
 
 * James M Snell <jasnell@gmail.com>
 * Anna Henningsen <anna@addaleax.net>
+* Matteo Collina <matteo.collina@gmail.com>
 
 ## Acknowledgements
 

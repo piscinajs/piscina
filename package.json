@@ -1,6 +1,6 @@
 {
   "name": "piscina",
-  "version": "1.0.0-pre",
+  "version": "1.0.0",
   "description": "A fast, efficient Node.js Worker Thread Pool implementation",
   "main": "./dist/src/index.js",
   "exports": "./dist/src/index.js",
@@ -22,9 +22,10 @@
     "thread pool",
     "wade wilson"
   ],
-  "author": "James M Snell <piscina@jasnell.me>",
+  "author": "James M Snell <jasnell@gmail.com>",
   "contributors": [
-    "Anna Henningsen <anna@addaleax.net>"
+    "Anna Henningsen <anna@addaleax.net>",
+    "Matteo Collina <matteo.collina@gmail.com>"
   ],
   "license": "MIT",
   "devDependencies": {
