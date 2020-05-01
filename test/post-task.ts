@@ -12,6 +12,7 @@ test('postTask() can transfer ArrayBuffer instances', async ({ is }) => {
 
   const ab = new ArrayBuffer(40);
   await pool.runTask({ ab }, [ab]);
+  is(pool.completed, 1);
   is(ab.byteLength, 0);
 });
 

@@ -5,6 +5,9 @@ import { cpus } from 'os';
 import { resolve } from 'path';
 import { inspect } from 'util';
 import assert from 'assert';
+import { Histogram, build } from 'hdr-histogram-js';
+import { performance } from 'perf_hooks';
+import hdrobj from 'hdr-histogram-percentiles-obj';
 import { RequestMessage, ResponseMessage, StartupMessage, commonState, kResponseCountField, kRequestCountField, kFieldCount } from './common';
 import { version } from '../package.json';
 // TODO(addaleax): Undo when https://github.com/DefinitelyTyped/DefinitelyTyped/pull/44034 is released.
@@ -89,6 +92,8 @@ class TaskInfo extends AsyncResource {
   taskId : number;
   abortSignal : AbortSignalAny | null;
   workerInfo : WorkerInfo | null = null;
+  created : number;
+  started : number;
 
   constructor (
     task : any,
@@ -103,6 +108,8 @@ class TaskInfo extends AsyncResource {
     this.filename = filename;
     this.taskId = taskIdCounter++;
     this.abortSignal = abortSignal;
+    this.created = performance.now();
+    this.started = 0;
   }
 
   releaseTask () : any {
@@ -239,11 +246,16 @@ class ThreadPool {
   workers : WorkerInfo[];
   options : FilledOptions;
   taskQueue : TaskInfo[]; // Maybe turn this into a priority queue?
+  completed : number = 0;
+  runTime : Histogram;
+  waitTime : Histogram;
 
   constructor (publicInterface : Piscina, options : Options) {
     this.publicInterface = publicInterface;
     this.workers = [];
     this.taskQueue = [];
+    this.runTime = build({ lowestDiscernibleValue: 1 });
+    this.waitTime = build({ lowestDiscernibleValue: 1 });
 
     this.options = { ...kDefaultOptions, ...options };
     // The >= and <= could be > and < but this way we get 100 % coverage 🙃
@@ -345,7 +357,11 @@ class ThreadPool {
 
   _onWorkerFree (workerInfo : WorkerInfo) : void {
     if (this.taskQueue.length > 0) {
-      workerInfo.postTask(this.taskQueue.shift() as TaskInfo);
+      const taskInfo = this.taskQueue.shift() as TaskInfo;
+      const now = performance.now();
+      this.waitTime.recordValue(now - taskInfo.created);
+      taskInfo.started = now;
+      workerInfo.postTask(taskInfo);
       return;
     }
 
@@ -379,6 +395,10 @@ class ThreadPool {
     const ret = new Promise((res, rej) => { resolve = res; reject = rej; });
     const taskInfo = new TaskInfo(
       task, transferList, filename, (err : Error | null, result : any) => {
+        this.completed++;
+        if (taskInfo.started) {
+          this.runTime.recordValue(performance.now() - taskInfo.started);
+        }
         if (err !== null) {
           reject(err);
         } else {
@@ -460,6 +480,9 @@ class ThreadPool {
       return ret;
     }
 
+    const now = performance.now();
+    this.waitTime.recordValue(now - taskInfo.created);
+    taskInfo.started = now;
     workerInfo.postTask(taskInfo);
     return ret;
   }
@@ -567,6 +590,20 @@ class Piscina extends EventEmitter {
 
   get queueSize () : number {
     return this.#pool.taskQueue.length;
+  }
+
+  get completed () : number {
+    return this.#pool.completed;
+  }
+
+  get waitTime () : any {
+    const result = hdrobj.histAsObj(this.#pool.waitTime);
+    return hdrobj.addPercentiles(this.#pool.waitTime, result);
+  }
+
+  get runTime () : any {
+    const result = hdrobj.histAsObj(this.#pool.runTime);
+    return hdrobj.addPercentiles(this.#pool.runTime, result);
   }
 
   static get isWorkerThread () : boolean {
