@@ -109,6 +109,10 @@ An `'error'` event is emitted by instances of this class when:
 All other errors are reported by rejecting the `Promise` returned from
 `runTask()`, including rejections reported by the handler function itself.
 
+### Property: `completed` (readonly)
+
+The current number of completed tasks.
+
 ### Property: `options` (readonly)
 
 A copy of the options that are currently being used by this instance. This

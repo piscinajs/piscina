@@ -239,6 +239,7 @@ class ThreadPool {
   workers : WorkerInfo[];
   options : FilledOptions;
   taskQueue : TaskInfo[]; // Maybe turn this into a priority queue?
+  completed : number = 0;
 
   constructor (publicInterface : Piscina, options : Options) {
     this.publicInterface = publicInterface;
@@ -379,6 +380,7 @@ class ThreadPool {
     const ret = new Promise((res, rej) => { resolve = res; reject = rej; });
     const taskInfo = new TaskInfo(
       task, transferList, filename, (err : Error | null, result : any) => {
+        this.completed++;
         if (err !== null) {
           reject(err);
         } else {
@@ -567,6 +569,10 @@ class Piscina extends EventEmitter {
 
   get queueSize () : number {
     return this.#pool.taskQueue.length;
+  }
+
+  get completed () : number {
+    return this.#pool.completed;
   }
 
   static get isWorkerThread () : boolean {
