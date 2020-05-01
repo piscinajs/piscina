@@ -9,25 +9,9 @@
 * ✔ Tracking statistics for run and wait times
 * ✔ Cancelation Support
 
+For Node.js 12.x and higher.
+
 [MIT Licensed][].
-
-## Introduction
-
-Piscina works by creating a pool of Node.js Worker Threads to which
-one or more tasks may be dispatched. Each worker thread executes a
-single exported function defined in a separate file. Whenever a
-task is dispatched to a worker, the worker invokes the exported
-function and reports the return value back to Piscina when the
-function completes.
-
-## Current Limitations (Things we're working on / would love help with)
-
-* ESM Support
-  * Exposing piscina as an ESM
-  * Allowing Workers to be ESMs
-* Improved Documentation
-* More examples
-* Benchmarks
 
 ## Piscina API
 
@@ -77,7 +61,7 @@ an `EventEmitter`:
 ```js
 'use strict';
 
-const Piscina = require('../../dist/src');
+const Piscina = require('piscina');
 const { AbortController } = require('abort-controller');
 const { resolve } = require('path');
 
@@ -106,7 +90,7 @@ may be used as an abort controller:
 ```js
 'use strict';
 
-const Piscina = require('../../dist/src');
+const Piscina = require('piscina');
 const EventEmitter = require('events');
 const { resolve } = require('path');
 
@@ -127,6 +111,13 @@ const piscina = new Piscina({
 ```
 
 ## Class: `Piscina`
+
+Piscina works by creating a pool of Node.js Worker Threads to which
+one or more tasks may be dispatched. Each worker thread executes a
+single exported function defined in a separate file. Whenever a
+task is dispatched to a worker, the worker invokes the exported
+function and reports the return value back to Piscina when the
+function completes.
 
 This class extends [`EventEmitter`][] from Node.js.
 
@@ -306,6 +297,15 @@ Is `true` if this code runs inside a `Piscina` threadpool as a Worker.
 
 Provides the current version of this library as a semver string.
 
+## Current Limitations (Things we're working on / would love help with)
+
+* ESM Support
+  * Exposing piscina as an ESM
+  * Allowing Workers to be ESMs
+* Improved Documentation
+* More examples
+* Benchmarks
+
 ## Performance Notes
 
 Workers are generally optimized for offloading synchronous,
@@ -314,18 +314,19 @@ While it is possible to perform asynchronous operations and I/O
 within a Worker, the performance advantages of doing so will be
 minimal.
 
-Specifically, it is worth noting that asynchronous file system,
-network, and crypto operations within Node.js are already serviced
-by a thread pool at the libuv level, and that all Worker Threads
-created within a Node.js process share the same libuv thread pool.
-This means that there will be little performance impact on moving
-such async operations into a Piscina worker (see examples/scrypt
-for example).
+Specifically, it is worth noting that asynchronous operations
+within Node.js, including I/O such as file system operations
+or CPU-bound tasks such as crypto operations or compression
+algorithms, are already performed in parallel by Node.js and
+libuv on a per-process level. This means that there will be
+little performance impact on moving such async operations into
+a Piscina worker (see examples/scrypt for example).
 
 ## The Team
 
 * James M Snell <jasnell@gmail.com>
 * Anna Henningsen <anna@addaleax.net>
+* Matteo Collina <matteo.collina@gmail.com>
 
 ## Acknowledgements
 
