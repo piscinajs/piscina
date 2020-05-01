@@ -6,8 +6,28 @@
 * ✔ Covers both fixed-task and variable-task scenarios
 * ✔ Supports flexible pool sizes
 * ✔ Proper async tracking integration
+* ✔ Tracking statistics for run and wait times
+* ✔ Cancelation Support
 
 [MIT Licensed][].
+
+## Introduction
+
+Piscina works by creating a pool of Node.js Worker Threads to which
+one or more tasks may be dispatched. Each worker thread executes a
+single exported function defined in a separate file. Whenever a
+task is dispatched to a worker, the worker invokes the exported
+function and reports the return value back to Piscina when the
+function completes.
+
+## Current Limitations (Things we're working on / would love help with)
+
+* ESM Support
+  * Exposing piscina as an ESM
+  * Allowing Workers to be ESMs
+* Improved Documentation
+* More examples
+* Benchmarks
 
 ## Piscina API
 
@@ -34,6 +54,76 @@ In `worker.js`:
 module.exports = ({ a, b }) => {
   return a + b;
 };
+```
+
+The worker may also be an async function or may return a Promise:
+
+```js
+const { promisify } = require('util');
+const sleep = promisify(setTimeout);
+
+module.exports = async ({ a, b } => {
+  // Fake some async activity
+  await sleep(100);
+  return a + b;
+})
+```
+
+### Cancelable Tasks
+
+Submitted tasks may be canceled using either an `AbortController` or
+an `EventEmitter`:
+
+```js
+'use strict';
+
+const Piscina = require('../../dist/src');
+const { AbortController } = require('abort-controller');
+const { resolve } = require('path');
+
+const piscina = new Piscina({
+  filename: resolve(__dirname, 'worker.js')
+});
+
+(async function() {
+  const abortController = new AbortController();
+  try {
+    const task = piscina.runTask({ a: 4, b: 6 }, abortController.signal);
+    abortController.abort();
+    await task;
+  } catch (err) {
+    console.log('The task was cancelled');
+  }
+})();
+```
+
+To use `AbortController`, you will need to `npm i abort-controller`
+(or `yarn add abort-controller`).
+
+Alternatively, any `EventEmitter` that emits an `'abort'` event
+may be used as an abort controller:
+
+```js
+'use strict';
+
+const Piscina = require('../../dist/src');
+const EventEmitter = require('events');
+const { resolve } = require('path');
+
+const piscina = new Piscina({
+  filename: resolve(__dirname, 'worker.js')
+});
+
+(async function() {
+  const ee = new EventEmitter();
+  try {
+    const task = piscina.runTask({ a: 4, b: 6 }, ee);
+    ee.emit('abort');
+    await task;
+  } catch (err) {
+    console.log('The task was cancelled');
+  }
+})();
 ```
 
 ## Class: `Piscina`
@@ -129,6 +219,22 @@ Is `true` if this code runs inside a `Piscina` threadpool as a Worker.
 ### Static property: `version` (readonly)
 
 Provides the current version of this library as a semver string.
+
+## Performance Notes
+
+Workers are generally optimized for offloading synchronous,
+compute-intensive operations off the main Node.js event loop thread.
+While it is possible to perform asynchronous operations and I/O
+within a Worker, the performance advantages of doing so will be
+minimal.
+
+Specifically, it is worth noting that asynchronous file system,
+network, and crypto operations within Node.js are already serviced
+by a thread pool at the libuv level, and that all Worker Threads
+created within a Node.js process share the same libuv thread pool.
+This means that there will be little performance impact on moving
+such async operations into a Piscina worker (see examples/scrypt
+for example).
 
 ## The Team
 
