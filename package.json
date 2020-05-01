@@ -37,6 +37,10 @@
     "tap": "^14.10.7",
     "typescript": "^3.8.3"
   },
+  "dependencies": {
+    "hdr-histogram-js": "^1.2.0",
+    "hdr-histogram-percentiles-obj": "^2.0.1"
+  },
   "eslintConfig": {
     "rules": {
       "semi": [
