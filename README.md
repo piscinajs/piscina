@@ -7,7 +7,7 @@
 * ✔ Supports flexible pool sizes
 * ✔ Proper async tracking integration
 * ✔ Tracking statistics for run and wait times
-* ✔ Cancelation Support
+* ✔ Cancellation Support
 * ✔ Supports enforcing memory resource limits
 
 For Node.js 12.x and higher.
