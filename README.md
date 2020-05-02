@@ -7,7 +7,7 @@
 * ✔ Supports flexible pool sizes
 * ✔ Proper async tracking integration
 * ✔ Tracking statistics for run and wait times
-* ✔ Cancellation Support
+* ✔ Cancelation Support
 * ✔ Supports enforcing memory resource limits
 
 For Node.js 12.x and higher.
@@ -77,7 +77,7 @@ const piscina = new Piscina({
     abortController.abort();
     await task;
   } catch (err) {
-    console.log('The task was cancelled');
+    console.log('The task was canceled');
   }
 })();
 ```
@@ -106,7 +106,7 @@ const piscina = new Piscina({
     ee.emit('abort');
     await task;
   } catch (err) {
-    console.log('The task was cancelled');
+    console.log('The task was canceled');
   }
 })();
 ```
