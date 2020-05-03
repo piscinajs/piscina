@@ -1,6 +1,7 @@
 import Piscina from '..';
 import { test } from 'tap';
 import { version } from '../package.json';
+import { pathToFileURL } from 'url';
 import { resolve } from 'path';
 import { EventEmitter } from 'events';
 
@@ -124,4 +125,12 @@ test('passing invalid workerData does not work', async ({ throws }) => {
     filename: resolve(__dirname, 'fixtures/simple-workerdata.ts'),
     workerData: process.env
   }) as any), /Cannot transfer object of unsupported type./);
+});
+
+test('filename can be a file:// URL', async ({ is }) => {
+  const worker = new Piscina({
+    filename: pathToFileURL(resolve(__dirname, 'fixtures/eval.js')).href
+  });
+  const result = await worker.runTask('42');
+  is(result, 42);
 });

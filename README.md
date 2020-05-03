@@ -126,9 +126,9 @@ This class extends [`EventEmitter`][] from Node.js.
 
 * The following optional configuration is supported:
   * `filename`: (`string | null`) Provides the default source for the code that
-    runs the tasks on Worker threads. This should be an absolute path to a file
-    that exports a JavaScript `function` or `async function` as its default
-    export or `module.exports`.
+    runs the tasks on Worker threads. This should be an absolute path or an
+    absolute `file://` URL to a file that exports a JavaScript `function` or
+    `async function` as its default export or `module.exports`.
   * `minThreads`: (`number`) Sets the minimum number of threads that are always
     running for this thread pool. The default is based on the number of
     available CPUs.
