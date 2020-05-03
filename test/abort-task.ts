@@ -1,5 +1,3 @@
-'use strict';
-
 import { AbortController } from 'abort-controller';
 import { EventEmitter } from 'events';
 import Piscina from '..';

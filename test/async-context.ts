@@ -1,5 +1,3 @@
-'use strict';
-
 import { createHook, executionAsyncId } from 'async_hooks';
 import Piscina from '..';
 import { test } from 'tap';

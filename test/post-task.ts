@@ -1,5 +1,3 @@
-'use strict';
-
 import { MessageChannel } from 'worker_threads';
 import Piscina from '..';
 import { test } from 'tap';
