@@ -1,4 +1,5 @@
 import { parentPort, MessagePort } from 'worker_threads'; // eslint-disable-line
+import { pathToFileURL } from 'url';
 import { commonState, RequestMessage, ResponseMessage, StartupMessage, kResponseCountField, kRequestCountField } from './common';
 // TODO(addaleax): Undo when https://github.com/DefinitelyTyped/DefinitelyTyped/pull/44034 is released.
 import wt from 'worker_threads'; // eslint-disable-line
@@ -10,6 +11,12 @@ commonState.workerData = workerData;
 const handlerCache : Map<string, Function> = new Map();
 let useAtomics : boolean = true;
 
+// Get `import(x)` as a function that isn't transpiled to `require(x)` by
+// TypeScript for dual ESM/CJS support.
+const importESM : (specifier : string) => Promise<any> =
+  // eslint-disable-next-line no-eval
+  eval('(specifier) => import(specifier)');
+
 // Look up the handler function that we call when a task is posted.
 // This is either going to be "the" export from a file, or the default export.
 async function getHandler (filename : string) : Promise<Function | null> {
@@ -18,9 +25,19 @@ async function getHandler (filename : string) : Promise<Function | null> {
     return handler;
   }
 
-  handler = await import(filename);
+  try {
+    handler = await importESM(pathToFileURL(filename).href);
+    if (typeof handler !== 'function') {
+      handler = (handler as any).default;
+    }
+  } catch {}
   if (typeof handler !== 'function') {
-    handler = (handler as any).default;
+    // With our current set of TypeScript options, this is transpiled to
+    // `require(filename)`.
+    handler = await import(filename);
+    if (typeof handler !== 'function') {
+      handler = (handler as any).default;
+    }
   }
   if (typeof handler !== 'function') {
     return null;

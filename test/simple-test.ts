@@ -134,3 +134,13 @@ test('filename can be a file:// URL', async ({ is }) => {
   const result = await worker.runTask('42');
   is(result, 42);
 });
+
+test('filename can be a file:// URL to an ESM module', {
+  skip: process.version.startsWith('v12.') // ESM support is flagged on v12.x
+}, async ({ is }) => {
+  const worker = new Piscina({
+    filename: pathToFileURL(resolve(__dirname, 'fixtures/esm-export.mjs')).href
+  });
+  const result = await worker.runTask('42');
+  is(result, 42);
+});

@@ -128,7 +128,8 @@ This class extends [`EventEmitter`][] from Node.js.
   * `filename`: (`string | null`) Provides the default source for the code that
     runs the tasks on Worker threads. This should be an absolute path or an
     absolute `file://` URL to a file that exports a JavaScript `function` or
-    `async function` as its default export or `module.exports`.
+    `async function` as its default export or `module.exports`. [ES modules][]
+    are supported.
   * `minThreads`: (`number`) Sets the minimum number of threads that are always
     running for this thread pool. The default is based on the number of
     available CPUs.
@@ -357,6 +358,7 @@ Piscina development is sponsored by [NearForm Research][].
 [`Atomics`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Atomics
 [`EventEmitter`]: https://nodejs.org/api/events.html
 [`postMessage`]: https://nodejs.org/api/worker_threads.html#worker_threads_port_postmessage_value_transferlist
+[ES modules]: https://nodejs.org/api/esm.html
 [Node.js new Worker options]: https://nodejs.org/api/worker_threads.html#worker_threads_new_worker_filename_options
 [MIT Licensed]: LICENSE.md
 [NearForm Research]: https://www.nearform.com/research/
