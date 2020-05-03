@@ -46,6 +46,9 @@ class AbortError extends Error {
 type ResourceLimits = Worker extends {
   resourceLimits? : infer T;
 } ? T : {};
+type EnvSpecifier = typeof Worker extends {
+  new (filename : never, options?: { env: infer T }) : Worker;
+} ? T : never;
 
 interface Options {
   // Probably also support URL here
@@ -59,7 +62,7 @@ interface Options {
   resourceLimits? : ResourceLimits,
   argv? : string[],
   execArgv? : string[],
-  env? : any,
+  env? : EnvSpecifier,
   workerData? : any,
 }
 
