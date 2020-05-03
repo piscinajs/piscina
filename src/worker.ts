@@ -2,9 +2,10 @@ import { parentPort, MessagePort } from 'worker_threads'; // eslint-disable-line
 import { commonState, RequestMessage, ResponseMessage, StartupMessage, kResponseCountField, kRequestCountField } from './common';
 // TODO(addaleax): Undo when https://github.com/DefinitelyTyped/DefinitelyTyped/pull/44034 is released.
 import wt from 'worker_threads'; // eslint-disable-line
-const { receiveMessageOnPort } = wt as any;
+const { receiveMessageOnPort, workerData } = wt as any;
 
 commonState.isWorkerThread = true;
+commonState.workerData = workerData;
 
 const handlerCache : Map<string, Function> = new Map();
 let useAtomics : boolean = true;

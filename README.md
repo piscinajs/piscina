@@ -155,6 +155,17 @@ This class extends [`EventEmitter`][] from Node.js.
       recently created objects.
     * `codeRangeSizeMb`: (`number`) The size of a pre-allocated memory range used
       for generated code.
+  * `env`: (`object`) If set, specifies the initial value of `process.env` inside
+    the worker threads. See [Node.js new Worker options][] for details.
+  * `argv`: (`any[]`) List of arguments that will be stringified and appended to
+    `process.argv` in the worker. See [Node.js new Worker options][] for details.
+  * `execArgv`: (`string[]`) List of Node.js CLI options passed to the worker.
+    See [Node.js new Worker options][] for details.
+  * `workerData`: (`any`) Any JavaScript value that can be cloned and made
+    available as `require('piscina').workerData`. See [Node.js new Worker options][]
+    for details. Unlike regular Node.js Worker Threads, `workerData` must not
+    specify any value requiring a `transferList`. This is because the `workerData`
+    will be cloned for each pooled worker.
 
 Use caution when setting resource limits. Setting limits that are too low may
 result in the `Piscina` worker threads being unusable.

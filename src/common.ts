@@ -19,7 +19,10 @@ export interface ResponseMessage {
   error: Error | null;
 }
 
-export const commonState = { isWorkerThread: false };
+export const commonState = {
+  isWorkerThread: false,
+  workerData: undefined
+};
 
 export const kRequestCountField = 0;
 export const kResponseCountField = 1;
