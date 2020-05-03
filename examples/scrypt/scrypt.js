@@ -1,3 +1,4 @@
+// eslint-disable no-unused-vars
 'use strict';
 
 const crypto = require('crypto');
@@ -13,9 +14,10 @@ module.exports = async function ({
   N = 16384,
   r = 8,
   p = 1,
-  maxmem = 32 * 1024 * 1024 }) {
-    return (await scrypt(
-      input,
-      await randomFill(salt),
-      keylen)).toString('hex');
+  maxmem = 32 * 1024 * 1024
+}) {
+  return (await scrypt(
+    input,
+    await randomFill(salt),
+    keylen, { N, r, p, maxmem })).toString('hex');
 };

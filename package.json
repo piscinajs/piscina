@@ -10,7 +10,7 @@
   "types": "./dist/src/index.d.ts",
   "scripts": {
     "build": "tsc && gen-esm-wrapper . dist/esm-wrapper.mjs",
-    "lint": "standardx \"**/*.ts\" | snazzy",
+    "lint": "standardx \"**/*.{ts,mjs,js,cjs}\" | snazzy",
     "test": "npm run lint && npm run build && npm run test-only",
     "test-only": "tap",
     "prepack": "npm run build"

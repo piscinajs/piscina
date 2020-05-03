@@ -8,11 +8,11 @@ const piscina = new Piscina({
   filename: resolve(__dirname, 'worker.js')
 });
 
-(async function() {
+(async function () {
   const channel = new MessageChannel();
   channel.port2.on('message', (message) => {
     console.log(message);
     channel.port2.close();
   });
-  await piscina.runTask({ port: channel.port1 }, [ channel.port1 ]);
+  await piscina.runTask({ port: channel.port1 }, [channel.port1]);
 })();

@@ -13,7 +13,7 @@ const piscina = new Piscina({
   }
 });
 
-(async function() {
+(async function () {
   try {
     await piscina.runTask();
   } catch (err) {

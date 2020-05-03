@@ -10,6 +10,10 @@ module.exports = function ({
   N = 16384,
   r = 8,
   p = 1,
-  maxmem = 32 * 1024 * 1024 }) {
-    return scryptSync(input, randomFillSync(salt), keylen).toString('hex');
+  maxmem = 32 * 1024 * 1024
+}) {
+  return scryptSync(input,
+    randomFillSync(salt),
+    keylen,
+    { N, r, p, maxmem }).toString('hex');
 };
