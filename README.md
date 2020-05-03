@@ -77,7 +77,7 @@ const piscina = new Piscina({
     abortController.abort();
     await task;
   } catch (err) {
-    console.log('The task was cancelled');
+    console.log('The task was canceled');
   }
 })();
 ```
@@ -106,7 +106,7 @@ const piscina = new Piscina({
     ee.emit('abort');
     await task;
   } catch (err) {
-    console.log('The task was cancelled');
+    console.log('The task was canceled');
   }
 })();
 ```
