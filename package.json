@@ -3,10 +3,13 @@
   "version": "1.1.0",
   "description": "A fast, efficient Node.js Worker Thread Pool implementation",
   "main": "./dist/src/index.js",
-  "exports": "./dist/src/index.js",
+  "exports": {
+    "import": "./dist/esm-wrapper.mjs",
+    "require": "./dist/src/index.js"
+  },
   "types": "./dist/src/index.d.ts",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && gen-esm-wrapper . dist/esm-wrapper.mjs",
     "lint": "standardx \"**/*.ts\" | snazzy",
     "test": "npm run lint && npm run build && npm run test-only",
     "test-only": "tap",
@@ -33,6 +36,7 @@
     "@typescript-eslint/eslint-plugin": "^2.28.0",
     "@typescript-eslint/parser": "^2.28.0",
     "abort-controller": "^3.0.0",
+    "gen-esm-wrapper": "^1.0.0",
     "snazzy": "^8.0.0",
     "standardx": "^5.0.0",
     "tap": "^14.10.7",
