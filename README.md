@@ -9,6 +9,9 @@
 * ✔ Tracking statistics for run and wait times
 * ✔ Cancelation Support
 * ✔ Supports enforcing memory resource limits
+* ✔ Supports CommonJS and ESM
+
+Written in TypeScript.
 
 For Node.js 12.x and higher.
 
