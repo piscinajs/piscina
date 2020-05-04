@@ -349,9 +349,6 @@ Provides the current version of this library as a semver string.
 
 ## Current Limitations (Things we're working on / would love help with)
 
-* ESM Support
-  * Exposing piscina as an ESM
-  * Allowing Workers to be ESMs
 * Improved Documentation
 * More examples
 * Benchmarks
