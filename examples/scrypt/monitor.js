@@ -12,7 +12,7 @@ monitor.enable();
 process.on('exit', () => {
   monitor.disable();
   console.log('Main Thread Mean/Max/99% Event Loop Delay:',
-              monitor.mean,
-              monitor.max,
-              monitor.percentile(99));
+    monitor.mean,
+    monitor.max,
+    monitor.percentile(99));
 });

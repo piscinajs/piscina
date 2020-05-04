@@ -1,10 +1,7 @@
-'use strict';
-
-const Piscina = require('../..');
-const { resolve } = require('path');
+import { Piscina } from 'piscina';
 
 const piscina = new Piscina({
-  filename: resolve(__dirname, 'worker.js')
+  filename: new URL('./worker.mjs', import.meta.url).href
 });
 
 (async function () {

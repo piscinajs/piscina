@@ -2,6 +2,7 @@ import { Worker, MessageChannel, MessagePort } from 'worker_threads'; // eslint-
 import { EventEmitter, once } from 'events';
 import { AsyncResource } from 'async_hooks';
 import { cpus } from 'os';
+import { fileURLToPath, URL } from 'url';
 import { resolve } from 'path';
 import { inspect } from 'util';
 import assert from 'assert';
@@ -51,7 +52,6 @@ type EnvSpecifier = typeof Worker extends {
 } ? T : never;
 
 interface Options {
-  // Probably also support URL here
   filename? : string | null,
   minThreads? : number,
   maxThreads? : number,
@@ -93,6 +93,11 @@ type TaskCallback = (err : Error, result: any) => void;
 // only ArrayBuffer and MessagePort are valid, but let's avoid having to update
 // our types here every time Node.js adds support for more objects.
 type TransferList = MessagePort extends { postMessage(value : any, transferList : infer T) : any; } ? T : never;
+
+function maybeFileURLToPath (filename : string) : string {
+  return filename.startsWith('file:')
+    ? fileURLToPath(new URL(filename)) : filename;
+}
 
 // Extend AsyncResource so that async relations between posting a task and
 // receiving its result are visible to diagnostic tools.
@@ -269,7 +274,9 @@ class ThreadPool {
     this.runTime = build({ lowestDiscernibleValue: 1 });
     this.waitTime = build({ lowestDiscernibleValue: 1 });
 
-    this.options = { ...kDefaultOptions, ...options };
+    const filename =
+      options.filename ? maybeFileURLToPath(options.filename) : null;
+    this.options = { ...kDefaultOptions, ...options, filename };
     // The >= and <= could be > and < but this way we get 100 % coverage 🙃
     if (options.maxThreads !== undefined &&
         this.options.minThreads >= options.maxThreads) {
@@ -406,6 +413,7 @@ class ThreadPool {
       return Promise.reject(new Error(
         'filename must be provided to runTask() or in options object'));
     }
+    filename = maybeFileURLToPath(filename);
 
     let resolve : (result : any) => void;
     let reject : (err : Error) => void;

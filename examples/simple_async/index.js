@@ -7,7 +7,7 @@ const piscina = new Piscina({
   filename: resolve(__dirname, 'worker.js')
 });
 
-(async function() {
+(async function () {
   const result = await piscina.runTask({ a: 4, b: 6 });
-  console.log(result);  // Prints 10
+  console.log(result); // Prints 10
 })();

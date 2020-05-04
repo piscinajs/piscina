@@ -1,5 +1,3 @@
-'use strict';
-
 import Piscina from '..';
 import { test } from 'tap';
 import { resolve } from 'path';

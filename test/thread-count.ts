@@ -1,4 +1,3 @@
-'use strict';
 import Piscina from '..';
 import { cpus } from 'os';
 import { test } from 'tap';
