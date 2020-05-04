@@ -1,4 +1,5 @@
-// Require the framework and instantiate it
+'use strict';
+
 const fastify = require('fastify')();
 
 const sab = new SharedArrayBuffer(4);

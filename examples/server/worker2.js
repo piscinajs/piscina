@@ -1,3 +1,5 @@
+'use strict';
+
 const sab = new SharedArrayBuffer(4);
 const lock = new Int32Array(sab);
 

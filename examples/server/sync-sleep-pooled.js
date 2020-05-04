@@ -1,4 +1,5 @@
-// Require the framework and instantiate it
+'use strict';
+
 const fastify = require('fastify')();
 const { resolve } = require('path');
 const Piscina = require('piscina');

@@ -1,4 +1,5 @@
-// Require the framework and instantiate it
+'use strict';
+
 const fastify = require('fastify')();
 const { promisify } = require('util');
 const sleep = promisify(setTimeout);
