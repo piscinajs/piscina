@@ -57,6 +57,30 @@ module.exports = async ({ a, b } => {
 })
 ```
 
+ESM is also supported for both Piscina and workers:
+
+```js
+import { Piscina } from 'piscina';
+
+const piscina = new Piscina({
+  // The URL must be a file:// URL
+  filename: new URL('./worker.mjs', import.meta.url).href
+});
+
+(async function () {
+  const result = await piscina.runTask({ a: 4, b: 6 });
+  console.log(result); // Prints 10
+})();
+```
+
+In `worker.mjs`:
+
+```js
+export default ({ a, b }) => {
+  return a + b;
+};
+```
+
 ### Cancelable Tasks
 
 Submitted tasks may be canceled using either an `AbortController` or
@@ -347,6 +371,22 @@ algorithms, are already performed in parallel by Node.js and
 libuv on a per-process level. This means that there will be
 little performance impact on moving such async operations into
 a Piscina worker (see examples/scrypt for example).
+
+## Release Notes
+
+### 1.2.0
+
+* Added support for ESM and file:// URLs
+* Added `env`, `argv`, `execArgv`, and `workerData` options
+* More examples
+
+### 1.1.0
+
+* Added support for Worker Thread `resourceLimits`
+
+### 1.0.0
+
+* Initial release!
 
 ## The Team
 
