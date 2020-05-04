@@ -9,20 +9,20 @@ const idleTimeout = parseInt(process.argv[3] || 0);
 const pool = new Piscina({
   filename: resolve(__dirname, 'worker2.js'),
   concurrentTasksPerWorker,
-  idleTimeout,
+  idleTimeout
 });
 
 // Declare a route
-fastify.get('/', async (request, reply) => {
-  return await pool.runTask();
-})
+fastify.get('/', async () => {
+  return pool.runTask();
+});
 
 // Run the server!
 const start = async () => {
   try {
-    await fastify.listen(3000)
+    await fastify.listen(3000);
   } catch (err) {
-    process.exit(1)
+    process.exit(1);
   }
-}
-start()
+};
+start();

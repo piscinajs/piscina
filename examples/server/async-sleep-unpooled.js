@@ -4,17 +4,17 @@ const { promisify } = require('util');
 const sleep = promisify(setTimeout);
 
 // Declare a route
-fastify.get('/', async (request, reply) => {
+fastify.get('/', async () => {
   await sleep(100);
-  return { hello: 'world' }
-})
+  return { hello: 'world' };
+});
 
 // Run the server!
 const start = async () => {
   try {
-    await fastify.listen(3000)
+    await fastify.listen(3000);
   } catch (err) {
-    process.exit(1)
+    process.exit(1);
   }
-}
-start()
+};
+start();
