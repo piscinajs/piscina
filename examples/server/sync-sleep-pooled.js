@@ -1,0 +1,28 @@
+// Require the framework and instantiate it
+const fastify = require('fastify')();
+const { resolve } = require('path');
+const Piscina = require('piscina');
+
+const concurrentTasksPerWorker = parseInt(process.argv[2] || 1);
+const idleTimeout = parseInt(process.argv[3] || 0);
+
+const pool = new Piscina({
+  filename: resolve(__dirname, 'worker2.js'),
+  concurrentTasksPerWorker,
+  idleTimeout,
+});
+
+// Declare a route
+fastify.get('/', async (request, reply) => {
+  return await pool.runTask();
+})
+
+// Run the server!
+const start = async () => {
+  try {
+    await fastify.listen(3000)
+  } catch (err) {
+    process.exit(1)
+  }
+}
+start()
