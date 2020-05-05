@@ -22,19 +22,10 @@ class PortDuplex extends Duplex {
   }
 
   _write (chunk, encoding, callback) {
-    if (typeof chunk === 'string') {
-      chunk = Buffer.from(chunk, encoding);
-    }
-    // Be sure to always copy the chunk here and never use a
-    // transferList. There are several reasons:
-    // a) Buffer instances are most often created off a pool
-    //    and share the same underlying common ArrayBuffer,
-    //    transferring those can break Node.js in many ways.
-    // b) The Buffer instance may still be used by some
-    //    other upstream component. Transferring it here
-    //    will cause unexpected and undefined behavior that
-    //    will likely crash the Node.js process.
-    this.#port.postMessage(chunk);
+    // Chunk should always be a buffer here
+    const temp = new Uint8Array(chunk);
+    // TODO(@jasnell): This will need backpressure implemented
+    this.#port.postMessage(temp);
     callback();
   }
 
@@ -45,10 +36,8 @@ class PortDuplex extends Duplex {
 
   _destroy (err, callback) {
     if (err) {
-      // TODO(@jasnell): A more complete example would
-      // handle this error more appropriately.
       this.#port.close();
-      console.error(err);
+      callback(err);
       return;
     }
     if (this.writableEnded) {
