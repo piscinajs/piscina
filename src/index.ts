@@ -1,4 +1,4 @@
-import { Worker, MessageChannel, MessagePort } from 'worker_threads'; // eslint-disable-line
+import { Worker, MessageChannel, MessagePort, receiveMessageOnPort } from 'worker_threads';
 import { EventEmitter, once } from 'events';
 import { AsyncResource } from 'async_hooks';
 import { cpus } from 'os';
@@ -11,9 +11,6 @@ import { performance } from 'perf_hooks';
 import hdrobj from 'hdr-histogram-percentiles-obj';
 import { RequestMessage, ResponseMessage, StartupMessage, commonState, kResponseCountField, kRequestCountField, kFieldCount } from './common';
 import { version } from '../package.json';
-// TODO(addaleax): Undo when https://github.com/DefinitelyTyped/DefinitelyTyped/pull/44034 is released.
-import wt from 'worker_threads'; // eslint-disable-line
-const { receiveMessageOnPort } = wt as any;
 
 const cpuCount : number = (() => {
   try {

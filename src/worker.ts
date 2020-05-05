@@ -1,9 +1,6 @@
-import { parentPort, MessagePort } from 'worker_threads'; // eslint-disable-line
+import { parentPort, MessagePort, receiveMessageOnPort, workerData } from 'worker_threads';
 import { pathToFileURL } from 'url';
 import { commonState, RequestMessage, ResponseMessage, StartupMessage, kResponseCountField, kRequestCountField } from './common';
-// TODO(addaleax): Undo when https://github.com/DefinitelyTyped/DefinitelyTyped/pull/44034 is released.
-import wt from 'worker_threads'; // eslint-disable-line
-const { receiveMessageOnPort, workerData } = wt as any;
 
 commonState.isWorkerThread = true;
 commonState.workerData = workerData;
