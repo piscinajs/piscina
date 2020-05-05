@@ -4,13 +4,11 @@ const { Duplex } = require('stream');
 
 class PortDuplex extends Duplex {
   #port = undefined;
-  #transfer = false;
 
   constructor (port, options) {
     const {
       readable = true,
-      writable = true,
-      transfer = false
+      writable = true
     } = { ...options };
     if (typeof readable !== 'boolean') {
       throw new TypeError('readable must be a boolean');
@@ -18,12 +16,8 @@ class PortDuplex extends Duplex {
     if (typeof writable !== 'boolean') {
       throw new TypeError('writable must be a boolean');
     }
-    if (typeof transfer !== 'boolean') {
-      throw new TypeError('transfer must be a boolean');
-    }
     super({ autoDestroy: true, readable, writable });
     this.#port = port;
-    this.#transfer = transfer;
     this.#port.onmessage = PortDuplex.#onmessage.bind(this);
   }
 
@@ -31,8 +25,16 @@ class PortDuplex extends Duplex {
     if (typeof chunk === 'string') {
       chunk = Buffer.from(chunk, encoding);
     }
-    const transferList = this.#transfer ? [chunk.buffer] : undefined;
-    this.#port.postMessage(chunk, transferList);
+    // Be sure to always copy the chunk here and never use a
+    // transferList. There are several reasons:
+    // a) Buffer instances are most often created off a pool
+    //    and share the same underlying common ArrayBuffer,
+    //    transferring those can break Node.js in many ways.
+    // b) The Buffer instance may still be used by some
+    //    other upstream component. Transferring it here
+    //    will cause unexpected and undefined behavior that
+    //    will likely crash the Node.js process.
+    this.#port.postMessage(chunk);
     callback();
   }
 
