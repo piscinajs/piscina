@@ -25,7 +25,7 @@ class PortDuplex extends Duplex {
     // Chunk should always be a buffer here
     const temp = new Uint8Array(chunk);
     // TODO(@jasnell): This will need backpressure implemented
-    this.#port.postMessage(temp);
+    this.#port.postMessage(temp, [temp.buffer]);
     callback();
   }
 
