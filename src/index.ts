@@ -263,6 +263,7 @@ class ThreadPool {
   completed : number = 0;
   runTime : Histogram;
   waitTime : Histogram;
+  inProcessPendingMessages : boolean = false;
 
   constructor (publicInterface : Piscina, options : Options) {
     this.publicInterface = publicInterface;
@@ -333,11 +334,7 @@ class ThreadPool {
         taskInfo.done(message.error, result);
       }
 
-      if (pool.options.useAtomics) {
-        for (const workerInfo of pool.workers) {
-          workerInfo.processPendingMessages();
-        }
-      }
+      pool._processPendingMessages();
     }
 
     worker.on('message', (message) => {
@@ -369,6 +366,21 @@ class ThreadPool {
 
     this.workers.push(workerInfo);
     return workerInfo;
+  }
+
+  _processPendingMessages () {
+    if (this.inProcessPendingMessages || !this.options.useAtomics) {
+      return;
+    }
+
+    this.inProcessPendingMessages = true;
+    try {
+      for (const workerInfo of this.workers) {
+        workerInfo.processPendingMessages();
+      }
+    } finally {
+      this.inProcessPendingMessages = false;
+    }
   }
 
   _removeWorker (workerInfo : WorkerInfo) : void {

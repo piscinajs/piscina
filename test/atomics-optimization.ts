@@ -64,3 +64,18 @@ function popcount8 (v : number) : number {
   if (v & 0b00000010) return popcount8(v >>> 1) + popcount8(v & 0xb00000001);
   return v;
 }
+
+test('avoids unbounded recursion', async () => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/simple-isworkerthread.ts'),
+    minThreads: 2,
+    maxThreads: 2
+  });
+
+  const tasks = [];
+  for (let i = 1; i <= 10000; i++) {
+    tasks.push(pool.runTask(null));
+  }
+
+  await Promise.all(tasks);
+});
