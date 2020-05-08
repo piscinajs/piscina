@@ -666,8 +666,12 @@ class Piscina extends EventEmitter {
 
   get queueLoad () : number {
     // If maxQueue is Infinity, queueLoad is always either 1 or 0,
-    // otherrwise, queueLoad is the ratio of queueSize / maxQueue
-    if (this.#pool.options.maxQueue === Number.POSITIVE_INFINITY) {
+    // otherrwise, queueLoad is the ratio of queueSize / maxQueue.
+    // Why? When maxQueue is infinite or 0, we cannot reasonably
+    // calculate a queueLoad ratio so the load calculation becomes
+    // binary: are there queued tasks or not?
+    if (this.#pool.options.maxQueue === Number.POSITIVE_INFINITY ||
+        this.#pool.options.maxQueue === 0) {
       return this.queueSize > 0 ? 1 : 0;
     } else {
       return this.queueSize / this.#pool.options.maxQueue;
