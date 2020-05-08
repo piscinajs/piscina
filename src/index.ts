@@ -60,7 +60,7 @@ interface Options {
   argv? : string[],
   execArgv? : string[],
   env? : EnvSpecifier,
-  workerData? : any,
+  workerData? : any
 }
 
 interface FilledOptions extends Options {
@@ -396,6 +396,7 @@ class ThreadPool {
       this.waitTime.recordValue(now - taskInfo.created);
       taskInfo.started = now;
       workerInfo.postTask(taskInfo);
+      this._maybeDrain();
       return;
     }
 
@@ -519,7 +520,14 @@ class ThreadPool {
     this.waitTime.recordValue(now - taskInfo.created);
     taskInfo.started = now;
     workerInfo.postTask(taskInfo);
+    this._maybeDrain();
     return ret;
+  }
+
+  _maybeDrain () {
+    if (this.taskQueue.length === 0) {
+      this.publicInterface.emit('drain');
+    }
   }
 
   async destroy () {
