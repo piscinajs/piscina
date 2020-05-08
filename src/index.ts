@@ -61,6 +61,7 @@ interface Options {
   execArgv? : string[],
   env? : EnvSpecifier,
   workerData? : any,
+  queueLoadThreshold? : number
 }
 
 interface FilledOptions extends Options {
@@ -70,7 +71,8 @@ interface FilledOptions extends Options {
   idleTimeout : number,
   maxQueue : number,
   concurrentTasksPerWorker : number,
-  useAtomics: boolean
+  useAtomics: boolean,
+  queueLoadThreshold : number
 }
 
 const kDefaultOptions : FilledOptions = {
@@ -80,7 +82,8 @@ const kDefaultOptions : FilledOptions = {
   idleTimeout: 0,
   maxQueue: Infinity,
   concurrentTasksPerWorker: 1,
-  useAtomics: true
+  useAtomics: true,
+  queueLoadThreshold: 0
 };
 
 let taskIdCounter = 0;
@@ -264,6 +267,7 @@ class ThreadPool {
   runTime : Histogram;
   waitTime : Histogram;
   inProcessPendingMessages : boolean = false;
+  waitingForDrain : boolean = false;
 
   constructor (publicInterface : Piscina, options : Options) {
     this.publicInterface = publicInterface;
@@ -283,6 +287,10 @@ class ThreadPool {
     if (options.minThreads !== undefined &&
         this.options.maxThreads <= options.minThreads) {
       this.options.maxThreads = options.minThreads;
+    }
+    if (options.queueLoadThreshold !== undefined &&
+        this.options.queueLoadThreshold <= options.queueLoadThreshold) {
+      this.options.queueLoadThreshold = options.queueLoadThreshold;
     }
 
     this._ensureMinimumWorkers();
@@ -396,6 +404,7 @@ class ThreadPool {
       this.waitTime.recordValue(now - taskInfo.created);
       taskInfo.started = now;
       workerInfo.postTask(taskInfo);
+      this._maybeDrain();
       return;
     }
 
@@ -470,6 +479,10 @@ class ThreadPool {
       } else {
         this.taskQueue.push(taskInfo);
       }
+      if (this.publicInterface.queueLoad > this.options.queueLoadThreshold &&
+          !this.waitingForDrain) {
+        this.waitingForDrain = true;
+      }
 
       return ret;
     }
@@ -519,7 +532,16 @@ class ThreadPool {
     this.waitTime.recordValue(now - taskInfo.created);
     taskInfo.started = now;
     workerInfo.postTask(taskInfo);
+    this._maybeDrain();
     return ret;
+  }
+
+  _maybeDrain () {
+    if (this.waitingForDrain &&
+        this.publicInterface.queueLoad <= this.options.queueLoadThreshold) {
+      this.waitingForDrain = false;
+      process.nextTick(() => this.publicInterface.emit('drain'));
+    }
   }
 
   async destroy () {
@@ -582,6 +604,16 @@ class Piscina extends EventEmitter {
          options.resourceLimits === null)) {
       throw new TypeError('options.resourceLimits must be an object');
     }
+    if (options.queueLoadThreshold !== undefined) {
+      if (typeof options.queueLoadThreshold !== 'number') {
+        throw new TypeError(
+          'options.queueLoadThreshold must be a number between 0.0 and 1.0');
+      }
+      if (options.queueLoadThreshold < 0 || options.queueLoadThreshold > 1) {
+        throw new RangeError(
+          'options.queueLoadThreshold must be a number between 0.0 and 1.0');
+      }
+    }
 
     this.#pool = new ThreadPool(this, options);
   }
@@ -630,6 +662,16 @@ class Piscina extends EventEmitter {
 
   get queueSize () : number {
     return this.#pool.taskQueue.length;
+  }
+
+  get queueLoad () : number {
+    // If maxQueue is Infinity, queueLoad is always either 1 or 0,
+    // otherrwise, queueLoad is the ratio of queueSize / maxQueue
+    if (this.#pool.options.maxQueue === Number.POSITIVE_INFINITY) {
+      return this.queueSize > 0 ? 1 : 0;
+    } else {
+      return this.queueSize / this.#pool.options.maxQueue;
+    }
   }
 
   get completed () : number {

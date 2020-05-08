@@ -194,6 +194,10 @@ This class extends [`EventEmitter`][] from Node.js.
     for details. Unlike regular Node.js Worker Threads, `workerData` must not
     specify any value requiring a `transferList`. This is because the `workerData`
     will be cloned for each pooled worker.
+  * `queueLoadThreshold`: (`number`) The `queueLoad` is a value between 0 and 1
+    representing the ratio of queue size to max queue. The `queueLoadThreshold`
+    specifies a limit such that when the `queueLoad` equals or is lesser than
+    `queueLoadThreshold` the `'drain'` event is emitted.
 
 Use caution when setting resource limits. Setting limits that are too low may
 result in the `Piscina` worker threads being unusable.
@@ -239,6 +243,11 @@ An `'error'` event is emitted by instances of this class when:
 
 All other errors are reported by rejecting the `Promise` returned from
 `runTask()`, including rejections reported by the handler function itself.
+
+### Event: `'drain'`
+
+A `'drain'` event is emitted when the `queueLoad` is equal to or less
+than the `queueLoadThreshold`.
 
 ### Property: `completed` (readonly)
 
@@ -293,6 +302,12 @@ faster or equal to the given value.
 ### Property: `threads` (readonly)
 
 An Array of the `Worker` instances used by this pool.
+
+### Property: `queueLoad` (readonly)
+
+The current ratio of `queueSize` to `maxQueue`. The value is a number between
+`0` and `1`. If `maxQueue` is not specified, the value will always be `1`
+if the `queueSize` is greater than `0`.
 
 ### Property: `queueSize` (readonly)
 

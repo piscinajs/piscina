@@ -80,3 +80,17 @@ test('resourceLimits must be an object', async ({ throws }) => {
     resourceLimits: 0
   }) as any), /options.resourceLimits must be an object/);
 });
+
+test('queueLoadThreshold must be a number', async ({ throws }) => {
+  throws(() => new Piscina(({
+    queueLoadThreshold: 'string'
+  }) as any), /options.queueLoadThreshold must be a number between 0.0 and 1.0/);
+
+  throws(() => new Piscina(({
+    queueLoadThreshold: -1
+  }) as any), /options.queueLoadThreshold must be a number between 0.0 and 1.0/);
+
+  throws(() => new Piscina(({
+    queueLoadThreshold: 1.1
+  }) as any), /options.queueLoadThreshold must be a number between 0.0 and 1.0/);
+});
