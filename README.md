@@ -138,6 +138,51 @@ const piscina = new Piscina({
 })();
 ```
 
+### Backpressure
+
+When the `maxQueue` option is set, once the `Piscina` queue is full, no
+additional tasks may be submitted until the queue size falls below the
+limit. The `'drain'` event may be used to receive notification when the
+queue is empty and all tasks have been submitted to workers for processing.
+
+Example: Using a Node.js stream to feed a Piscina worker pool:
+```js
+'use strict';
+
+const { resolve } = require('path');
+const Pool = require('../..');
+
+const pool = new Pool({
+  filename: resolve(__dirname, 'worker.js'),
+  maxQueue: 8
+});
+
+const stream = getStreamSomehow();
+stream.setEncoding('utf8');
+
+pool.on('drain', () => {
+  if (stream.isPaused()) {
+    console.log('resuming...', counter, pool.queueSize);
+    stream.resume();
+  }
+});
+
+performance.mark('A');
+stream
+  .on('data', (data) => {
+    pool.runTask(data);
+    if (pool.queueSize === maxQueue) {
+      console.log('pausing...', counter, pool.queueSize);
+      stream.pause();
+    }
+  })
+  .on('error', console.error)
+  .on('end', () => {
+    console.log('done');
+  });
+```
+
+
 ## Class: `Piscina`
 
 Piscina works by creating a pool of Node.js Worker Threads to which
@@ -239,6 +284,10 @@ An `'error'` event is emitted by instances of this class when:
 
 All other errors are reported by rejecting the `Promise` returned from
 `runTask()`, including rejections reported by the handler function itself.
+
+### Event: `'drain'`
+
+A `'drain'` event is emitted whenever the `queueSize` reaches `0`.
 
 ### Property: `completed` (readonly)
 

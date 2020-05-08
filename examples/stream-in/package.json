@@ -1,5 +1,5 @@
 {
-  "name": "tmp",
+  "name": "stream-in",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -8,8 +8,8 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
-    "fastify": "^2.14.0"
+    "csvtojson": "^2.0.10"
   }
 }

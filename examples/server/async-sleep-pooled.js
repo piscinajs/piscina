@@ -2,7 +2,7 @@
 
 const fastify = require('fastify')();
 const { resolve } = require('path');
-const Piscina = require('piscina');
+const Piscina = require('../..');
 
 const concurrentTasksPerWorker = parseInt(process.argv[2] || 1);
 const idleTimeout = parseInt(process.argv[3] || 0);
