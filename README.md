@@ -424,6 +424,10 @@ a Piscina worker (see examples/scrypt for example).
 
 ## Release Notes
 
+### 1.3.0
+
+* Added the `'drain'` event
+
 ### 1.2.0
 
 * Added support for ESM and file:// URLs
