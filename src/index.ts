@@ -1,5 +1,6 @@
 import { Worker, MessageChannel, MessagePort, receiveMessageOnPort } from 'worker_threads';
-import { EventEmitter, once } from 'events';
+import { once } from 'events';
+import EventEmitterAsyncResource from 'eventemitter-asyncresource';
 import { AsyncResource } from 'async_hooks';
 import { cpus } from 'os';
 import { fileURLToPath, URL } from 'url';
@@ -114,8 +115,9 @@ class TaskInfo extends AsyncResource {
     transferList : TransferList,
     filename : string,
     callback : TaskCallback,
-    abortSignal : AbortSignalAny | null) {
-    super('Piscina.Task', { requireManualDestroy: false });
+    abortSignal : AbortSignalAny | null,
+    triggerAsyncId : number) {
+    super('Piscina.Task', { requireManualDestroy: true, triggerAsyncId });
     this.callback = callback;
     this.task = task;
     this.transferList = transferList;
@@ -441,7 +443,8 @@ class ThreadPool {
           resolve(result);
         }
       },
-      abortSignal);
+      abortSignal,
+      this.publicInterface.asyncResource.asyncId());
 
     if (abortSignal !== null) {
       onabort(abortSignal, () => {
@@ -546,11 +549,11 @@ class ThreadPool {
   }
 }
 
-class Piscina extends EventEmitter {
+class Piscina extends EventEmitterAsyncResource {
   #pool : ThreadPool;
 
   constructor (options : Options = {}) {
-    super(options as any);
+    super({ ...options, name: 'Piscina' });
 
     if (typeof options.filename !== 'string' && options.filename != null) {
       throw new TypeError('options.filename must be a string or null');

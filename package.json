@@ -43,6 +43,7 @@
     "typescript": "^3.8.3"
   },
   "dependencies": {
+    "eventemitter-asyncresource": "^1.0.0",
     "hdr-histogram-js": "^1.2.0",
     "hdr-histogram-percentiles-obj": "^2.0.1"
   },
