@@ -182,6 +182,10 @@ stream
   });
 ```
 
+### Additional Examples
+
+Additional examples can be found in the GitHub repo at
+https://github.com/jasnell/piscina/tree/master/examples
 
 ## Class: `Piscina`
 
