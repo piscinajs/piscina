@@ -167,7 +167,6 @@ pool.on('drain', () => {
   }
 });
 
-performance.mark('A');
 stream
   .on('data', (data) => {
     pool.runTask(data);
