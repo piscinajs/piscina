@@ -154,7 +154,7 @@ const Pool = require('../..');
 
 const pool = new Pool({
   filename: resolve(__dirname, 'worker.js'),
-  maxQueue: 8
+  maxQueue: 'auto'
 });
 
 const stream = getStreamSomehow();
@@ -170,7 +170,7 @@ pool.on('drain', () => {
 stream
   .on('data', (data) => {
     pool.runTask(data);
-    if (pool.queueSize === maxQueue) {
+    if (pool.queueSize === pool.options.maxQueue) {
       console.log('pausing...', counter, pool.queueSize);
       stream.pause();
     }
@@ -214,9 +214,12 @@ This class extends [`EventEmitter`][] from Node.js.
   * `idleTimeout`: (`number`) A timeout in milliseconds that specifies how long
     a `Worker` is allowed to be idle, i.e. not handling any tasks, before it is
     shut down. By default, this is immediate.
-  * `maxQueue`: (`number`) The maximum number of tasks that may be scheduled
-    to run, but not yet running due to lack of available threads, at a given
-    time. By default, there is no limit.
+  * `maxQueue`: (`number` | `string`) The maximum number of tasks that may be
+    scheduled to run, but not yet running due to lack of available threads, at
+    a given time. By default, there is no limit. The special value `'auto'`
+    may be used to have Piscina calculate the maximum as the square of `maxThreads`.
+    When `'auto'` is used, the calculated `maxQueue` value may be found by checking
+    the [`options.maxQueue`](#property-options-readonly) property.
   * `concurrentTasksPerWorker`: (`number`) Specifies how many tasks can share
     a single Worker thread simultaneously. The default is `1`. This generally
     only makes sense to specify if there is some kind of asynchronous component
