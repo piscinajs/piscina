@@ -1,0 +1,17 @@
+{
+  "name": "piscina-napi-example",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "prebuild": "prebuildify --napi",
+    "install": "node-gyp-build"
+  },
+  "keywords": [],
+  "author": "James M Snell <jasnell@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "node-gyp-build": "^4.2.2",
+    "prebuildify": "^4.0.0"
+  }
+}
