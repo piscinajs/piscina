@@ -1,4 +1,4 @@
-const Piscina = require('piscina');
+const Piscina = require('../..');
 const { resolve } = require('path');
 
 const pool = new Piscina({

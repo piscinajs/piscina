@@ -11,9 +11,7 @@
   "author": "James M Snell <jasnell@gmail.com>",
   "license": "MIT",
   "dependencies": {
-    "napi-macros": "^2.0.0",
     "node-gyp-build": "^4.2.2",
-    "piscina": "^1.3.0",
     "prebuildify": "^4.0.0"
   }
 }
