@@ -424,7 +424,28 @@ libuv on a per-process level. This means that there will be
 little performance impact on moving such async operations into
 a Piscina worker (see examples/scrypt for example).
 
+Piscina provides the ability to configure the minimum and
+maximum number of worker threads active in the pool, as well as
+set limits on the number of tasks that may be queued up waiting
+for a free worker. It is important to note that setting the
+`maxQueue` size too high relative to the number of worker threads
+can have a detrimental impact on performance and memory usage.
+Setting the `maxQueue` size too small can also be problematic
+as doing so could cause your worker threads to become idle and
+be shutdown. Our testing has shown that a `maxQueue` size of
+approximately the square of the maximum number of threads is
+generally sufficient and performs well for many cases, but this
+will vary depending on your workload. It will be important to
+test and benchmark your worker pools to ensure you've effectively
+balanced queue wait times, memory usage, and worker pool utilization.
+
 ## Release Notes
+
+### 1.4.0
+
+* Added `maxQueue = 'auto'` to autocalculate the maximum queue size.
+* Added more examples, including an example of implementing a worker
+  as a Node.js native addon.
 
 ### 1.3.0
 
