@@ -55,7 +55,7 @@ test('idleTimeout must be non-negative integer', async ({ throws }) => {
   }) as any), /options.idleTimeout must be a non-negative integer/);
 });
 
-test('maxQueue must be non-negative integer', async ({ throws }) => {
+test('maxQueue must be non-negative integer', async ({ throws, is }) => {
   throws(() => new Piscina(({
     maxQueue: -1
   }) as any), /options.maxQueue must be a non-negative integer/);
@@ -63,6 +63,9 @@ test('maxQueue must be non-negative integer', async ({ throws }) => {
   throws(() => new Piscina(({
     maxQueue: 'string'
   }) as any), /options.maxQueue must be a non-negative integer/);
+
+  const p = new Piscina({ maxQueue: 'auto', maxThreads: 2 });
+  is(p.options.maxQueue, 4);
 });
 
 test('useAtomics must be a boolean', async ({ throws }) => {

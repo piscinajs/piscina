@@ -54,7 +54,7 @@ interface Options {
   minThreads? : number,
   maxThreads? : number,
   idleTimeout? : number,
-  maxQueue? : number,
+  maxQueue? : number | 'auto',
   concurrentTasksPerWorker? : number,
   useAtomics? : boolean,
   resourceLimits? : ResourceLimits,
@@ -69,7 +69,7 @@ interface FilledOptions extends Options {
   minThreads : number,
   maxThreads : number,
   idleTimeout : number,
-  maxQueue : number,
+  maxQueue : number | 'auto',
   concurrentTasksPerWorker : number,
   useAtomics: boolean
 }
@@ -285,6 +285,9 @@ class ThreadPool {
     if (options.minThreads !== undefined &&
         this.options.maxThreads <= options.minThreads) {
       this.options.maxThreads = options.minThreads;
+    }
+    if (options.maxQueue === 'auto') {
+      this.options.maxQueue = this.options.maxThreads ** 2;
     }
 
     this._ensureMinimumWorkers();
@@ -575,6 +578,7 @@ class Piscina extends EventEmitterAsyncResource {
       throw new TypeError('options.idleTimeout must be a non-negative integer');
     }
     if (options.maxQueue !== undefined &&
+        options.maxQueue !== 'auto' &&
         (typeof options.maxQueue !== 'number' || options.maxQueue < 0)) {
       throw new TypeError('options.maxQueue must be a non-negative integer');
     }
