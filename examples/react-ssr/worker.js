@@ -1,7 +1,7 @@
 'use strict';
 ;
 const React = require('react');
-const ReactDOMServer =  require('react-dom/server');
+const ReactDOMServer = require('react-dom/server');
 
 const { Greeting, Lorem } = require('./components');
 

@@ -3,11 +3,7 @@
 const React = require('react');
 
 class Greeting extends React.Component {
-  constructor(props) {
-    super(props);
-  }
-
-  render() {
+  render () {
     return React.createElement('div', null, 'hello ' + this.props.name);
   }
 }

@@ -3,12 +3,12 @@
 const fastify = require('fastify')();
 
 const React = require('react');
-const ReactDOMServer =  require('react-dom/server');
+const ReactDOMServer = require('react-dom/server');
 const { Greeting, Lorem } = require('./components');
 
 // Declare a route
 fastify.get('/', async () => {
-  const name = "James";
+  const name = 'James';
   return `
   <!doctype html>
     <html>

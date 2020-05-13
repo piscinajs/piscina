@@ -6,14 +6,13 @@ const { resolve } = require('path');
 
 const pool = new Piscina({
   filename: resolve(__dirname, 'worker.js'),
-  execArgv: []
+  execArgv: [],
+  minThreads: 6,
+  maxThreads: 6
 });
 
 // Declare a route
-fastify.get('/', async () => {
-  const p = pool.runTask({ name: 'James' });
-  return await p;
-});
+fastify.get('/', async () => pool.runTask({ name: 'James' }));
 
 // Run the server!
 const start = async () => {
