@@ -424,6 +424,8 @@ libuv on a per-process level. This means that there will be
 little performance impact on moving such async operations into
 a Piscina worker (see examples/scrypt for example).
 
+### Queue Size
+
 Piscina provides the ability to configure the minimum and
 maximum number of worker threads active in the pool, as well as
 set limits on the number of tasks that may be queued up waiting
@@ -435,9 +437,56 @@ as doing so could cause your worker threads to become idle and
 be shutdown. Our testing has shown that a `maxQueue` size of
 approximately the square of the maximum number of threads is
 generally sufficient and performs well for many cases, but this
-will vary depending on your workload. It will be important to
-test and benchmark your worker pools to ensure you've effectively
-balanced queue wait times, memory usage, and worker pool utilization.
+will vary significantly depending on your workload. It will be
+important to test and benchmark your worker pools to ensure you've
+effectively balanced queue wait times, memory usage, and worker
+pool utilization.
+
+### Queue Pressure and Idle Threads
+
+The thread pool maintained by Piscina has both a minimum and maximum
+limit to the number of threads that may be created. When a Piscina
+instance is created, it will spawn the minimum number of threads
+immediately, then create additional threads as needed up to the
+limit set by `maxThreads`. Whenever a worker completes a task, a
+check is made to determine if there is additional work for it to
+perform. If there is no additional work, the thread is marked idle.
+By default, idle threads are shutdown immediately, with Piscina
+ensuring that the pool always maintains at least the minimum.
+
+When a Piscina pool is processing a stream of tasks (for instance,
+processing http server requests as in the React server-side
+rendering example in examples/react-ssr), if the rate in which
+new tasks are received and queued is not sufficient to keep workers
+from going idle and terminating, the pool can experience a thrashing
+effect -- excessively creating and terminating workers that will
+cause a net performance loss. There are a couple of strategies to
+avoid this churn:
+
+Strategy 1: Ensure that the queue rate of new tasks is sufficient to
+keep workers from going idle. We refer to this as "queue pressure".
+If the queue pressure is too low, workers will go idle and terminate.
+If the queue pressure is too high, tasks will stack up, experience
+increased wait latency, and consume additional memory.
+
+Strategy 2: Increase the `idleTimeout` configuration option. By
+default, idle threads terminate immediately. The `idleTimeout` option
+can be used to specify a longer period of time to wait for additional
+tasks to be submitted before terminating the worker. If the queue
+pressure is not maintained, this could result in workers sitting idle
+but those will have less of a performance impact than the thrashing
+that occurs when threads are repeatedly terminated and recreated.
+
+Strategy 3: Increase the `minThreads` configuration option. This has
+the same basic effect as increasing the `idleTimeout`. If the queue
+pressure is not high enough, workers may sit idle indefinitely but
+there will be less of a performance hit.
+
+In applications using Piscina, it will be most effective to use a
+combination of these three appoaches and tune the various configuration
+parameters to find the optimum combination both for the application
+workload and the capabilities of the deployment environment. There
+are no one set of options that are going to work best.
 
 ## Release Notes
 
