@@ -40,7 +40,7 @@ stream
     counter++;
     pool.runTask(line);
     if (pool.queueSize === maxQueue) {
-      console.log('pausing...', counter, pool.queueSize);
+      console.log('pausing...', counter, pool.queueSize, pool.utilization);
       stream.pause();
     }
   })

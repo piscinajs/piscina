@@ -144,3 +144,27 @@ test('filename can be a file:// URL to an ESM module', {
   const result = await worker.runTask('42');
   is(result, 42);
 });
+
+test('duration and utilization calculations work', async ({ is, ok }) => {
+  const worker = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js')
+  });
+
+  // Initial utilization is always 0
+  is(worker.utilization, 0);
+
+  await Promise.all([
+    worker.runTask('42'),
+    worker.runTask('41'),
+    worker.runTask('40')
+  ]);
+
+  // utilization is going to be some non-deterministic value
+  // between 0 and 1. It should not be zero at this point
+  // because tasks have run, but it should also never be 1
+  ok(worker.utilization > 0);
+  ok(worker.utilization < 1);
+
+  // Duration must be non-zero.
+  ok(worker.duration > 0);
+});

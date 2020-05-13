@@ -299,6 +299,11 @@ A `'drain'` event is emitted whenever the `queueSize` reaches `0`.
 
 The current number of completed tasks.
 
+### Property: `duration` (readonly)
+
+The length of time (in milliseconds) since this `Piscina` instance was
+created.
+
 ### Property: `options` (readonly)
 
 A copy of the options that are currently being used by this instance. This
@@ -352,6 +357,23 @@ An Array of the `Worker` instances used by this pool.
 ### Property: `queueSize` (readonly)
 
 The current number of tasks waiting to be assigned to a Worker thread.
+
+### Property: `utilization` (readonly)
+
+A point-in-time ratio comparing the approximate total mean run time
+of completed tasks to the total runtime capacity of the pool.
+
+A pools runtime capacity is determined by multiplying the `duration`
+by the `options.maxThread` count. This provides an absolute theoretical
+maximum aggregate compute time that the pool would be capable of.
+
+The approximate total mean run time is determined by multiplying the
+mean run time of all completed tasks by the total number of completed
+tasks. This number represents the approximate amount of time the
+pool as been actively processing tasks.
+
+The utilization is then calculated by dividing the approximate total
+mean run time by the capacity, yielding a fraction between `0` and `1`.
 
 ### Property: `waitTime` (readonly)
 

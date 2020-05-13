@@ -265,6 +265,7 @@ class ThreadPool {
   completed : number = 0;
   runTime : Histogram;
   waitTime : Histogram;
+  start : number = performance.now();
   inProcessPendingMessages : boolean = false;
 
   constructor (publicInterface : Piscina, options : Options) {
@@ -659,6 +660,32 @@ class Piscina extends EventEmitterAsyncResource {
   get runTime () : any {
     const result = hdrobj.histAsObj(this.#pool.runTime);
     return hdrobj.addPercentiles(this.#pool.runTime, result);
+  }
+
+  get utilization () : number {
+    // The capacity is the max compute time capacity of the
+    // pool to this point in time as determined by the length
+    // of time the pool has been running multiplied by the
+    // maximum number of threads.
+    const capacity = this.duration * this.#pool.options.maxThreads;
+    const totalMeanRuntime = this.#pool.runTime.getMean() *
+      this.#pool.runTime.getTotalCount();
+
+    // We calculate the appoximate pool utilization by multiplying
+    // the mean run time of all tasks by the number of runtime
+    // samples taken and dividing that by the capacity. The
+    // theory here is that capacity represents the absolute upper
+    // limit of compute time this pool could ever attain (but
+    // never will for a variety of reasons. Multiplying the
+    // mean run time by the number of tasks sampled yields an
+    // approximation of the realized compute time. The utilization
+    // then becomes a point-in-time measure of how active the
+    // pool is.
+    return totalMeanRuntime / capacity;
+  }
+
+  get duration () : number {
+    return performance.now() - this.#pool.start;
   }
 
   static get isWorkerThread () : boolean {
