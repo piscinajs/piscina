@@ -11,6 +11,7 @@
   "author": "James M Snell <jasnell@gmail.com>",
   "license": "MIT",
   "dependencies": {
+    "node-addon-api": "^3.0.0",
     "node-gyp-build": "^4.2.2",
     "prebuildify": "^4.0.0"
   }
