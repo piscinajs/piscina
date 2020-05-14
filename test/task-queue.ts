@@ -94,6 +94,25 @@ test('will reject items when task queue is unavailable', async ({ is, rejects })
   await pool.destroy();
 });
 
+test('will reject items when task queue is unavailable (fixed thread count)', async ({ is, rejects }) => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.ts'),
+    minThreads: 1,
+    maxThreads: 1,
+    maxQueue: 0
+  });
+
+  is(pool.threads.length, 1);
+  is(pool.queueSize, 0);
+
+  rejects(pool.runTask('while (true) {}'), /Terminating worker thread/);
+  is(pool.threads.length, 1);
+  is(pool.queueSize, 0);
+
+  rejects(pool.runTask('while (true) {}'), /No task queue available and all Workers are busy/);
+  await pool.destroy();
+});
+
 test('tasks can share a Worker if requested (both tests blocking)', async ({ is, rejects }) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/wait-for-notify.ts'),
@@ -157,7 +176,7 @@ test('tasks can share a Worker if requested (one test finishes)', async ({ is, r
 test('tasks can share a Worker if requested (both tests finish)', async ({ is }) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/wait-for-notify.ts'),
-    minThreads: 0,
+    minThreads: 1,
     maxThreads: 1,
     maxQueue: 0,
     concurrentTasksPerWorker: 2
@@ -168,7 +187,7 @@ test('tasks can share a Worker if requested (both tests finish)', async ({ is })
     new Int32Array(new SharedArrayBuffer(4))
   ];
 
-  is(pool.threads.length, 0);
+  is(pool.threads.length, 1);
   is(pool.queueSize, 0);
 
   const firstTask = pool.runTask(buffers[0]);

@@ -9,5 +9,5 @@ no-browser: true
 test-env: TS_NODE_PROJECT=test/tsconfig.json
 test-ignore: $.
 test-regex: ((\/|^)(tests?|__tests?__)\/.*|\.(tests?|spec)|^\/?tests?)\.([mc]js|[jt]sx?)$
-timeout: 30
+timeout: 60
 ts: true

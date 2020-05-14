@@ -24,8 +24,8 @@ test('idle timeout will let go of threads early', async ({ is }) => {
   // The busy loops are here to prevent one task accidentally finishing before
   // the other and the two of them sharing a thread.
   const firstTasks = [
-    pool.runTask(busyLoop(100) + getThreadId),
-    pool.runTask(busyLoop(100) + getThreadId)
+    pool.runTask(busyLoop(500) + getThreadId),
+    pool.runTask(busyLoop(500) + getThreadId)
   ];
   is(pool.threads.length, 2);
 
@@ -36,8 +36,8 @@ test('idle timeout will let go of threads early', async ({ is }) => {
   is(pool.threads.length, 1);
 
   const secondTasks = [
-    pool.runTask(busyLoop(100) + getThreadId),
-    pool.runTask(busyLoop(100) + getThreadId)
+    pool.runTask(busyLoop(500) + getThreadId),
+    pool.runTask(busyLoop(500) + getThreadId)
   ];
   is(pool.threads.length, 2);
 

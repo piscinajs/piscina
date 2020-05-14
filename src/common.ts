@@ -13,6 +13,10 @@ export interface RequestMessage {
   filename: string;
 }
 
+export interface ReadyMessage {
+  ready: true
+};
+
 export interface ResponseMessage {
   taskId : number;
   result : any;
