@@ -10,7 +10,7 @@ import assert from 'assert';
 import { Histogram, build } from 'hdr-histogram-js';
 import { performance } from 'perf_hooks';
 import hdrobj from 'hdr-histogram-percentiles-obj';
-import { RequestMessage, ResponseMessage, StartupMessage, commonState, kResponseCountField, kRequestCountField, kFieldCount } from './common';
+import { ReadyMessage, RequestMessage, ResponseMessage, StartupMessage, commonState, kResponseCountField, kRequestCountField, kFieldCount } from './common';
 import { version } from '../package.json';
 
 const cpuCount : number = (() => {
@@ -69,7 +69,7 @@ interface FilledOptions extends Options {
   minThreads : number,
   maxThreads : number,
   idleTimeout : number,
-  maxQueue : number | 'auto',
+  maxQueue : number,
   concurrentTasksPerWorker : number,
   useAtomics: boolean
 }
@@ -140,9 +140,113 @@ class TaskInfo extends AsyncResource {
   }
 }
 
+abstract class AsynchronouslyCreatedResource {
+  onreadyListeners : (() => void)[] | null = [];
+
+  markAsReady () : void {
+    const listeners = this.onreadyListeners;
+    assert(listeners !== null);
+    this.onreadyListeners = null;
+    for (const listener of listeners) {
+      listener();
+    }
+  }
+
+  isReady () : boolean {
+    return this.onreadyListeners === null;
+  }
+
+  onReady (fn : () => void) {
+    if (this.onreadyListeners === null) {
+      fn(); // Zalgo is okay here.
+      return;
+    }
+    this.onreadyListeners.push(fn);
+  }
+
+  abstract currentUsage() : number;
+}
+
+class AsynchronouslyCreatedResourcePool<
+  T extends AsynchronouslyCreatedResource> {
+  pendingItems = new Set<T>();
+  readyItems = new Set<T>();
+  maximumUsage : number;
+  onAvailableListeners : ((item : T) => void)[];
+
+  constructor (maximumUsage : number) {
+    this.maximumUsage = maximumUsage;
+    this.onAvailableListeners = [];
+  }
+
+  add (item : T) {
+    this.pendingItems.add(item);
+    item.onReady(() => {
+      /* istanbul ignore else */
+      if (this.pendingItems.has(item)) {
+        this.pendingItems.delete(item);
+        this.readyItems.add(item);
+        this.maybeAvailable(item);
+      }
+    });
+  }
+
+  delete (item : T) {
+    this.pendingItems.delete(item);
+    this.readyItems.delete(item);
+  }
+
+  findAvailable () : T | null {
+    let minUsage = this.maximumUsage;
+    let candidate = null;
+    for (const item of this.readyItems) {
+      const usage = item.currentUsage();
+      if (usage === 0) return item;
+      if (usage < minUsage) {
+        candidate = item;
+        minUsage = usage;
+      }
+    }
+    return candidate;
+  }
+
+  * [Symbol.iterator] () {
+    yield * this.pendingItems;
+    yield * this.readyItems;
+  }
+
+  get size () {
+    return this.pendingItems.size + this.readyItems.size;
+  }
+
+  maybeAvailable (item : T) {
+    /* istanbul ignore else */
+    if (item.currentUsage() < this.maximumUsage) {
+      for (const listener of this.onAvailableListeners) {
+        listener(item);
+      }
+    }
+  }
+
+  onAvailable (fn : (item : T) => void) {
+    this.onAvailableListeners.push(fn);
+  }
+}
+
 type ResponseCallback = (response : ResponseMessage) => void;
 
-class WorkerInfo {
+const Errors = {
+  ThreadTermination:
+    () => new Error('Terminating worker thread'),
+  FilenameNotProvided:
+    () => new Error('filename must be provided to runTask() or in options object'),
+  TaskQueueAtLimit:
+    () => new Error('Task queue is at limit'),
+  NoTaskQueueAvailable:
+    () => new Error('No task queue available and all Workers are busy')
+};
+
+class WorkerInfo extends AsynchronouslyCreatedResource {
   worker : Worker;
   taskInfos : Map<number, TaskInfo>;
   idleTimeout : NodeJS.Timeout | null = null;
@@ -155,6 +259,7 @@ class WorkerInfo {
     worker : Worker,
     port : MessagePort,
     onMessage : ResponseCallback) {
+    super();
     this.worker = worker;
     this.port = port;
     this.port.on('message',
@@ -167,9 +272,10 @@ class WorkerInfo {
 
   destroy () : void {
     this.worker.terminate();
+    this.port.close();
     this.clearIdleTimeout();
     for (const taskInfo of this.taskInfos.values()) {
-      taskInfo.done(new Error('Terminating worker thread'));
+      taskInfo.done(Errors.ThreadTermination());
     }
     this.taskInfos.clear();
   }
@@ -182,13 +288,13 @@ class WorkerInfo {
   }
 
   ref () : WorkerInfo {
-    this.worker.ref();
     this.port.ref();
     return this;
   }
 
   unref () : WorkerInfo {
-    this.worker.unref();
+    // Note: Do not call ref()/unref() on the Worker itself since that may cause
+    // a hard crash, see https://github.com/nodejs/node/pull/33394.
     this.port.unref();
     return this;
   }
@@ -255,11 +361,16 @@ class WorkerInfo {
     const [[, task]] = this.taskInfos;
     return task.abortSignal !== null;
   }
+
+  currentUsage () : number {
+    if (this.isRunningAbortableTask()) return Infinity;
+    return this.taskInfos.size;
+  }
 }
 
 class ThreadPool {
   publicInterface : Piscina;
-  workers : WorkerInfo[];
+  workers : AsynchronouslyCreatedResourcePool<WorkerInfo>;
   options : FilledOptions;
   taskQueue : TaskInfo[]; // Maybe turn this into a priority queue?
   completed : number = 0;
@@ -267,17 +378,18 @@ class ThreadPool {
   waitTime : Histogram;
   start : number = performance.now();
   inProcessPendingMessages : boolean = false;
+  startingUp : boolean = false;
+  workerFailsDuringBootstrap : boolean = false;
 
   constructor (publicInterface : Piscina, options : Options) {
     this.publicInterface = publicInterface;
-    this.workers = [];
     this.taskQueue = [];
     this.runTime = build({ lowestDiscernibleValue: 1 });
     this.waitTime = build({ lowestDiscernibleValue: 1 });
 
     const filename =
       options.filename ? maybeFileURLToPath(options.filename) : null;
-    this.options = { ...kDefaultOptions, ...options, filename };
+    this.options = { ...kDefaultOptions, ...options, filename, maxQueue: 0 };
     // The >= and <= could be > and < but this way we get 100 % coverage 🙃
     if (options.maxThreads !== undefined &&
         this.options.minThreads >= options.maxThreads) {
@@ -289,18 +401,26 @@ class ThreadPool {
     }
     if (options.maxQueue === 'auto') {
       this.options.maxQueue = this.options.maxThreads ** 2;
+    } else {
+      this.options.maxQueue = options.maxQueue ?? kDefaultOptions.maxQueue;
     }
 
+    this.workers = new AsynchronouslyCreatedResourcePool<WorkerInfo>(
+      this.options.concurrentTasksPerWorker);
+    this.workers.onAvailable((w : WorkerInfo) => this._onWorkerAvailable(w));
+
+    this.startingUp = true;
     this._ensureMinimumWorkers();
+    this.startingUp = false;
   }
 
   _ensureMinimumWorkers () : void {
-    while (this.workers.length < this.options.minThreads) {
-      this._onWorkerFree(this._addNewWorker());
+    while (this.workers.size < this.options.minThreads) {
+      this._addNewWorker();
     }
   }
 
-  _addNewWorker () : WorkerInfo {
+  _addNewWorker () : void {
     const pool = this;
     const worker = new Worker(resolve(__dirname, 'worker.js'), {
       env: this.options.env,
@@ -312,6 +432,11 @@ class ThreadPool {
 
     const { port1, port2 } = new MessageChannel();
     const workerInfo = new WorkerInfo(worker, port1, onMessage);
+    if (this.startingUp) {
+      // There is no point in waiting for the initial set of Workers to indicate
+      // that they are ready, we just mark them as such from the start.
+      workerInfo.markAsReady();
+    }
 
     const message : StartupMessage = {
       filename: this.options.filename,
@@ -329,7 +454,7 @@ class ThreadPool {
       const taskInfo = workerInfo.taskInfos.get(taskId);
       workerInfo.taskInfos.delete(taskId);
 
-      pool._onWorkerFree(workerInfo);
+      pool.workers.maybeAvailable(workerInfo);
 
       /* istanbul ignore if */
       if (taskInfo === undefined) {
@@ -343,12 +468,26 @@ class ThreadPool {
       pool._processPendingMessages();
     }
 
-    worker.on('message', (message) => {
+    worker.on('message', (message : ReadyMessage) => {
+      if (message.ready === true) {
+        if (workerInfo.currentUsage() === 0) {
+          workerInfo.unref();
+        }
+
+        if (!workerInfo.isReady()) {
+          workerInfo.markAsReady();
+        }
+        return;
+      }
+
       worker.emit('error', new Error(
         `Unexpected message on Worker: ${inspect(message)}`));
     });
 
     worker.on('error', (err : Error) => {
+      // Work around the bug in https://github.com/nodejs/node/pull/33394
+      worker.ref = () => {};
+
       // In case of an uncaught exception: Call the callback that was passed to
       // `postTask` with the error, or emit an 'error' event if there is none.
       const taskInfos = [...workerInfo.taskInfos.values()];
@@ -357,7 +496,14 @@ class ThreadPool {
       // Remove the worker from the list and potentially start a new Worker to
       // replace the current one.
       this._removeWorker(workerInfo);
-      this._ensureMinimumWorkers();
+
+      if (workerInfo.isReady() && !this.workerFailsDuringBootstrap) {
+        this._ensureMinimumWorkers();
+      } else {
+        // Do not start new workers over and over if they already fail during
+        // bootstrap, there's no point.
+        this.workerFailsDuringBootstrap = true;
+      }
 
       if (taskInfos.length > 0) {
         for (const taskInfo of taskInfos) {
@@ -368,10 +514,15 @@ class ThreadPool {
       }
     });
 
-    workerInfo.unref();
+    worker.unref();
+    port1.on('close', () => {
+      // The port is only closed if the Worker stops for some reason, but we
+      // always .unref() the Worker itself. We want to receive e.g. 'error'
+      // events on it, so we ref it once we know it's going to exit anyway.
+      worker.ref();
+    });
 
-    this.workers.push(workerInfo);
-    return workerInfo;
+    this.workers.add(workerInfo);
   }
 
   _processPendingMessages () {
@@ -392,11 +543,12 @@ class ThreadPool {
   _removeWorker (workerInfo : WorkerInfo) : void {
     workerInfo.destroy();
 
-    this.workers.splice(this.workers.indexOf(workerInfo), 1);
+    this.workers.delete(workerInfo);
   }
 
-  _onWorkerFree (workerInfo : WorkerInfo) : void {
-    if (this.taskQueue.length > 0) {
+  _onWorkerAvailable (workerInfo : WorkerInfo) : void {
+    while (this.taskQueue.length > 0 &&
+      workerInfo.currentUsage() < this.options.concurrentTasksPerWorker) {
       const taskInfo = this.taskQueue.shift() as TaskInfo;
       const now = performance.now();
       this.waitTime.recordValue(now - taskInfo.created);
@@ -407,10 +559,10 @@ class ThreadPool {
     }
 
     if (workerInfo.taskInfos.size === 0 &&
-        this.workers.length > this.options.minThreads) {
+        this.workers.size > this.options.minThreads) {
       workerInfo.idleTimeout = setTimeout(() => {
         assert.strictEqual(workerInfo.taskInfos.size, 0);
-        if (this.workers.length > this.options.minThreads) {
+        if (this.workers.size > this.options.minThreads) {
           this._removeWorker(workerInfo);
         }
       }, this.options.idleTimeout).unref();
@@ -426,8 +578,7 @@ class ThreadPool {
       filename = this.options.filename;
     }
     if (typeof filename !== 'string') {
-      return Promise.reject(new Error(
-        'filename must be provided to runTask() or in options object'));
+      return Promise.reject(Errors.FilenameNotProvided());
     }
     filename = maybeFileURLToPath(filename);
 
@@ -473,9 +624,17 @@ class ThreadPool {
     // If there is a task queue, there's no point in looking for an available
     // Worker thread. Add this task to the queue, if possible.
     if (this.taskQueue.length > 0) {
-      if (this.taskQueue.length >= this.options.maxQueue) {
-        return Promise.reject(new Error('Task queue is at limit'));
+      const totalCapacity = this.options.maxQueue + this.pendingCapacity();
+      if (this.taskQueue.length >= totalCapacity) {
+        if (this.options.maxQueue === 0) {
+          return Promise.reject(Errors.NoTaskQueueAvailable());
+        } else {
+          return Promise.reject(Errors.TaskQueueAtLimit());
+        }
       } else {
+        if (this.workers.size < this.options.maxThreads) {
+          this._addNewWorker();
+        }
         this.taskQueue.push(taskInfo);
       }
 
@@ -483,39 +642,27 @@ class ThreadPool {
     }
 
     // Look for a Worker with a minimum number of tasks it is currently running.
-    let workerInfo : WorkerInfo | null = null;
-    let minimumCurrentTasks = Infinity;
-    for (const candidate of this.workers) {
-      if (candidate.taskInfos.size < minimumCurrentTasks &&
-          !candidate.isRunningAbortableTask()) {
-        workerInfo = candidate;
-        minimumCurrentTasks = candidate.taskInfos.size;
-        if (minimumCurrentTasks === 0) break;
-      }
-    }
+    let workerInfo : WorkerInfo | null = this.workers.findAvailable();
 
-    // If all Workers are at maximum usage, do not use any of them.
     // If we want the ability to abort this task, use only workers that have
     // no running tasks.
-    if (minimumCurrentTasks >= this.options.concurrentTasksPerWorker ||
-        (minimumCurrentTasks > 0 && abortSignal)) {
+    if (workerInfo !== null && workerInfo.currentUsage() > 0 && abortSignal) {
       workerInfo = null;
     }
 
     // If no Worker was found, or that Worker was handling another task in some
     // way, and we still have the ability to spawn new threads, do so.
-    if ((workerInfo === null || minimumCurrentTasks > 0) &&
-        this.workers.length < this.options.maxThreads) {
-      // This doesn't account for Worker startup time yet. If another Worker
-      // becomes available beefore the new one is up, we should use that.
-      workerInfo = this._addNewWorker();
+    let waitingForNewWorker = false;
+    if ((workerInfo === null || workerInfo.currentUsage() > 0) &&
+        this.workers.size < this.options.maxThreads) {
+      this._addNewWorker();
+      waitingForNewWorker = true;
     }
 
     // If no Worker is found, try to put the task into the queue.
     if (workerInfo === null) {
-      if (this.options.maxQueue <= 0) {
-        return Promise.reject(
-          new Error('No task queue available and all Workers are busy'));
+      if (this.options.maxQueue <= 0 && !waitingForNewWorker) {
+        return Promise.reject(Errors.NoTaskQueueAvailable());
       } else {
         this.taskQueue.push(taskInfo);
       }
@@ -523,12 +670,18 @@ class ThreadPool {
       return ret;
     }
 
+    // TODO(addaleax): Clean up the waitTime/runTime recording.
     const now = performance.now();
     this.waitTime.recordValue(now - taskInfo.created);
     taskInfo.started = now;
     workerInfo.postTask(taskInfo);
     this._maybeDrain();
     return ret;
+  }
+
+  pendingCapacity () : number {
+    return this.workers.pendingItems.size *
+      this.options.concurrentTasksPerWorker;
   }
 
   _maybeDrain () {
@@ -544,9 +697,10 @@ class ThreadPool {
     }
 
     const exitEvents : Promise<any[]>[] = [];
-    while (this.workers.length > 0) {
-      exitEvents.push(once(this.workers[0].worker, 'exit'));
-      this._removeWorker(this.workers[0]);
+    while (this.workers.size > 0) {
+      const [workerInfo] = this.workers;
+      exitEvents.push(once(workerInfo.worker, 'exit'));
+      this._removeWorker(workerInfo);
     }
 
     await Promise.all(exitEvents);
@@ -641,11 +795,14 @@ class Piscina extends EventEmitterAsyncResource {
   }
 
   get threads () : Worker[] {
-    return this.#pool.workers.map((workerInfo) => workerInfo.worker);
+    const ret : Worker[] = [];
+    for (const workerInfo of this.#pool.workers) { ret.push(workerInfo.worker); }
+    return ret;
   }
 
   get queueSize () : number {
-    return this.#pool.taskQueue.length;
+    const pool = this.#pool;
+    return Math.max(pool.taskQueue.length - pool.pendingCapacity(), 0);
   }
 
   get completed () : number {

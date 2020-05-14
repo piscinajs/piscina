@@ -1,6 +1,6 @@
 import { parentPort, MessagePort, receiveMessageOnPort, workerData } from 'worker_threads';
 import { pathToFileURL } from 'url';
-import { commonState, RequestMessage, ResponseMessage, StartupMessage, kResponseCountField, kRequestCountField } from './common';
+import { commonState, ReadyMessage, RequestMessage, ResponseMessage, StartupMessage, kResponseCountField, kRequestCountField } from './common';
 
 commonState.isWorkerThread = true;
 commonState.workerData = workerData;
@@ -58,12 +58,17 @@ async function getHandler (filename : string) : Promise<Function | null> {
 parentPort!.on('message', (message : StartupMessage) => {
   useAtomics = message.useAtomics;
   const { port, sharedBuffer, filename } = message;
-  if (filename !== null) {
-    getHandler(filename).catch(throwInNextTick);
-  }
+  (async function () {
+    if (filename !== null) {
+      await getHandler(filename);
+    }
 
-  port.on('message', onMessage.bind(null, port, sharedBuffer));
-  atomicsWaitLoop(port, sharedBuffer);
+    const readyMessage : ReadyMessage = { ready: true };
+    parentPort!.postMessage(readyMessage);
+
+    port.on('message', onMessage.bind(null, port, sharedBuffer));
+    atomicsWaitLoop(port, sharedBuffer);
+  })().catch(throwInNextTick);
 });
 
 let currentTasks : number = 0;
