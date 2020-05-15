@@ -7,7 +7,7 @@
 * ✔ Supports flexible pool sizes
 * ✔ Proper async tracking integration
 * ✔ Tracking statistics for run and wait times
-* ✔ Cancelation Support
+* ✔ Cancellation Support
 * ✔ Supports enforcing memory resource limits
 * ✔ Supports CommonJS and ESM
 
@@ -505,7 +505,7 @@ pressure is not high enough, workers may sit idle indefinitely but
 there will be less of a performance hit.
 
 In applications using Piscina, it will be most effective to use a
-combination of these three appoaches and tune the various configuration
+combination of these three approaches and tune the various configuration
 parameters to find the optimum combination both for the application
 workload and the capabilities of the deployment environment. There
 are no one set of options that are going to work best.
