@@ -5,12 +5,27 @@ import { AsyncResource } from 'async_hooks';
 import { cpus } from 'os';
 import { fileURLToPath, URL } from 'url';
 import { resolve } from 'path';
-import { inspect } from 'util';
+import { inspect, types } from 'util';
 import assert from 'assert';
 import { Histogram, build } from 'hdr-histogram-js';
 import { performance } from 'perf_hooks';
 import hdrobj from 'hdr-histogram-percentiles-obj';
-import { ReadyMessage, RequestMessage, ResponseMessage, StartupMessage, commonState, kResponseCountField, kRequestCountField, kFieldCount } from './common';
+import {
+  ReadyMessage,
+  RequestMessage,
+  ResponseMessage,
+  StartupMessage,
+  commonState,
+  kResponseCountField,
+  kRequestCountField,
+  kFieldCount,
+  Transferable,
+  isTransferable,
+  markMovable,
+  isMovable,
+  kTransferable,
+  kValue
+} from './common';
 import { version } from '../package.json';
 
 const cpuCount : number = (() => {
@@ -49,6 +64,8 @@ type EnvSpecifier = typeof Worker extends {
   new (filename : never, options?: { env: infer T }) : Worker;
 } ? T : never;
 
+type TransferListItem = TransferList extends (infer T)[] ? T : never;
+
 interface Options {
   filename? : string | null,
   minThreads? : number,
@@ -83,6 +100,28 @@ const kDefaultOptions : FilledOptions = {
   concurrentTasksPerWorker: 1,
   useAtomics: true
 };
+
+class DirectlyTransferable implements Transferable {
+  #value : object;
+  constructor (value : object) {
+    this.#value = value;
+  }
+
+  get [kTransferable] () : object { return this.#value; }
+
+  get [kValue] () : object { return this.#value; }
+}
+
+class ArrayBufferViewTransferable implements Transferable {
+  #view : ArrayBufferView;
+  constructor (view : ArrayBufferView) {
+    this.#view = view;
+  }
+
+  get [kTransferable] () : object { return this.#view.buffer; }
+
+  get [kValue] () : object { return this.#view; }
+}
 
 let taskIdCounter = 0;
 
@@ -121,6 +160,19 @@ class TaskInfo extends AsyncResource {
     this.callback = callback;
     this.task = task;
     this.transferList = transferList;
+
+    // If the task is a Transferable returned by
+    // Piscina.move(), then add it to the transferList
+    // automatically
+    if (isMovable(task)) {
+      if (this.transferList === undefined) {
+        this.transferList = [];
+      }
+      this.transferList =
+        this.transferList.concat(task[kTransferable]);
+      this.task = task[kValue];
+    }
+
     this.filename = filename;
     this.taskId = taskIdCounter++;
     this.abortSignal = abortSignal;
@@ -860,6 +912,24 @@ class Piscina extends EventEmitterAsyncResource {
   static get Piscina () {
     return Piscina;
   }
+
+  static move (val : Transferable | TransferListItem | ArrayBufferView) {
+    if (val != null && typeof val === 'object' && typeof val !== 'function') {
+      if (!isTransferable(val)) {
+        if ((types as any).isArrayBufferView(val)) {
+          val = new ArrayBufferViewTransferable(val as ArrayBufferView);
+        } else {
+          val = new DirectlyTransferable(val);
+        }
+      }
+      markMovable(val);
+    }
+    return val;
+  }
+
+  static get transferableSymbol () { return kTransferable; }
+
+  static get valueSymbol () { return kValue; }
 }
 
 export = Piscina;

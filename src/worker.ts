@@ -1,6 +1,17 @@
 import { parentPort, MessagePort, receiveMessageOnPort, workerData } from 'worker_threads';
 import { pathToFileURL } from 'url';
-import { commonState, ReadyMessage, RequestMessage, ResponseMessage, StartupMessage, kResponseCountField, kRequestCountField } from './common';
+import {
+  commonState,
+  ReadyMessage,
+  RequestMessage,
+  ResponseMessage,
+  StartupMessage,
+  kResponseCountField,
+  kRequestCountField,
+  isMovable,
+  kTransferable,
+  kValue
+} from './common';
 
 commonState.isWorkerThread = true;
 commonState.workerData = workerData;
@@ -112,12 +123,17 @@ function onMessage (
 
   (async function () {
     let response : ResponseMessage;
+    const transferList : any[] = [];
     try {
       const handler = await getHandler(filename);
       if (handler === null) {
         throw new Error(`No handler function exported from ${filename}`);
       }
-      const result = await handler(task);
+      let result = await handler(task);
+      if (isMovable(result)) {
+        transferList.concat(result[kTransferable]);
+        result = result[kValue];
+      }
       response = {
         taskId,
         result: result,
@@ -137,7 +153,7 @@ function onMessage (
     // Post the response to the parent thread, and let it know that we have
     // an additional message available. If possible, use Atomics.wait()
     // to wait for the next message.
-    port.postMessage(response);
+    port.postMessage(response, transferList);
     Atomics.add(sharedBuffer, kResponseCountField, 1);
     atomicsWaitLoop(port, sharedBuffer);
   })().catch(throwInNextTick);
