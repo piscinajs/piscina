@@ -38,7 +38,9 @@ stream
   .on('data', (data) => {
     const line = data.toString('utf8');
     counter++;
-    pool.runTask(line);
+    pool.runTask(line).catch((err) => {
+      stream.destroy(err);
+    });
     if (pool.queueSize === maxQueue) {
       console.log('pausing...', counter, pool.queueSize, pool.utilization);
       stream.pause();
