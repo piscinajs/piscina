@@ -44,7 +44,10 @@ stream
       stream.pause();
     }
   })
-  .on('error', console.error)
+  .on('error', (err) => {
+    console.log(err.message);
+    console.log('run: `node generate` to generate the sample data');
+  })
   .on('end', () => {
     performance.mark('B');
     performance.measure('A to B', 'A', 'B');
