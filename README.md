@@ -624,6 +624,14 @@ are no one set of options that are going to work best.
 
 ## Release Notes
 
+### 1.5.0
+
+* Added `Piscina.move()`
+* Added Custom Task Queues
+* Added utilization metric
+* Wait for workers to be ready before considering them as candidates
+* Additional examples
+
 ### 1.4.0
 
 * Added `maxQueue = 'auto'` to autocalculate the maximum queue size.
