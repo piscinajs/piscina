@@ -20,6 +20,10 @@ import {
   kRequestCountField,
   kFieldCount,
   Transferable,
+  Task,
+  TaskQueue,
+  kQueueOptions,
+  isTaskQueue,
   isTransferable,
   markMovable,
   isMovable,
@@ -66,6 +70,26 @@ type EnvSpecifier = typeof Worker extends {
 
 type TransferListItem = TransferList extends (infer T)[] ? T : never;
 
+class ArrayTaskQueue implements TaskQueue {
+  tasks : Task[] = [];
+
+  get size () { return this.tasks.length; }
+
+  shift () : Task | null {
+    return this.tasks.shift() as Task;
+  }
+
+  push (task : Task) : void {
+    this.tasks.push(task);
+  }
+
+  remove (task : Task) : void {
+    const index = this.tasks.indexOf(task);
+    assert.notStrictEqual(index, -1);
+    this.tasks.splice(index, 1);
+  }
+}
+
 interface Options {
   filename? : string | null,
   minThreads? : number,
@@ -78,7 +102,8 @@ interface Options {
   argv? : string[],
   execArgv? : string[],
   env? : EnvSpecifier,
-  workerData? : any
+  workerData? : any,
+  taskQueue? : TaskQueue
 }
 
 interface FilledOptions extends Options {
@@ -88,7 +113,8 @@ interface FilledOptions extends Options {
   idleTimeout : number,
   maxQueue : number,
   concurrentTasksPerWorker : number,
-  useAtomics: boolean
+  useAtomics: boolean,
+  taskQueue : TaskQueue
 }
 
 const kDefaultOptions : FilledOptions = {
@@ -98,7 +124,8 @@ const kDefaultOptions : FilledOptions = {
   idleTimeout: 0,
   maxQueue: Infinity,
   concurrentTasksPerWorker: 1,
-  useAtomics: true
+  useAtomics: true,
+  taskQueue: new ArrayTaskQueue()
 };
 
 class DirectlyTransferable implements Transferable {
@@ -138,7 +165,7 @@ function maybeFileURLToPath (filename : string) : string {
 
 // Extend AsyncResource so that async relations between posting a task and
 // receiving its result are visible to diagnostic tools.
-class TaskInfo extends AsyncResource {
+class TaskInfo extends AsyncResource implements Task {
   callback : TaskCallback;
   task : any;
   transferList : TransferList;
@@ -189,6 +216,10 @@ class TaskInfo extends AsyncResource {
   done (err : Error | null, result? : any) : void {
     this.runInAsyncScope(this.callback, null, err, result);
     this.emitDestroy(); // `TaskInfo`s are used only once.
+  }
+
+  get [kQueueOptions] () : object | null {
+    return kQueueOptions in this.task ? this.task[kQueueOptions] : null;
   }
 }
 
@@ -424,7 +455,7 @@ class ThreadPool {
   publicInterface : Piscina;
   workers : AsynchronouslyCreatedResourcePool<WorkerInfo>;
   options : FilledOptions;
-  taskQueue : TaskInfo[]; // Maybe turn this into a priority queue?
+  taskQueue : TaskQueue;
   completed : number = 0;
   runTime : Histogram;
   waitTime : Histogram;
@@ -435,7 +466,7 @@ class ThreadPool {
 
   constructor (publicInterface : Piscina, options : Options) {
     this.publicInterface = publicInterface;
-    this.taskQueue = [];
+    this.taskQueue = options.taskQueue || new ArrayTaskQueue();
     this.runTime = build({ lowestDiscernibleValue: 1 });
     this.waitTime = build({ lowestDiscernibleValue: 1 });
 
@@ -599,7 +630,7 @@ class ThreadPool {
   }
 
   _onWorkerAvailable (workerInfo : WorkerInfo) : void {
-    while (this.taskQueue.length > 0 &&
+    while (this.taskQueue.size > 0 &&
       workerInfo.currentUsage() < this.options.concurrentTasksPerWorker) {
       const taskInfo = this.taskQueue.shift() as TaskInfo;
       const now = performance.now();
@@ -666,18 +697,16 @@ class ThreadPool {
           this._ensureMinimumWorkers();
         } else {
           // Not yet running: Remove it from the queue.
-          const index = this.taskQueue.indexOf(taskInfo);
-          assert.notStrictEqual(index, -1);
-          this.taskQueue.splice(index, 1);
+          this.taskQueue.remove(taskInfo);
         }
       });
     }
 
     // If there is a task queue, there's no point in looking for an available
     // Worker thread. Add this task to the queue, if possible.
-    if (this.taskQueue.length > 0) {
+    if (this.taskQueue.size > 0) {
       const totalCapacity = this.options.maxQueue + this.pendingCapacity();
-      if (this.taskQueue.length >= totalCapacity) {
+      if (this.taskQueue.size >= totalCapacity) {
         if (this.options.maxQueue === 0) {
           return Promise.reject(Errors.NoTaskQueueAvailable());
         } else {
@@ -737,13 +766,13 @@ class ThreadPool {
   }
 
   _maybeDrain () {
-    if (this.taskQueue.length === 0) {
+    if (this.taskQueue.size === 0) {
       this.publicInterface.emit('drain');
     }
   }
 
   async destroy () {
-    while (this.taskQueue.length > 0) {
+    while (this.taskQueue.size > 0) {
       const taskInfo : TaskInfo = this.taskQueue.shift() as TaskInfo;
       taskInfo.done(new Error('Terminating worker thread'));
     }
@@ -804,6 +833,9 @@ class Piscina extends EventEmitterAsyncResource {
          options.resourceLimits === null)) {
       throw new TypeError('options.resourceLimits must be an object');
     }
+    if (options.taskQueue !== undefined && !isTaskQueue(options.taskQueue)) {
+      throw new TypeError('options.taskQueue must be a TaskQueue object');
+    }
 
     this.#pool = new ThreadPool(this, options);
   }
@@ -842,7 +874,7 @@ class Piscina extends EventEmitterAsyncResource {
     return this.#pool.destroy();
   }
 
-  get options () : Options {
+  get options () : FilledOptions {
     return this.#pool.options;
   }
 
@@ -854,7 +886,7 @@ class Piscina extends EventEmitterAsyncResource {
 
   get queueSize () : number {
     const pool = this.#pool;
-    return Math.max(pool.taskQueue.length - pool.pendingCapacity(), 0);
+    return Math.max(pool.taskQueue.size - pool.pendingCapacity(), 0);
   }
 
   get completed () : number {
@@ -930,6 +962,8 @@ class Piscina extends EventEmitterAsyncResource {
   static get transferableSymbol () { return kTransferable; }
 
   static get valueSymbol () { return kValue; }
+
+  static get queueOptionsSymbol () { return kQueueOptions; }
 }
 
 export = Piscina;

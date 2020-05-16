@@ -245,6 +245,9 @@ This class extends [`EventEmitter`][] from Node.js.
     for details. Unlike regular Node.js Worker Threads, `workerData` must not
     specify any value requiring a `transferList`. This is because the `workerData`
     will be cloned for each pooled worker.
+  * `taskQueue` : (`TaskQueue`) By default, Piscina uses a first-in-first-out
+    queue for submitted tasks. The `taskQueue` option can be used to provide an
+    alternative implementation. See [Custom Task Queues][] for additional detail.
 
 Use caution when setting resource limits. Setting limits that are too low may
 result in the `Piscina` worker threads being unusable.
@@ -497,6 +500,42 @@ module.exports = () => {
 };
 ```
 
+## Custom Task Queues
+
+By default, Piscina uses a simple array-based first-in-first-out (fifo)
+task queue. When a new task is submitted and there are no available
+workers, tasks are pushed on to the queue until a worker becomes
+available.
+
+If the default fifo queue is not sufficient, user code may replace the
+task queue implementation with a custom implementation using the
+`taskQueue` option on the Piscina constructor.
+
+Custom task queue objects *must* implement the `TaskQueue` interface,
+described below using TypeScript syntax:
+
+```ts
+interface Task {
+  readonly [Piscina.queueOptionsSymbol] : object | null;
+}
+
+interface TaskQueue {
+  readonly size : number;
+  shift () : Task | null;
+  remove (task : Task) : void;
+  push (task : Task) : void;
+}
+```
+
+An example of a custom task queue that uses a shuffled priority queue
+is available in [`examples/task-queue`](./examples/task-queue/index.js);
+
+The special symbol `Piscina.queueOptionsSymbol` may be set as a property
+on tasks submitted to `runTask()` as a way of passing additional options
+on to the custom `TaskQueue` implementation. (Note that because the
+queue options are set as a property on the task, tasks with queue
+options cannot be submitted as JavaScript primitives).
+
 ## Current Limitations (Things we're working on / would love help with)
 
 * Improved Documentation
@@ -622,6 +661,8 @@ Piscina development is sponsored by [NearForm Research][].
 [`Atomics`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Atomics
 [`EventEmitter`]: https://nodejs.org/api/events.html
 [`postMessage`]: https://nodejs.org/api/worker_threads.html#worker_threads_port_postmessage_value_transferlist
+[`examples/task-queue`]: https://github.com/jasnell/piscina/blob/master/examples/task-queue/index.js
+[Custom Task Queues]: #custom_task_queues
 [ES modules]: https://nodejs.org/api/esm.html
 [Node.js new Worker options]: https://nodejs.org/api/worker_threads.html#worker_threads_new_worker_filename_options
 [MIT Licensed]: LICENSE.md
