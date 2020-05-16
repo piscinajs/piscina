@@ -33,6 +33,7 @@ export const commonState = {
 const kMovable = Symbol('Piscina.kMovable');
 export const kTransferable = Symbol.for('Piscina.transferable');
 export const kValue = Symbol.for('Piscina.valueOf');
+export const kQueueOptions = Symbol.for('Piscina.queueOptions');
 
 // True if the object implements the Transferable interface
 export function isTransferable (value : any) : boolean {
@@ -60,6 +61,26 @@ export function markMovable (value : object) : void {
 export interface Transferable {
   readonly [kTransferable] : object;
   readonly [kValue] : object;
+}
+
+export interface Task {
+  readonly [kQueueOptions] : object | null;
+}
+
+export interface TaskQueue {
+  readonly size : number;
+  shift () : Task | null;
+  remove (task : Task) : void;
+  push (task : Task) : void;
+}
+
+export function isTaskQueue (value : any) : boolean {
+  return typeof value === 'object' &&
+         value !== null &&
+         'size' in value &&
+         typeof value.shift === 'function' &&
+         typeof value.remove === 'function' &&
+         typeof value.push === 'function';
 }
 
 export const kRequestCountField = 0;

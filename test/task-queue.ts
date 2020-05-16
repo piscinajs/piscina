@@ -1,6 +1,7 @@
 import Piscina from '..';
 import { test } from 'tap';
 import { resolve } from 'path';
+import { Task, TaskQueue } from '../dist/src/common';
 
 test('will put items into a task queue until they can run', async ({ is }) => {
   const pool = new Piscina({
@@ -212,4 +213,68 @@ test('tasks can share a Worker if requested (both tests finish)', async ({ is })
 
   is(pool.threads.length, 1);
   is(pool.queueSize, 0);
+});
+
+test('custom task queue works', async ({ is, ok }) => {
+  let sizeCalled : boolean = false;
+  let shiftCalled : boolean = false;
+  let pushCalled : boolean = false;
+
+  class CustomTaskPool implements TaskQueue {
+    tasks: Task[] = [];
+
+    get size () : number {
+      sizeCalled = true;
+      return this.tasks.length;
+    }
+
+    shift () : Task | null {
+      shiftCalled = true;
+      return this.tasks.length > 0 ? this.tasks.shift() as Task : null;
+    }
+
+    push (task : Task) : void {
+      pushCalled = true;
+      this.tasks.push(task);
+
+      ok(Piscina.queueOptionsSymbol in task);
+      if ((task as any).task.a === 3) {
+        is(task[Piscina.queueOptionsSymbol], null);
+      } else {
+        is(task[Piscina.queueOptionsSymbol].option,
+          (task as any).task.a);
+      }
+    }
+
+    remove (task : Task) : void {
+      const index = this.tasks.indexOf(task);
+      this.tasks.splice(index, 1);
+    }
+  };
+
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js'),
+    taskQueue: new CustomTaskPool(),
+    // Setting maxThreads low enough to ensure we queue
+    maxThreads: 1,
+    minThreads: 1
+  });
+
+  function makeTask (task, option) {
+    return { ...task, [Piscina.queueOptionsSymbol]: { option } };
+  }
+
+  const ret = await Promise.all([
+    pool.runTask(makeTask({ a: 1 }, 1)),
+    pool.runTask(makeTask({ a: 2 }, 2)),
+    pool.runTask({ a: 3 }) // No queueOptionsSymbol attached
+  ]);
+
+  is(ret[0].a, 1);
+  is(ret[1].a, 2);
+  is(ret[2].a, 3);
+
+  ok(sizeCalled);
+  ok(pushCalled);
+  ok(shiftCalled);
 });

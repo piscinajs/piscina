@@ -83,3 +83,21 @@ test('resourceLimits must be an object', async ({ throws }) => {
     resourceLimits: 0
   }) as any), /options.resourceLimits must be an object/);
 });
+
+test('taskQueue must be a TaskQueue object', async ({ throws }) => {
+  throws(() => new Piscina(({
+    taskQueue: 0
+  }) as any), /options.taskQueue must be a TaskQueue object/);
+  throws(() => new Piscina(({
+    taskQueue: 'test'
+  }) as any), /options.taskQueue must be a TaskQueue object/);
+  throws(() => new Piscina(({
+    taskQueue: null
+  }) as any), /options.taskQueue must be a TaskQueue object/);
+  throws(() => new Piscina(({
+    taskQueue: new Date()
+  }) as any), /options.taskQueue must be a TaskQueue object/);
+  throws(() => new Piscina(({
+    taskQueue: { } as any
+  }) as any), /options.taskQueue must be a TaskQueue object/);
+});
