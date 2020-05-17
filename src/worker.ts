@@ -36,7 +36,7 @@ async function getHandler (filename : string) : Promise<Function | null> {
   try {
     handler = await importESM(pathToFileURL(filename).href);
     if (typeof handler !== 'function') {
-      handler = (handler as any).default;
+      handler = await (handler as any).default;
     }
   } catch {}
   if (typeof handler !== 'function') {
@@ -44,7 +44,7 @@ async function getHandler (filename : string) : Promise<Function | null> {
     // `require(filename)`.
     handler = await import(filename);
     if (typeof handler !== 'function') {
-      handler = (handler as any).default;
+      handler = await (handler as any).default;
     }
   }
   if (typeof handler !== 'function') {
