@@ -2,6 +2,7 @@ import { MessageChannel } from 'worker_threads';
 import Piscina from '..';
 import { test } from 'tap';
 import { resolve } from 'path';
+import { cpus, platform } from 'os';
 
 test('postTask() can transfer ArrayBuffer instances', async ({ is }) => {
   const pool = new Piscina({
@@ -95,4 +96,29 @@ test('Piscina can use async loaded esm workers', {
     filename: resolve(__dirname, 'fixtures/esm-async.mjs')
   });
   is(await pool.runTask('1'), 1);
+});
+
+test('Using cpuLoadAvgThreshold works as expected', {
+  skip: platform() === 'win32' // os.loadavg() is always 0 on Windows
+}, async ({ is }) => {
+  const pool = new Piscina({
+    cpuLoadAvgThreshold: 0.10,
+    filename: resolve(__dirname, 'fixtures/eval.js')
+  });
+
+  // This is imperfect because the cpu loadavg is difficult
+  // to reliably mock. What we want to ensure is that the
+  // test still finishes even with a load threshold -- it
+  // just might take longer to finish than it overwise would.
+  const taskCount = cpus().length * 1.5;
+  const tasks = new Array(taskCount);
+  for (let n = 0; n < taskCount; n++) {
+    tasks[n] = pool.runTask(`for (let n = 0; n < 1e6; n++) {}; ${n}`);
+  }
+
+  const res = await Promise.all(tasks);
+
+  for (let n = 0; n < taskCount; n++) {
+    is(res[n], n);
+  }
 });

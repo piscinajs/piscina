@@ -271,6 +271,13 @@ This class extends [`EventEmitter`][] from Node.js.
   * `taskQueue` : (`TaskQueue`) By default, Piscina uses a first-in-first-out
     queue for submitted tasks. The `taskQueue` option can be used to provide an
     alternative implementation. See [Custom Task Queues][] for additional detail.
+  * `cpuLoadAvgThreshold` : (`number`) If set, specifies an average 1-minute
+    CPU load average threshold such that if the current `os.loadavg()` currently
+    exceeds the threshold, new tasks submitted to the pool will be queued. When
+    set, the value *must* be a number between `0.0` and `1.0`. By default, this
+    check is disabled. The average CPU load average is calculated by taking the
+    current 1-minute load average and dividing by the number of CPU cores
+    available. This option has no effect on Windows.
 
 Use caution when setting resource limits. Setting limits that are too low may
 result in the `Piscina` worker threads being unusable.

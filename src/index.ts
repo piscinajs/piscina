@@ -2,7 +2,7 @@ import { Worker, MessageChannel, MessagePort, receiveMessageOnPort } from 'worke
 import { once } from 'events';
 import EventEmitterAsyncResource from 'eventemitter-asyncresource';
 import { AsyncResource } from 'async_hooks';
-import { cpus } from 'os';
+import { cpus, loadavg } from 'os';
 import { fileURLToPath, URL } from 'url';
 import { resolve } from 'path';
 import { inspect, types } from 'util';
@@ -103,7 +103,8 @@ interface Options {
   execArgv? : string[],
   env? : EnvSpecifier,
   workerData? : any,
-  taskQueue? : TaskQueue
+  taskQueue? : TaskQueue,
+  cpuLoadAvgThreshold? : number
 }
 
 interface FilledOptions extends Options {
@@ -114,7 +115,8 @@ interface FilledOptions extends Options {
   maxQueue : number,
   concurrentTasksPerWorker : number,
   useAtomics: boolean,
-  taskQueue : TaskQueue
+  taskQueue : TaskQueue,
+  cpuLoadAvgThreshold : number
 }
 
 const kDefaultOptions : FilledOptions = {
@@ -125,7 +127,8 @@ const kDefaultOptions : FilledOptions = {
   maxQueue: Infinity,
   concurrentTasksPerWorker: 1,
   useAtomics: true,
-  taskQueue: new ArrayTaskQueue()
+  taskQueue: new ArrayTaskQueue(),
+  cpuLoadAvgThreshold: Infinity
 };
 
 class DirectlyTransferable implements Transferable {
@@ -630,6 +633,17 @@ class ThreadPool {
     this.workers.delete(workerInfo);
   }
 
+  // On Windows, os.loadavg() always returns [0,0,0], so
+  // this check does not make sense on that platform, but
+  // we go ahead and check any way.
+  _acceptableCpuLoad (this: ThreadPool) : boolean {
+    if (this.workers.size < this.options.minThreads ||
+        this.options.cpuLoadAvgThreshold === Infinity) {
+      return true;
+    }
+    return loadavg()[0] / cpuCount <= this.options.cpuLoadAvgThreshold;
+  }
+
   _onWorkerAvailable (workerInfo : WorkerInfo) : void {
     while ((this.taskQueue.size > 0 || this.skipQueue.length > 0) &&
       workerInfo.currentUsage() < this.options.concurrentTasksPerWorker) {
@@ -713,9 +727,10 @@ class ThreadPool {
       });
     }
 
-    // If there is a task queue, there's no point in looking for an available
-    // Worker thread. Add this task to the queue, if possible.
-    if (this.taskQueue.size > 0) {
+    // If there is a task queue, or there is unacceptable CPU load,
+    // there's no point in looking for an available Worker thread.
+    // Add this task to the queue, if possible.
+    if (this.taskQueue.size > 0 || !this._acceptableCpuLoad()) {
       const totalCapacity = this.options.maxQueue + this.pendingCapacity();
       if (this.taskQueue.size >= totalCapacity) {
         if (this.options.maxQueue === 0) {
@@ -850,6 +865,13 @@ class Piscina extends EventEmitterAsyncResource {
     }
     if (options.taskQueue !== undefined && !isTaskQueue(options.taskQueue)) {
       throw new TypeError('options.taskQueue must be a TaskQueue object');
+    }
+    if (options.cpuLoadAvgThreshold !== undefined &&
+        (typeof options.cpuLoadAvgThreshold !== 'number' ||
+         options.cpuLoadAvgThreshold > 1 ||
+         options.cpuLoadAvgThreshold < 0)) {
+      throw new TypeError(
+        'options.cpuLoadAvgThreshold must be a number between 0.0 and 1.0');
     }
 
     this.#pool = new ThreadPool(this, options);

@@ -101,3 +101,21 @@ test('taskQueue must be a TaskQueue object', async ({ throws }) => {
     taskQueue: { } as any
   }) as any), /options.taskQueue must be a TaskQueue object/);
 });
+
+test('cpuLoadAvgThreshold must be between 0 and 1', async ({ throws }) => {
+  throws(() => new Piscina(({
+    cpuLoadAvgThreshold: 'test'
+  }) as any), /options.cpuLoadAvgThreshold must be a number between 0.0 and 1.0/);
+
+  throws(() => new Piscina(({
+    cpuLoadAvgThreshold: false
+  }) as any), /options.cpuLoadAvgThreshold must be a number between 0.0 and 1.0/);
+
+  throws(() => new Piscina(({
+    cpuLoadAvgThreshold: -1
+  }) as any), /options.cpuLoadAvgThreshold must be a number between 0.0 and 1.0/);
+
+  throws(() => new Piscina(({
+    cpuLoadAvgThreshold: 1.1
+  }) as any), /options.cpuLoadAvgThreshold must be a number between 0.0 and 1.0/);
+});
