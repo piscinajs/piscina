@@ -138,6 +138,29 @@ const piscina = new Piscina({
 })();
 ```
 
+### Delaying Availability of Workers
+
+A worker thread will not be made available to process tasks until Piscina
+determines that it is "ready". By default, a worker is ready as soon as
+Piscina loads it and acquires a reference to the exported handler function.
+
+There may be times when the availability of a worker may need to be delayed
+longer while the worker initializes any resources it may need to operate.
+To support this case, the worker module may export a `Promise` that resolves
+the handler function as opposed to exporting the function directly:
+
+```js
+async function initialize() {
+  await someAsyncInitializationActivity();
+  return ({ a, b }) => a + b;
+}
+
+module.exports = initialize();
+```
+
+Piscina will await the resolution of the exported Promise before marking
+the worker thread available.
+
 ### Backpressure
 
 When the `maxQueue` option is set, once the `Piscina` queue is full, no

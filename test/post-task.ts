@@ -80,3 +80,19 @@ test('Piscina emits drain', async ({ ok }) => {
 
   ok(drained);
 });
+
+test('Piscina can use async loaded workers', async ({ is }) => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval-async.js')
+  });
+  is(await pool.runTask('1'), 1);
+});
+
+test('Piscina can use async loaded esm workers', {
+  skip: process.version.startsWith('v12.') // ESM support is flagged on v12.x
+}, async ({ is }) => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/esm-async.mjs')
+  });
+  is(await pool.runTask('1'), 1);
+});
