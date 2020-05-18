@@ -139,6 +139,17 @@ function onMessage (
         result: result,
         error: null
       };
+
+      // If the task used e.g. console.log(), wait for the stream to drain
+      // before potentially entering the `Atomics.wait()` loop, and before
+      // returning the result so that messages will always be printed even
+      // if the process would otherwise be ready to exit.
+      if (process.stdout.writableLength > 0) {
+        await new Promise((resolve) => process.stdout.write('', resolve));
+      }
+      if (process.stderr.writableLength > 0) {
+        await new Promise((resolve) => process.stderr.write('', resolve));
+      }
     } catch (error) {
       response = {
         taskId,
