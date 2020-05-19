@@ -456,6 +456,7 @@ class ThreadPool {
   workers : AsynchronouslyCreatedResourcePool<WorkerInfo>;
   options : FilledOptions;
   taskQueue : TaskQueue;
+  skipQueue : TaskInfo[] = [];
   completed : number = 0;
   runTime : Histogram;
   waitTime : Histogram;
@@ -630,9 +631,19 @@ class ThreadPool {
   }
 
   _onWorkerAvailable (workerInfo : WorkerInfo) : void {
-    while (this.taskQueue.size > 0 &&
+    while ((this.taskQueue.size > 0 || this.skipQueue.length > 0) &&
       workerInfo.currentUsage() < this.options.concurrentTasksPerWorker) {
-      const taskInfo = this.taskQueue.shift() as TaskInfo;
+      // The skipQueue will have tasks that we previously shifted off
+      // the task queue but had to skip over... we have to make sure
+      // we drain that before we drain the taskQueue.
+      const taskInfo = this.skipQueue.shift() ||
+                       this.taskQueue.shift() as TaskInfo;
+      // If the task has an abortSignal and the worker has any other
+      // tasks, we cannot distribute the task to it. Skip for now.
+      if (taskInfo.abortSignal && workerInfo.taskInfos.size > 0) {
+        this.skipQueue.push(taskInfo);
+        break;
+      }
       const now = performance.now();
       this.waitTime.recordValue(now - taskInfo.created);
       taskInfo.started = now;
@@ -766,12 +777,16 @@ class ThreadPool {
   }
 
   _maybeDrain () {
-    if (this.taskQueue.size === 0) {
+    if (this.taskQueue.size === 0 && this.skipQueue.length === 0) {
       this.publicInterface.emit('drain');
     }
   }
 
   async destroy () {
+    while (this.skipQueue.length > 0) {
+      const taskInfo : TaskInfo = this.skipQueue.shift() as TaskInfo;
+      taskInfo.done(new Error('Terminating worker thread'));
+    }
     while (this.taskQueue.size > 0) {
       const taskInfo : TaskInfo = this.taskQueue.shift() as TaskInfo;
       taskInfo.done(new Error('Terminating worker thread'));
