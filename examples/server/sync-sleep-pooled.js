@@ -2,21 +2,18 @@
 
 const fastify = require('fastify')();
 const { resolve } = require('path');
-const Piscina = require('../..');
 
 const concurrentTasksPerWorker = parseInt(process.argv[2] || 1);
 const idleTimeout = parseInt(process.argv[3] || 0);
 
-const pool = new Piscina({
+fastify.register(require('fastify-piscina'), {
   filename: resolve(__dirname, 'worker2.js'),
   concurrentTasksPerWorker,
   idleTimeout
 });
 
 // Declare a route
-fastify.get('/', async () => {
-  return pool.runTask();
-});
+fastify.get('/', () => fastify.runTask());
 
 // Run the server!
 const start = async () => {

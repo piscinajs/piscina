@@ -10,6 +10,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "fastify": "^2.14.0"
+    "fastify": "^2.14.0",
+    "fastify-piscina": "^1.0.0"
   }
 }

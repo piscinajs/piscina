@@ -1,10 +1,9 @@
 'use strict';
 
 const fastify = require('fastify')();
-const Piscina = require('../..');
 const { resolve } = require('path');
 
-const pool = new Piscina({
+fastify.register(require('fastify-piscina'), {
   filename: resolve(__dirname, 'worker.js'),
   execArgv: [],
   minThreads: 6,
@@ -12,7 +11,7 @@ const pool = new Piscina({
 });
 
 // Declare a route
-fastify.get('/', async () => pool.runTask({ name: 'James' }));
+fastify.get('/', async () => fastify.runTask({ name: 'James' }));
 
 // Run the server!
 const start = async () => {
@@ -23,3 +22,10 @@ const start = async () => {
   }
 };
 start();
+
+process.on('SIGINT', () => {
+  const waitTime = fastify.piscina.waitTime;
+  console.log('\nMax Queue Wait Time:', waitTime.max);
+  console.log('Mean Queue Wait Time:', waitTime.mean);
+  process.exit(0);
+});
