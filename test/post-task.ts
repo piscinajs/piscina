@@ -102,7 +102,7 @@ test('Using cpuLoadAvgThreshold works as expected', {
   skip: platform() === 'win32' // os.loadavg() is always 0 on Windows
 }, async ({ is }) => {
   const pool = new Piscina({
-    cpuLoadAvgThreshold: 0.10,
+    cpuLoadAvgThreshold: 0.90,
     filename: resolve(__dirname, 'fixtures/eval.js')
   });
 

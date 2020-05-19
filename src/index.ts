@@ -454,6 +454,21 @@ class WorkerInfo extends AsynchronouslyCreatedResource {
   }
 }
 
+function waitForAcceptableCpuLoad (pool : ThreadPool) {
+  // TODO(@jasnell): Not entirely clea how to force this in test.
+  pool.loadTimer = setTimeout(/* istanbul ignore next */ () => {
+    if (pool._acceptableCpuLoad()) {
+      const workerInfo : WorkerInfo | null = pool.workers.findAvailable();
+      if (workerInfo) {
+        pool._dispatchTask(workerInfo);
+      }
+    } else {
+      // Keep waiting ...
+      waitForAcceptableCpuLoad(pool);
+    }
+  }, 100);
+}
+
 class ThreadPool {
   publicInterface : Piscina;
   workers : AsynchronouslyCreatedResourcePool<WorkerInfo>;
@@ -467,6 +482,7 @@ class ThreadPool {
   inProcessPendingMessages : boolean = false;
   startingUp : boolean = false;
   workerFailsDuringBootstrap : boolean = false;
+  loadTimer? : NodeJS.Timeout;
 
   constructor (publicInterface : Piscina, options : Options) {
     this.publicInterface = publicInterface;
@@ -644,7 +660,7 @@ class ThreadPool {
     return loadavg()[0] / cpuCount <= this.options.cpuLoadAvgThreshold;
   }
 
-  _onWorkerAvailable (workerInfo : WorkerInfo) : void {
+  _dispatchTask (workerInfo : WorkerInfo) : void {
     while ((this.taskQueue.size > 0 || this.skipQueue.length > 0) &&
       workerInfo.currentUsage() < this.options.concurrentTasksPerWorker) {
       // The skipQueue will have tasks that we previously shifted off
@@ -656,7 +672,7 @@ class ThreadPool {
       // tasks, we cannot distribute the task to it. Skip for now.
       if (taskInfo.abortSignal && workerInfo.taskInfos.size > 0) {
         this.skipQueue.push(taskInfo);
-        break;
+        return;
       }
       const now = performance.now();
       this.waitTime.recordValue(now - taskInfo.created);
@@ -664,6 +680,14 @@ class ThreadPool {
       workerInfo.postTask(taskInfo);
       this._maybeDrain();
       return;
+    }
+  }
+
+  _onWorkerAvailable (workerInfo : WorkerInfo) : void {
+    if (this._acceptableCpuLoad()) {
+      this._dispatchTask(workerInfo);
+    } else {
+      waitForAcceptableCpuLoad(this);
     }
 
     if (workerInfo.taskInfos.size === 0 &&
@@ -798,6 +822,11 @@ class ThreadPool {
   }
 
   async destroy () {
+    /* istanbul ignore next */
+    if (this.loadTimer) {
+      clearTimeout(this.loadTimer);
+    }
+
     while (this.skipQueue.length > 0) {
       const taskInfo : TaskInfo = this.skipQueue.shift() as TaskInfo;
       taskInfo.done(new Error('Terminating worker thread'));
