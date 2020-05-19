@@ -99,3 +99,49 @@ test('abortable tasks will not share workers (abortable posted first)', async ({
   // Wake up the thread handling the second task.
   is(await task2, 42);
 });
+
+test('abortable tasks will not share workers (on worker available)', async ({ is }) => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/sleep.js'),
+    maxThreads: 1,
+    concurrentTasksPerWorker: 2
+  });
+
+  // Task 1 will sleep 100 ms then complete,
+  // Task 2 will sleep 300 ms then complete.
+  // Abortable task 3 should still be in the queue
+  // when Task 1 completes, but should not be selected
+  // until after Task 2 completes because it is abortable.
+
+  const ret = await Promise.all([
+    pool.runTask({ time: 100, a: 1 }),
+    pool.runTask({ time: 300, a: 2 }),
+    pool.runTask({ time: 100, a: 3 }, new EventEmitter())
+  ]);
+
+  is(ret[0], 0);
+  is(ret[1], 1);
+  is(ret[2], 2);
+});
+
+test('abortable tasks will not share workers (destroy workers)', async ({ rejects }) => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/sleep.js'),
+    maxThreads: 1,
+    concurrentTasksPerWorker: 2
+  });
+
+  // Task 1 will sleep 100 ms then complete,
+  // Task 2 will sleep 300 ms then complete.
+  // Abortable task 3 should still be in the queue
+  // when Task 1 completes, but should not be selected
+  // until after Task 2 completes because it is abortable.
+
+  pool.runTask({ time: 100, a: 1 }).then(() => {
+    pool.destroy();
+  });
+
+  rejects(pool.runTask({ time: 300, a: 2 }), /Terminating worker thread/);
+  rejects(pool.runTask({ time: 100, a: 3 }, new EventEmitter()),
+    /Terminating worker thread/);
+});
