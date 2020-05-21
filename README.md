@@ -647,6 +647,10 @@ are no one set of options that are going to work best.
 
 ## Release Notes
 
+### 1.5.1
+
+* Bug fixes around abortable task selection.
+
 ### 1.5.0
 
 * Added `Piscina.move()`
