@@ -9,7 +9,9 @@
 * ✔ Tracking statistics for run and wait times
 * ✔ Cancellation Support
 * ✔ Supports enforcing memory resource limits
-* ✔ Supports CommonJS and ESM
+* ✔ Supports CommonJS, ESM, and TypeScript
+* ✔ Custom task queues
+* ✔ Optional CPU scheduling priorities on Linux
 
 Written in TypeScript.
 
@@ -273,7 +275,8 @@ This class extends [`EventEmitter`][] from Node.js.
     alternative implementation. See [Custom Task Queues][] for additional detail.
   * `niceIncrement`: (`number`) An optional value that decreases priority for
     the individual threads, i.e. the higher the value, the lower the priority
-    of the Worker threads. This value is only used on Linux.
+    of the Worker threads. This value is only used on Linux and requires the
+    optional [`nice-napi`][] module to be installed.
     See [`nice(2)`][] for more details.
 
 Use caution when setting resource limits. Setting limits that are too low may
@@ -649,7 +652,51 @@ parameters to find the optimum combination both for the application
 workload and the capabilities of the deployment environment. There
 are no one set of options that are going to work best.
 
+### Thread priority on Linux systems
+
+On Linux systems that support [`nice(2)`][], Piscina is capable of setting
+the priority of every worker in the pool. To use this mechanism, an additional
+optional native addon dependency (`nice-napi`, `npm i nice-napi`) is required.
+Once [`nice-napi`][] is installed, creating a `Piscina` instance with the
+`niceIncrement` configuration option will set the priority for the pool:
+
+```js
+const Piscina = require('piscina');
+const pool = new Piscina({
+  worker: '/absolute/path/to/worker.js',
+  niceIncrement: 20
+});
+```
+
+The higher the `niceIncrement`, the lower the CPU scheduling priority will be
+for the pooled workers which will generally extend the execution time of
+CPU-bound tasks but will help prevent those threads from stealing CPU time from
+the main Node.js event loop thread. Whether this is a good thing or not depends
+entirely on your application and will require careful profiling to get correct.
+
+The key metrics to pay attention to when tuning the `niceIncrement` are the
+sampled run times of the tasks in the worker pool (using the [`runTime`][]
+property) and the [delay of the Node.js main thread event loop][].
+
+### Multiple Thread Pools and Embedding Piscina as a Dependency
+
+Every `Piscina` instance creates a separate pool of threads and operates
+without any awareness of the other. When multiple pools are created in a
+single application the various threads may contend with one another, and
+with the Node.js main event loop thread, and may cause an overall reduction
+in system performance.
+
+Modules that embed Piscina as a dependency *should* make it clear via
+documentation that threads are being used. It would be ideal if those
+would make it possible for users to provide an existing `Piscina` instance
+as a configuration option in lieu of always creating their own.
+
+
 ## Release Notes
+
+### 1.6.0
+
+* Add the `niceIncrement` configuration parameter.
 
 ### 1.5.1
 
@@ -702,8 +749,11 @@ Piscina development is sponsored by [NearForm Research][].
 [`postMessage`]: https://nodejs.org/api/worker_threads.html#worker_threads_port_postmessage_value_transferlist
 [`examples/task-queue`]: https://github.com/jasnell/piscina/blob/master/examples/task-queue/index.js
 [`nice(2)`]: https://linux.die.net/man/2/nice
+[`nice-napi`]: https://npmjs.org/package/nice-napi
+[`runTime`]: #property-runtime-readonly
 [Custom Task Queues]: #custom_task_queues
 [ES modules]: https://nodejs.org/api/esm.html
 [Node.js new Worker options]: https://nodejs.org/api/worker_threads.html#worker_threads_new_worker_filename_options
 [MIT Licensed]: LICENSE.md
 [NearForm Research]: https://www.nearform.com/research/
+[delay of the Node.js main thread event loop]: https://nodejs.org/dist/latest-v14.x/docs/api/perf_hooks.html#perf_hooks_perf_hooks_monitoreventloopdelay_options

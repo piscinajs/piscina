@@ -1,6 +1,6 @@
 {
   "name": "piscina",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "description": "A fast, efficient Node.js Worker Thread Pool implementation",
   "main": "./dist/src/index.js",
   "exports": {
@@ -17,7 +17,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jasnell/piscina"
+    "url": "git+https://github.com/piscinajs/piscina"
   },
   "keywords": [
     "fast",
@@ -48,6 +48,9 @@
     "hdr-histogram-js": "^1.2.0",
     "hdr-histogram-percentiles-obj": "^2.0.1"
   },
+  "optionalDependencies": {
+    "nice-napi": "^1.0.2"
+  },
   "eslintConfig": {
     "rules": {
       "semi": [
@@ -67,8 +70,5 @@
     "plugins": [
       "@typescript-eslint/eslint-plugin"
     ]
-  },
-  "optionalDependencies": {
-    "nice-napi": "^1.0.2"
   }
 }
