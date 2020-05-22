@@ -67,5 +67,8 @@
     "plugins": [
       "@typescript-eslint/eslint-plugin"
     ]
+  },
+  "optionalDependencies": {
+    "nice-napi": "^1.0.2"
   }
 }

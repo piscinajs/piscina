@@ -268,9 +268,13 @@ This class extends [`EventEmitter`][] from Node.js.
     for details. Unlike regular Node.js Worker Threads, `workerData` must not
     specify any value requiring a `transferList`. This is because the `workerData`
     will be cloned for each pooled worker.
-  * `taskQueue` : (`TaskQueue`) By default, Piscina uses a first-in-first-out
+  * `taskQueue`: (`TaskQueue`) By default, Piscina uses a first-in-first-out
     queue for submitted tasks. The `taskQueue` option can be used to provide an
     alternative implementation. See [Custom Task Queues][] for additional detail.
+  * `niceIncrement`: (`number`) An optional value that decreases priority for
+    the individual threads, i.e. the higher the value, the lower the priority
+    of the Worker threads. This value is only used on Linux.
+    See [`nice(2)`][] for more details.
 
 Use caution when setting resource limits. Setting limits that are too low may
 result in the `Piscina` worker threads being unusable.
@@ -697,6 +701,7 @@ Piscina development is sponsored by [NearForm Research][].
 [`EventEmitter`]: https://nodejs.org/api/events.html
 [`postMessage`]: https://nodejs.org/api/worker_threads.html#worker_threads_port_postmessage_value_transferlist
 [`examples/task-queue`]: https://github.com/jasnell/piscina/blob/master/examples/task-queue/index.js
+[`nice(2)`]: https://linux.die.net/man/2/nice
 [Custom Task Queues]: #custom_task_queues
 [ES modules]: https://nodejs.org/api/esm.html
 [Node.js new Worker options]: https://nodejs.org/api/worker_threads.html#worker_threads_new_worker_filename_options

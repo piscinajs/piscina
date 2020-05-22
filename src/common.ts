@@ -5,6 +5,7 @@ export interface StartupMessage {
   port : MessagePort;
   sharedBuffer : Int32Array;
   useAtomics : boolean;
+  niceIncrement : number;
 }
 
 export interface RequestMessage {
