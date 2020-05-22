@@ -103,7 +103,8 @@ interface Options {
   execArgv? : string[],
   env? : EnvSpecifier,
   workerData? : any,
-  taskQueue? : TaskQueue
+  taskQueue? : TaskQueue,
+  niceIncrement? : number
 }
 
 interface FilledOptions extends Options {
@@ -114,7 +115,8 @@ interface FilledOptions extends Options {
   maxQueue : number,
   concurrentTasksPerWorker : number,
   useAtomics: boolean,
-  taskQueue : TaskQueue
+  taskQueue : TaskQueue,
+  niceIncrement : number
 }
 
 const kDefaultOptions : FilledOptions = {
@@ -125,7 +127,8 @@ const kDefaultOptions : FilledOptions = {
   maxQueue: Infinity,
   concurrentTasksPerWorker: 1,
   useAtomics: true,
-  taskQueue: new ArrayTaskQueue()
+  taskQueue: new ArrayTaskQueue(),
+  niceIncrement: 0
 };
 
 class DirectlyTransferable implements Transferable {
@@ -526,7 +529,8 @@ class ThreadPool {
       filename: this.options.filename,
       port: port2,
       sharedBuffer: workerInfo.sharedBuffer,
-      useAtomics: this.options.useAtomics
+      useAtomics: this.options.useAtomics,
+      niceIncrement: this.options.niceIncrement
     };
     worker.postMessage(message, [port2]);
 
@@ -850,6 +854,10 @@ class Piscina extends EventEmitterAsyncResource {
     }
     if (options.taskQueue !== undefined && !isTaskQueue(options.taskQueue)) {
       throw new TypeError('options.taskQueue must be a TaskQueue object');
+    }
+    if (options.niceIncrement !== undefined &&
+        (typeof options.niceIncrement !== 'number' || options.niceIncrement < 0)) {
+      throw new TypeError('options.niceIncrement must be a non-negative integer');
     }
 
     this.#pool = new ThreadPool(this, options);

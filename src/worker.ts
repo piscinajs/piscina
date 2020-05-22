@@ -68,8 +68,16 @@ async function getHandler (filename : string) : Promise<Function | null> {
 // (so we can pre-load and cache the handler).
 parentPort!.on('message', (message : StartupMessage) => {
   useAtomics = message.useAtomics;
-  const { port, sharedBuffer, filename } = message;
+  const { port, sharedBuffer, filename, niceIncrement } = message;
   (async function () {
+    try {
+      if (niceIncrement !== 0 && process.platform === 'linux') {
+        // ts-ignore because the dependency is not installed on Windows.
+        // @ts-ignore
+        (await import('nice-napi')).default(niceIncrement);
+      }
+    } catch {}
+
     if (filename !== null) {
       await getHandler(filename);
     }

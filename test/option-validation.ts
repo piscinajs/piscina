@@ -101,3 +101,13 @@ test('taskQueue must be a TaskQueue object', async ({ throws }) => {
     taskQueue: { } as any
   }) as any), /options.taskQueue must be a TaskQueue object/);
 });
+
+test('niceIncrement must be non-negative integer', async ({ throws }) => {
+  throws(() => new Piscina(({
+    niceIncrement: -1
+  }) as any), /options.niceIncrement must be a non-negative integer/);
+
+  throws(() => new Piscina(({
+    niceIncrement: 'string'
+  }) as any), /options.niceIncrement must be a non-negative integer/);
+});
