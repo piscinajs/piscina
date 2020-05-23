@@ -43,6 +43,7 @@ const cpuCount : number = (() => {
 
 interface AbortSignalEventTarget {
   addEventListener : (name : 'abort', listener : () => void) => void;
+  aborted? : boolean;
 }
 interface AbortSignalEventEmitter {
   on : (name : 'abort', listener : () => void) => void;
@@ -700,6 +701,11 @@ class ThreadPool {
       this.publicInterface.asyncResource.asyncId());
 
     if (abortSignal !== null) {
+      // If the AbortSignal has an aborted property and it's truthy,
+      // reject immediately.
+      if ((abortSignal as AbortSignalEventTarget).aborted) {
+        return Promise.reject(new AbortError());
+      }
       onabort(abortSignal, () => {
         // Call reject() first to make sure we always reject with the AbortError
         // if the task is aborted, not with an Error from the possible

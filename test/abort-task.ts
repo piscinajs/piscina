@@ -145,3 +145,21 @@ test('abortable tasks will not share workers (destroy workers)', async ({ reject
   rejects(pool.runTask({ time: 100, a: 3 }, new EventEmitter()),
     /Terminating worker thread/);
 });
+
+test('aborted AbortSignal rejects task immediately', async ({ rejects, is }) => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/move.ts')
+  });
+
+  const controller = new AbortController();
+  // Abort the controller early
+  controller.abort();
+  is(controller.signal.aborted, true);
+
+  // The data won't be moved because the task will abort immediately.
+  const data = new Uint8Array(new SharedArrayBuffer(4));
+  rejects(pool.runTask(data, [data.buffer], controller.signal),
+    /The task has been aborted/);
+
+  is(data.length, 4);
+});
