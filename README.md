@@ -696,7 +696,7 @@ as a configuration option in lieu of always creating their own.
 
 ### 1.6.1
 
-* Bug fix: Reject is AbortSignal is already aborted
+* Bug fix: Reject if AbortSignal is already aborted
 * Bug Fix: Use once listener for abort event
 
 ### 1.6.0
