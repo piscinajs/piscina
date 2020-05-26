@@ -53,7 +53,6 @@ interface AbortSignalEventTarget {
   aborted? : boolean;
 }
 interface AbortSignalEventEmitter {
-  on : (name : 'abort', listener : () => void) => void;
   once : (name : 'abort', listener : () => void) => void;
 }
 type AbortSignalAny = AbortSignalEventTarget | AbortSignalEventEmitter;
