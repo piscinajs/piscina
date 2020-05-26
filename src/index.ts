@@ -41,19 +41,26 @@ const cpuCount : number = (() => {
   }
 })();
 
+interface AbortSignalEventTargetAddOptions {
+  once : boolean;
+};
+
 interface AbortSignalEventTarget {
-  addEventListener : (name : 'abort', listener : () => void) => void;
+  addEventListener : (
+    name : 'abort',
+    listener : () => void,
+    options? : AbortSignalEventTargetAddOptions) => void;
   aborted? : boolean;
 }
 interface AbortSignalEventEmitter {
-  on : (name : 'abort', listener : () => void) => void;
+  once : (name : 'abort', listener : () => void) => void;
 }
 type AbortSignalAny = AbortSignalEventTarget | AbortSignalEventEmitter;
 function onabort (abortSignal : AbortSignalAny, listener : () => void) {
   if ('addEventListener' in abortSignal) {
-    abortSignal.addEventListener('abort', listener);
+    abortSignal.addEventListener('abort', listener, { once: true });
   } else {
-    abortSignal.on('abort', listener);
+    abortSignal.once('abort', listener);
   }
 }
 class AbortError extends Error {
