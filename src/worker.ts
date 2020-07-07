@@ -21,9 +21,16 @@ let useAtomics : boolean = true;
 
 // Get `import(x)` as a function that isn't transpiled to `require(x)` by
 // TypeScript for dual ESM/CJS support.
-const importESM : (specifier : string) => Promise<any> =
-  // eslint-disable-next-line no-eval
-  eval('(specifier) => import(specifier)');
+// Load this lazily, so that there is no warning about the ESM loader being
+// experimental (on Node v12.x) until we actually try to use it.
+let importESMCached : (specifier : string) => Promise<any> | undefined;
+function getImportESM () {
+  if (importESMCached === undefined) {
+    // eslint-disable-next-line no-eval
+    importESMCached = eval('(specifier) => import(specifier)');
+  }
+  return importESMCached;
+}
 
 // Look up the handler function that we call when a task is posted.
 // This is either going to be "the" export from a file, or the default export.
@@ -34,15 +41,15 @@ async function getHandler (filename : string) : Promise<Function | null> {
   }
 
   try {
-    handler = await importESM(pathToFileURL(filename).href);
+    // With our current set of TypeScript options, this is transpiled to
+    // `require(filename)`.
+    handler = await import(filename);
     if (typeof handler !== 'function') {
       handler = await (handler as any).default;
     }
   } catch {}
   if (typeof handler !== 'function') {
-    // With our current set of TypeScript options, this is transpiled to
-    // `require(filename)`.
-    handler = await import(filename);
+    handler = await getImportESM()(pathToFileURL(filename).href);
     if (typeof handler !== 'function') {
       handler = await (handler as any).default;
     }
