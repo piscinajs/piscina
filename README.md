@@ -1,3 +1,5 @@
+![Piscina Logo](https://avatars1.githubusercontent.com/u/65627548?s=200&v=4)
+
 # piscina - the node.js worker pool
 
 ![CI](https://github.com/jasnell/piscina/workflows/CI/badge.svg)
