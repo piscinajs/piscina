@@ -32,21 +32,22 @@
   ],
   "license": "MIT",
   "devDependencies": {
-    "@types/node": "^14.0.19",
-    "@typescript-eslint/eslint-plugin": "^3.6.0",
-    "@typescript-eslint/parser": "^3.6.0",
+    "@types/node": "^14.14.6",
+    "@typescript-eslint/eslint-plugin": "^4.6.1",
+    "@typescript-eslint/parser": "^4.6.1",
     "abort-controller": "^3.0.0",
     "concat-stream": "^2.0.0",
-    "gen-esm-wrapper": "^1.0.6",
-    "snazzy": "^8.0.0",
-    "standardx": "^5.0.0",
-    "tap": "^14.10.7",
-    "typescript": "^3.9.6"
+    "gen-esm-wrapper": "^1.1.0",
+    "snazzy": "^9.0.0",
+    "standardx": "^6.0.0",
+    "tap": "^14.10.8",
+    "typescript": "^4.0.5"
   },
   "dependencies": {
     "eventemitter-asyncresource": "^1.0.0",
-    "hdr-histogram-js": "^1.2.0",
-    "hdr-histogram-percentiles-obj": "^2.0.1"
+    "hdr-histogram-js": "^2.0.1",
+    "hdr-histogram-percentiles-obj": "^3.0.0",
+    "nice-napi": "^1.0.2"
   },
   "optionalDependencies": {
     "nice-napi": "^1.0.2"
@@ -58,6 +59,9 @@
         "always"
       ],
       "no-unused-vars": "off",
+      "no-use-before-define": "off",
+      "no-unreachable-loop": "off",
+      "no-dupe-class-members": "off",
       "@typescript-eslint/no-unused-vars": "error"
     },
     "globals": {
