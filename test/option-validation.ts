@@ -111,3 +111,13 @@ test('niceIncrement must be non-negative integer', async ({ throws }) => {
     niceIncrement: 'string'
   }) as any), /options.niceIncrement must be a non-negative integer/);
 });
+
+test('trackUnmanagedFds must be a boolean', async ({ throws }) => {
+  throws(() => new Piscina(({
+    trackUnmanagedFds: -1
+  }) as any), /options.trackUnmanagedFds must be a boolean/);
+
+  throws(() => new Piscina(({
+    trackUnmanagedFds: 'string'
+  }) as any), /options.trackUnmanagedFds must be a boolean/);
+});
