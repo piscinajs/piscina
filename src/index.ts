@@ -76,8 +76,6 @@ type EnvSpecifier = typeof Worker extends {
   new (filename : never, options?: { env: infer T }) : Worker;
 } ? T : never;
 
-type TransferListItem = TransferList extends (infer T)[] ? T : never;
-
 class ArrayTaskQueue implements TaskQueue {
   tasks : Task[] = [];
 
@@ -112,7 +110,8 @@ interface Options {
   env? : EnvSpecifier,
   workerData? : any,
   taskQueue? : TaskQueue,
-  niceIncrement? : number
+  niceIncrement? : number,
+  trackUnmanagedFds? : boolean,
 }
 
 interface FilledOptions extends Options {
@@ -136,7 +135,8 @@ const kDefaultOptions : FilledOptions = {
   concurrentTasksPerWorker: 1,
   useAtomics: true,
   taskQueue: new ArrayTaskQueue(),
-  niceIncrement: 0
+  niceIncrement: 0,
+  trackUnmanagedFds: true
 };
 
 class DirectlyTransferable implements Transferable {
@@ -168,10 +168,12 @@ type TaskCallback = (err : Error, result: any) => void;
 // only ArrayBuffer and MessagePort are valid, but let's avoid having to update
 // our types here every time Node.js adds support for more objects.
 type TransferList = MessagePort extends { postMessage(value : any, transferList : infer T) : any; } ? T : never;
+type TransferListItem = TransferList extends (infer T)[] ? T : never;
 
 function maybeFileURLToPath (filename : string) : string {
   return filename.startsWith('file:')
-    ? fileURLToPath(new URL(filename)) : filename;
+    ? fileURLToPath(new URL(filename))
+    : filename;
 }
 
 // Extend AsyncResource so that async relations between posting a task and
@@ -343,7 +345,7 @@ const Errors = {
 class WorkerInfo extends AsynchronouslyCreatedResource {
   worker : Worker;
   taskInfos : Map<number, TaskInfo>;
-  idleTimeout : NodeJS.Timeout | null = null;
+  idleTimeout : NodeJS.Timeout | null = null; // eslint-disable-line no-undef
   port : MessagePort;
   sharedBuffer : Int32Array;
   lastSeenResponseCount : number = 0;
@@ -522,7 +524,8 @@ class ThreadPool {
       argv: this.options.argv,
       execArgv: this.options.execArgv,
       resourceLimits: this.options.resourceLimits,
-      workerData: this.options.workerData
+      workerData: this.options.workerData,
+      trackUnmanagedFds: this.options.trackUnmanagedFds
     });
 
     const { port1, port2 } = new MessageChannel();
@@ -872,11 +875,20 @@ class Piscina extends EventEmitterAsyncResource {
         (typeof options.niceIncrement !== 'number' || options.niceIncrement < 0)) {
       throw new TypeError('options.niceIncrement must be a non-negative integer');
     }
+    if (options.trackUnmanagedFds !== undefined &&
+        typeof options.trackUnmanagedFds !== 'boolean') {
+      throw new TypeError('options.trackUnmanagedFds must be a boolean value');
+    }
 
     this.#pool = new ThreadPool(this, options);
   }
 
-  runTask (task : any, transferList? : TransferList | string | AbortSignalAny, filename? : string | AbortSignalAny, abortSignal? : AbortSignalAny) {
+  runTask (task : any, transferList? : TransferList, filename? : string, abortSignal? : AbortSignalAny) : Promise<any>;
+  runTask (task : any, transferList? : TransferList, filename? : AbortSignalAny, abortSignal? : undefined) : Promise<any>;
+  runTask (task : any, transferList? : string, filename? : AbortSignalAny, abortSignal? : undefined) : Promise<any>;
+  runTask (task : any, transferList? : AbortSignalAny, filename? : undefined, abortSignal? : undefined) : Promise<any>;
+
+  runTask (task : any, transferList? : any, filename? : any, abortSignal? : any) {
     // If transferList is a string or AbortSignal, shift it.
     if ((typeof transferList === 'object' && !Array.isArray(transferList)) ||
         typeof transferList === 'string') {
@@ -945,8 +957,8 @@ class Piscina extends EventEmitterAsyncResource {
     // of time the pool has been running multiplied by the
     // maximum number of threads.
     const capacity = this.duration * this.#pool.options.maxThreads;
-    const totalMeanRuntime = this.#pool.runTime.getMean() *
-      this.#pool.runTime.getTotalCount();
+    const totalMeanRuntime = this.#pool.runTime.mean *
+      this.#pool.runTime.totalCount;
 
     // We calculate the appoximate pool utilization by multiplying
     // the mean run time of all tasks by the number of runtime
@@ -981,7 +993,7 @@ class Piscina extends EventEmitterAsyncResource {
     return Piscina;
   }
 
-  static move (val : Transferable | TransferListItem | ArrayBufferView) {
+  static move (val : Transferable | TransferListItem | ArrayBufferView | ArrayBuffer | MessagePort) {
     if (val != null && typeof val === 'object' && typeof val !== 'function') {
       if (!isTransferable(val)) {
         if ((types as any).isArrayBufferView(val)) {

@@ -280,6 +280,11 @@ This class extends [`EventEmitter`][] from Node.js.
     of the Worker threads. This value is only used on Linux and requires the
     optional [`nice-napi`][] module to be installed.
     See [`nice(2)`][] for more details.
+  * `trackUnmanagedFds`: (`boolean`) An optional setting that, when `true`, will
+    cause Workers to track file descriptors managed using `fs.open()` and
+    `fs.close()`, and will close them automatically when the Worker exits.
+    Defaults to `true`. (This option is only supported on Node.js 12.19+ and
+    all Node.js versions higher than 14.6.0).
 
 Use caution when setting resource limits. Setting limits that are too low may
 result in the `Piscina` worker threads being unusable.
