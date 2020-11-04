@@ -261,6 +261,8 @@ This class extends [`EventEmitter`][] from Node.js.
       recently created objects.
     * `codeRangeSizeMb`: (`number`) The size of a pre-allocated memory range used
       for generated code.
+    * `stackSizeMb` : (`number`) The default maximum stack size for the thread.
+      Small values may lead to unusable Worker instances. Default: 4
   * `env`: (`object`) If set, specifies the initial value of `process.env` inside
     the worker threads. See [Node.js new Worker options][] for details.
   * `argv`: (`any[]`) List of arguments that will be stringified and appended to
