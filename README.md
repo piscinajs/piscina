@@ -116,6 +116,9 @@ const piscina = new Piscina({
 To use `AbortController`, you will need to `npm i abort-controller`
 (or `yarn add abort-controller`).
 
+(In Node.js 15.0.0 or higher, there is a new built-in `AbortController`
+implementation that can be used here as well.)
+
 Alternatively, any `EventEmitter` that emits an `'abort'` event
 may be used as an abort controller:
 
