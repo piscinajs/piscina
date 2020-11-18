@@ -48,8 +48,13 @@
     "hdr-histogram-js": "^1.2.0",
     "hdr-histogram-percentiles-obj": "^2.0.1"
   },
-  "optionalDependencies": {
+  "peerDependencies": {
     "nice-napi": "^1.0.2"
+  },
+  "peerDependenciesMeta": {
+    "nice-napi": {
+      "optional": true
+    }
   },
   "eslintConfig": {
     "rules": {
