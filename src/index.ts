@@ -876,7 +876,12 @@ class Piscina extends EventEmitterAsyncResource {
     this.#pool = new ThreadPool(this, options);
   }
 
-  runTask (task : any, transferList? : TransferList | string | AbortSignalAny, filename? : string | AbortSignalAny, abortSignal? : AbortSignalAny) {
+  runTask (task : any, transferList? : TransferList, filename? : string, abortSignal? : AbortSignalAny) : Promise<any>;
+  runTask (task : any, transferList? : TransferList, filename? : AbortSignalAny, abortSignal? : undefined) : Promise<any>;
+  runTask (task : any, transferList? : string, filename? : AbortSignalAny, abortSignal? : undefined) : Promise<any>;
+  runTask (task : any, transferList? : AbortSignalAny, filename? : undefined, abortSignal? : undefined) : Promise<any>;
+
+  runTask (task : any, transferList? : any, filename? : any, abortSignal? : any) {
     // If transferList is a string or AbortSignal, shift it.
     if ((typeof transferList === 'object' && !Array.isArray(transferList)) ||
         typeof transferList === 'string') {
@@ -981,7 +986,7 @@ class Piscina extends EventEmitterAsyncResource {
     return Piscina;
   }
 
-  static move (val : Transferable | TransferListItem | ArrayBufferView) {
+  static move (val : Transferable | TransferListItem | ArrayBufferView | ArrayBuffer | MessagePort) {
     if (val != null && typeof val === 'object' && typeof val !== 'function') {
       if (!isTransferable(val)) {
         if ((types as any).isArrayBufferView(val)) {
