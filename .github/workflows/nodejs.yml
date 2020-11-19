@@ -31,7 +31,13 @@ jobs:
         uses: actions/setup-node@v1
         with:
           node-version: ${{ matrix.node-version }}
+      - name: Update NPM
+        run: npm install --global npm@7.0.12
       - name: Install Dependencies
-        run: npm install
+        if: runner.os != 'Linux'
+        run: npm install --omit=peer
+      - name: Install Dependencies Linux
+        if: runner.os == 'Linux'
+        run: npm install --include=peer
       - name: Test
         run: npm test

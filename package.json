@@ -38,7 +38,6 @@
     "abort-controller": "^3.0.0",
     "concat-stream": "^2.0.0",
     "gen-esm-wrapper": "^1.0.6",
-    "nice-napi": "^1.0.2",
     "snazzy": "^8.0.0",
     "standardx": "^5.0.0",
     "tap": "^14.10.7",
