@@ -525,7 +525,7 @@ module.exports = () => {
     }
 
     get [valueSymbol]() {
-      return { a: { b: this.b }, c: this.c };
+      return { a: { b: this.a.b }, c: this.c };
     }
   };
   return move(obj);
