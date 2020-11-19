@@ -31,13 +31,12 @@ jobs:
         uses: actions/setup-node@v1
         with:
           node-version: ${{ matrix.node-version }}
-      - name: Update NPM
-        run: npm install --global npm@7.0.12
       - name: Install Dependencies
         if: runner.os != 'Linux'
         run: npm install --omit=peer
       - name: Install Dependencies Linux
         if: runner.os == 'Linux'
-        run: npm install --include=peer
+        # Manually installing peer dependencies until NPM v7+ flags start working
+        run: npm install --include=peer && npm i nice-napi@^1.0.2
       - name: Test
         run: npm test
