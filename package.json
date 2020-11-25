@@ -46,8 +46,7 @@
   "dependencies": {
     "eventemitter-asyncresource": "^1.0.0",
     "hdr-histogram-js": "^2.0.1",
-    "hdr-histogram-percentiles-obj": "^3.0.0",
-    "nice-napi": "^1.0.2"
+    "hdr-histogram-percentiles-obj": "^3.0.0"
   },
   "optionalDependencies": {
     "nice-napi": "^1.0.2"
