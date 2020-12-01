@@ -67,6 +67,8 @@ class AbortError extends Error {
   constructor () {
     super('The task has been aborted');
   }
+
+  get name () { return 'AbortError'; }
 }
 
 type ResourceLimits = Worker extends {
