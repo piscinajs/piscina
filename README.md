@@ -243,7 +243,10 @@ This class extends [`EventEmitter`][] from Node.js.
     available CPUs.
   * `idleTimeout`: (`number`) A timeout in milliseconds that specifies how long
     a `Worker` is allowed to be idle, i.e. not handling any tasks, before it is
-    shut down. By default, this is immediate.
+    shut down. By default, this is immediate. **Tip**: *The default `idleTimeout`
+    can lead to some performance loss in the application because of the overhead
+    involved with stopping and starting new worker threads. To improve performance,
+    try setting the `idleTimeout` explicitly.*
   * `maxQueue`: (`number` | `string`) The maximum number of tasks that may be
     scheduled to run, but not yet running due to lack of available threads, at
     a given time. By default, there is no limit. The special value `'auto'`
@@ -581,7 +584,6 @@ options cannot be submitted as JavaScript primitives).
 ## Current Limitations (Things we're working on / would love help with)
 
 * Improved Documentation
-* More examples
 * Benchmarks
 
 ## Performance Notes
@@ -705,6 +707,17 @@ as a configuration option in lieu of always creating their own.
 
 
 ## Release Notes
+
+### 2.1.0
+
+* Adds name property to indicate `AbortError` when tasks are
+  canceled using an `AbortController` (or similar)
+* More examples
+
+### 2.0.0
+
+* Added unmanaged file descriptor tracking
+* Updated dependencies
 
 ### 1.6.1
 
