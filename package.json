@@ -17,7 +17,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/piscinajs/piscina"
+    "url": "git+https://github.com/piscinajs/piscina.git"
   },
   "keywords": [
     "fast",
@@ -65,7 +65,9 @@
     },
     "globals": {
       "SharedArrayBuffer": true,
-      "Atomics": true
+      "Atomics": true,
+      "AbortController": true,
+      "MessageChannel": true
     }
   },
   "standardx": {
@@ -73,5 +75,13 @@
     "plugins": [
       "@typescript-eslint/eslint-plugin"
     ]
+  },
+  "bugs": {
+    "url": "https://github.com/piscinajs/piscina/issues"
+  },
+  "homepage": "https://github.com/piscinajs/piscina#readme",
+  "directories": {
+    "example": "examples",
+    "test": "test"
   }
 }
