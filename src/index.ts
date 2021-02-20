@@ -50,9 +50,13 @@ interface AbortSignalEventTarget {
     name : 'abort',
     listener : () => void,
     options? : AbortSignalEventTargetAddOptions) => void;
+  removeEventListener : (
+    name : 'abort',
+    listener : () => void) => void;
   aborted? : boolean;
 }
 interface AbortSignalEventEmitter {
+  off : (name : 'abort', listener : () => void) => void;
   once : (name : 'abort', listener : () => void) => void;
 }
 type AbortSignalAny = AbortSignalEventTarget | AbortSignalEventEmitter;
@@ -187,6 +191,7 @@ class TaskInfo extends AsyncResource implements Task {
   filename : string;
   taskId : number;
   abortSignal : AbortSignalAny | null;
+  abortListener : (() => void) | null = null;
   workerInfo : WorkerInfo | null = null;
   created : number;
   started : number;
@@ -231,6 +236,16 @@ class TaskInfo extends AsyncResource implements Task {
   done (err : Error | null, result? : any) : void {
     this.runInAsyncScope(this.callback, null, err, result);
     this.emitDestroy(); // `TaskInfo`s are used only once.
+    // If an abort signal was used, remove the listener from it when
+    // done to make sure we do not accidentally leak.
+    if (this.abortSignal && this.abortListener) {
+      if ('removeEventListener' in this.abortSignal && this.abortListener) {
+        this.abortSignal.removeEventListener('abort', this.abortListener);
+      } else {
+        (this.abortSignal as AbortSignalEventEmitter).off(
+          'abort', this.abortListener);
+      }
+    }
   }
 
   get [kQueueOptions] () : object | null {
@@ -718,7 +733,7 @@ class ThreadPool {
       if ((abortSignal as AbortSignalEventTarget).aborted) {
         return Promise.reject(new AbortError());
       }
-      onabort(abortSignal, () => {
+      taskInfo.abortListener = () => {
         // Call reject() first to make sure we always reject with the AbortError
         // if the task is aborted, not with an Error from the possible
         // thread termination below.
@@ -732,7 +747,8 @@ class ThreadPool {
           // Not yet running: Remove it from the queue.
           this.taskQueue.remove(taskInfo);
         }
-      });
+      };
+      onabort(abortSignal, taskInfo.abortListener);
     }
 
     // If there is a task queue, there's no point in looking for an available
