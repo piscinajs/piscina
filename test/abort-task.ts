@@ -163,3 +163,22 @@ test('aborted AbortSignal rejects task immediately', async ({ rejects, is }) => 
 
   is(data.length, 4);
 });
+
+test('task with AbortSignal cleans up properly', async ({ is }) => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js')
+  });
+
+  const ee = new EventEmitter();
+
+  await pool.runTask('1+1', ee);
+
+  const { getEventListeners } = EventEmitter as any;
+  if (typeof getEventListeners === 'function') {
+    is(getEventListeners(ee, 'abort').length, 0);
+  }
+
+  const controller = new AbortController();
+
+  await pool.runTask('1+1', controller.signal);
+});
