@@ -809,6 +809,45 @@ class ThreadPool {
     return ret;
   }
 
+  broadcastTask (task : any) : Promise<any> {
+    const filename = this.options.filename;
+    if (typeof filename !== 'string') {
+      return Promise.reject(Errors.FilenameNotProvided());
+    }
+
+    const promises = [];
+    for (const workerInfo of this.workers) {
+      let resolve : (result : any) => void;
+      let reject : (err : Error) => void;
+      // eslint-disable-next-line
+      const ret = new Promise((res, rej) => { resolve = res; reject = rej; });
+      const taskInfo = new TaskInfo(
+        task, undefined, filename, (err : Error | null, result : any) => {
+          this.completed++;
+          if (taskInfo.started) {
+            this.runTime.recordValue(performance.now() - taskInfo.started);
+          }
+          if (err !== null) {
+            reject(err);
+          } else {
+            resolve(result);
+          }
+        },
+        null,
+        this.publicInterface.asyncResource.asyncId());
+
+      const now = performance.now();
+      this.waitTime.recordValue(now - taskInfo.created);
+      taskInfo.started = now;
+      workerInfo.postTask(taskInfo);
+      promises.push(ret);
+    }
+
+    this._maybeDrain();
+
+    return Promise.all(promises);
+  }
+
   pendingCapacity () : number {
     return this.workers.pendingItems.size *
       this.options.concurrentTasksPerWorker;
@@ -934,6 +973,10 @@ class Piscina extends EventEmitterAsyncResource {
     }
     return this.#pool.runTask(
       task, transferList, filename || null, abortSignal || null);
+  }
+
+  broadcastTask (task : any) {
+    return this.#pool.broadcastTask(task);
   }
 
   destroy () {

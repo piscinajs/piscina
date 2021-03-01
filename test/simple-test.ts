@@ -58,6 +58,16 @@ test('async eval() handler works', async ({ is }) => {
   is(result, 42);
 });
 
+test('broadcasting works', async ({ same }) => {
+  const worker = new Piscina({
+    minThreads: 4,
+    maxThreads: 4,
+    filename: resolve(__dirname, 'fixtures/eval.js')
+  });
+  const result = await worker.broadcastTask('Promise.resolve(42)');
+  same(result, [42, 42, 42, 42]);
+});
+
 test('filename can be provided while posting', async ({ is }) => {
   const worker = new Piscina();
   const result = await worker.runTask(
