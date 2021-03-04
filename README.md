@@ -54,11 +54,11 @@ The worker may also be an async function or may return a Promise:
 const { promisify } = require('util');
 const sleep = promisify(setTimeout);
 
-module.exports = async ({ a, b } => {
+module.exports = async ({ a, b }) => {
   // Fake some async activity
   await sleep(100);
   return a + b;
-})
+};
 ```
 
 ESM is also supported for both Piscina and workers:
