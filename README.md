@@ -28,6 +28,7 @@ For Node.js 12.x and higher.
 In `main.js`:
 
 ```js
+const path = require('path');
 const Piscina = require('piscina');
 
 const piscina = new Piscina({
