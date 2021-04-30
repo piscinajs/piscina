@@ -12,7 +12,7 @@
     "build": "tsc && gen-esm-wrapper . dist/esm-wrapper.mjs",
     "lint": "standardx \"**/*.{ts,mjs,js,cjs}\" | snazzy",
     "test": "npm run lint && npm run build && npm run test-only",
-    "test-only": "tap",
+    "test-only": "tap --ts",
     "prepack": "npm run build"
   },
   "repository": {
@@ -41,6 +41,7 @@
     "snazzy": "^9.0.0",
     "standardx": "^7.0.0",
     "tap": "^15.0.6",
+    "ts-node": "^9.1.1",
     "typescript": "^4.2.4"
   },
   "dependencies": {
