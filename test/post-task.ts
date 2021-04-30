@@ -88,9 +88,7 @@ test('Piscina can use async loaded workers', async ({ equal }) => {
   equal(await pool.runTask('1'), 1);
 });
 
-test('Piscina can use async loaded esm workers', {
-  skip: process.version.startsWith('v12.') // ESM support is flagged on v12.x
-}, async ({ equal }) => {
+test('Piscina can use async loaded esm workers', {}, async ({ equal }) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/esm-async.mjs')
   });
