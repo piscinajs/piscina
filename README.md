@@ -53,11 +53,14 @@ The worker may also be an async function or may return a Promise:
 
 ```js
 const { promisify } = require('util');
-const sleep = promisify(setTimeout);
+
+// Awaitable timers are available in Node.js 15.x+
+// For Node.js 12 and 14, use promisify(setTimeout)
+const { setTimeout } = require('timers/promises');
 
 module.exports = async ({ a, b }) => {
   // Fake some async activity
-  await sleep(100);
+  await setTimeout(100);
   return a + b;
 };
 ```
@@ -72,10 +75,8 @@ const piscina = new Piscina({
   filename: new URL('./worker.mjs', import.meta.url).href
 });
 
-(async function () {
-  const result = await piscina.runTask({ a: 4, b: 6 });
-  console.log(result); // Prints 10
-})();
+const result = await piscina.runTask({ a: 4, b: 6 });
+console.log(result); // Prints 10
 ```
 
 In `worker.mjs`:
@@ -177,6 +178,7 @@ limit. The `'drain'` event may be used to receive notification when the
 queue is empty and all tasks have been submitted to workers for processing.
 
 Example: Using a Node.js stream to feed a Piscina worker pool:
+
 ```js
 'use strict';
 
@@ -708,6 +710,11 @@ as a configuration option in lieu of always creating their own.
 
 
 ## Release Notes
+
+### 3.0.0
+
+* Drops Node.js 10.x support
+* Updates minimum TypeScript target to ES2019
 
 ### 2.1.0
 
