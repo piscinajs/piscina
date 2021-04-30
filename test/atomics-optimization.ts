@@ -2,7 +2,7 @@ import Piscina from '..';
 import { test } from 'tap';
 import { resolve } from 'path';
 
-test('coverage test for Atomics optimization', async ({ is }) => {
+test('coverage test for Atomics optimization', async ({ equal }) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/notify-then-sleep-or.ts'),
     minThreads: 2,
@@ -29,7 +29,7 @@ test('coverage test for Atomics optimization', async ({ is }) => {
   // The check above could also be !== 2 but it's hard to get things right
   // sometimes and this gives us a nice assertion. Basically, at this point
   // exactly 2 tasks should be in Atomics.wait() state.
-  is(popcount8(v), 2);
+  equal(popcount8(v), 2);
   // Wake both tasks up as simultaneously as possible. The other 2 tasks should
   // then start executing.
   Atomics.store(i32array, 0, 0);
@@ -49,7 +49,7 @@ test('coverage test for Atomics optimization', async ({ is }) => {
 
   // Wake up the remaining 2 tasks in order to make sure that the test finishes.
   // Do the same consistency check beforehand as above.
-  is(popcount8(v), 2);
+  equal(popcount8(v), 2);
   Atomics.store(i32array, 0, 0);
   Atomics.notify(i32array, 0, Infinity);
 

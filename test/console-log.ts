@@ -3,7 +3,7 @@ import { spawn } from 'child_process';
 import { resolve } from 'path';
 import { test } from 'tap';
 
-test('console.log() calls are not blocked by Atomics.wait()', async ({ is }) => {
+test('console.log() calls are not blocked by Atomics.wait()', async ({ equal }) => {
   const proc = spawn(process.execPath, [
     ...process.execArgv, resolve(__dirname, 'fixtures/console-log.ts')
   ], {
@@ -13,5 +13,5 @@ test('console.log() calls are not blocked by Atomics.wait()', async ({ is }) => 
   const data = await new Promise((resolve) => {
     proc.stdout.setEncoding('utf8').pipe(concat(resolve));
   });
-  is(data, 'A\nB\n');
+  equal(data, 'A\nB\n');
 });
