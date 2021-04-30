@@ -5,24 +5,24 @@ import { pathToFileURL } from 'url';
 import { resolve } from 'path';
 import { EventEmitter } from 'events';
 
-test('Piscina is exposed on export', async ({ is }) => {
-  is(Piscina.version, version);
+test('Piscina is exposed on export', async ({ equal }) => {
+  equal(Piscina.version, version);
 });
 
-test('Piscina is exposed on itself', async ({ is }) => {
-  is(Piscina.Piscina, Piscina);
+test('Piscina is exposed on itself', async ({ equal }) => {
+  equal(Piscina.Piscina, Piscina);
 });
 
-test('Piscina.isWorkerThread has the correct value', async ({ is }) => {
-  is(Piscina.isWorkerThread, false);
+test('Piscina.isWorkerThread has the correct value', async ({ equal }) => {
+  equal(Piscina.isWorkerThread, false);
 });
 
-test('Piscina.isWorkerThread has the correct value (worker)', async ({ is }) => {
+test('Piscina.isWorkerThread has the correct value (worker)', async ({ equal }) => {
   const worker = new Piscina({
     filename: resolve(__dirname, 'fixtures/simple-isworkerthread.ts')
   });
   const result = await worker.runTask(null);
-  is(result, 'done');
+  equal(result, 'done');
 });
 
 test('Piscina instance is an EventEmitter', async ({ ok }) => {
@@ -30,48 +30,48 @@ test('Piscina instance is an EventEmitter', async ({ ok }) => {
   ok(piscina instanceof EventEmitter);
 });
 
-test('Piscina constructor options are correctly set', async ({ is }) => {
+test('Piscina constructor options are correctly set', async ({ equal }) => {
   const piscina = new Piscina({
     minThreads: 10,
     maxThreads: 20,
     maxQueue: 30
   });
 
-  is(piscina.options.minThreads, 10);
-  is(piscina.options.maxThreads, 20);
-  is(piscina.options.maxQueue, 30);
+  equal(piscina.options.minThreads, 10);
+  equal(piscina.options.maxThreads, 20);
+  equal(piscina.options.maxQueue, 30);
 });
 
-test('trivial eval() handler works', async ({ is }) => {
+test('trivial eval() handler works', async ({ equal }) => {
   const worker = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js')
   });
   const result = await worker.runTask('42');
-  is(result, 42);
+  equal(result, 42);
 });
 
-test('async eval() handler works', async ({ is }) => {
+test('async eval() handler works', async ({ equal }) => {
   const worker = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js')
   });
   const result = await worker.runTask('Promise.resolve(42)');
-  is(result, 42);
+  equal(result, 42);
 });
 
-test('filename can be provided while posting', async ({ is }) => {
+test('filename can be provided while posting', async ({ equal }) => {
   const worker = new Piscina();
   const result = await worker.runTask(
     'Promise.resolve(42)',
     resolve(__dirname, 'fixtures/eval.js'));
-  is(result, 42);
+  equal(result, 42);
 });
 
-test('filename can be null when initially provided', async ({ is }) => {
+test('filename can be null when initially provided', async ({ equal }) => {
   const worker = new Piscina({ filename: null });
   const result = await worker.runTask(
     'Promise.resolve(42)',
     resolve(__dirname, 'fixtures/eval.js'));
-  is(result, 42);
+  equal(result, 42);
 });
 
 test('filename must be provided while posting', async ({ rejects }) => {
@@ -110,12 +110,12 @@ test('passing execArgv to workers works', async ({ same }) => {
   same(env, ['--no-warnings']);
 });
 
-test('passing valid workerData works', async ({ is }) => {
+test('passing valid workerData works', async ({ equal }) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/simple-workerdata.ts'),
     workerData: 'ABC'
   });
-  is(Piscina.workerData, undefined);
+  equal(Piscina.workerData, undefined);
 
   await pool.runTask(null);
 });
@@ -127,31 +127,31 @@ test('passing invalid workerData does not work', async ({ throws }) => {
   }) as any), /Cannot transfer object of unsupported type./);
 });
 
-test('filename can be a file:// URL', async ({ is }) => {
+test('filename can be a file:// URL', async ({ equal }) => {
   const worker = new Piscina({
     filename: pathToFileURL(resolve(__dirname, 'fixtures/eval.js')).href
   });
   const result = await worker.runTask('42');
-  is(result, 42);
+  equal(result, 42);
 });
 
 test('filename can be a file:// URL to an ESM module', {
   skip: process.version.startsWith('v12.') // ESM support is flagged on v12.x
-}, async ({ is }) => {
+}, async ({ equal }) => {
   const worker = new Piscina({
     filename: pathToFileURL(resolve(__dirname, 'fixtures/esm-export.mjs')).href
   });
   const result = await worker.runTask('42');
-  is(result, 42);
+  equal(result, 42);
 });
 
-test('duration and utilization calculations work', async ({ is, ok }) => {
+test('duration and utilization calculations work', async ({ equal, ok }) => {
   const worker = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js')
   });
 
   // Initial utilization is always 0
-  is(worker.utilization, 0);
+  equal(worker.utilization, 0);
 
   await Promise.all([
     worker.runTask('42'),

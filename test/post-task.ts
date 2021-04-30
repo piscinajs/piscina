@@ -3,15 +3,15 @@ import Piscina from '..';
 import { test } from 'tap';
 import { resolve } from 'path';
 
-test('postTask() can transfer ArrayBuffer instances', async ({ is }) => {
+test('postTask() can transfer ArrayBuffer instances', async ({ equal }) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/simple-isworkerthread.ts')
   });
 
   const ab = new ArrayBuffer(40);
   await pool.runTask({ ab }, [ab]);
-  is(pool.completed, 1);
-  is(ab.byteLength, 0);
+  equal(pool.completed, 1);
+  equal(ab.byteLength, 0);
 });
 
 test('postTask() cannot clone build-in objects', async ({ rejects }) => {
@@ -81,18 +81,18 @@ test('Piscina emits drain', async ({ ok }) => {
   ok(drained);
 });
 
-test('Piscina can use async loaded workers', async ({ is }) => {
+test('Piscina can use async loaded workers', async ({ equal }) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval-async.js')
   });
-  is(await pool.runTask('1'), 1);
+  equal(await pool.runTask('1'), 1);
 });
 
 test('Piscina can use async loaded esm workers', {
   skip: process.version.startsWith('v12.') // ESM support is flagged on v12.x
-}, async ({ is }) => {
+}, async ({ equal }) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/esm-async.mjs')
   });
-  is(await pool.runTask('1'), 1);
+  equal(await pool.runTask('1'), 1);
 });

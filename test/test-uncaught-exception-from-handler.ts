@@ -21,7 +21,7 @@ test('uncaught exception in immediate resets Worker', async ({ rejects }) => {
     `), /not_caught/);
 });
 
-test('uncaught exception in immediate after task yields error event', async ({ is }) => {
+test('uncaught exception in immediate after task yields error event', async ({ equal }) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js'),
     maxThreads: 1,
@@ -35,14 +35,14 @@ test('uncaught exception in immediate after task yields error event', async ({ i
     42
   `);
 
-  is(await taskResult, 42);
+  equal(await taskResult, 42);
 
   // Hack a bit to make sure we get the 'exit'/'error' events.
-  is(pool.threads.length, 1);
+  equal(pool.threads.length, 1);
   pool.threads[0].ref();
 
   // This is the main aassertion here.
-  is((await errorEvent)[0].message, 'not_caught');
+  equal((await errorEvent)[0].message, 'not_caught');
 });
 
 test('using parentPort is treated as an error', async ({ rejects }) => {

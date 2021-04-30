@@ -4,7 +4,7 @@ import Piscina from '..';
 import { test } from 'tap';
 import { resolve } from 'path';
 
-test('tasks can be aborted through AbortController while running', async ({ is, rejects }) => {
+test('tasks can be aborted through AbortController while running', async ({ equal, rejects }) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/notify-then-sleep.ts')
   });
@@ -15,12 +15,12 @@ test('tasks can be aborted through AbortController while running', async ({ is, 
     /The task has been aborted/);
 
   Atomics.wait(buf, 0, 0);
-  is(Atomics.load(buf, 0), 1);
+  equal(Atomics.load(buf, 0), 1);
 
   abortController.abort();
 });
 
-test('tasks can be aborted through EventEmitter while running', async ({ is, rejects }) => {
+test('tasks can be aborted through EventEmitter while running', async ({ equal, rejects }) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/notify-then-sleep.ts')
   });
@@ -30,12 +30,12 @@ test('tasks can be aborted through EventEmitter while running', async ({ is, rej
   rejects(pool.runTask(buf, ee), /The task has been aborted/);
 
   Atomics.wait(buf, 0, 0);
-  is(Atomics.load(buf, 0), 1);
+  equal(Atomics.load(buf, 0), 1);
 
   ee.emit('abort');
 });
 
-test('tasks can be aborted through EventEmitter before running', async ({ is, rejects }) => {
+test('tasks can be aborted through EventEmitter before running', async ({ equal, rejects }) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/wait-for-notify.ts'),
     maxThreads: 1
@@ -48,7 +48,7 @@ test('tasks can be aborted through EventEmitter before running', async ({ is, re
   const task1 = pool.runTask(bufs[0]);
   const ee = new EventEmitter();
   rejects(pool.runTask(bufs[1], ee), /The task has been aborted/);
-  is(pool.queueSize, 1);
+  equal(pool.queueSize, 1);
 
   ee.emit('abort');
 
@@ -58,7 +58,7 @@ test('tasks can be aborted through EventEmitter before running', async ({ is, re
   await task1;
 });
 
-test('abortable tasks will not share workers (abortable posted second)', async ({ is, rejects }) => {
+test('abortable tasks will not share workers (abortable posted second)', async ({ equal, rejects }) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/wait-for-notify.ts'),
     maxThreads: 1,
@@ -72,7 +72,7 @@ test('abortable tasks will not share workers (abortable posted second)', async (
   const task1 = pool.runTask(bufs[0]);
   const ee = new EventEmitter();
   rejects(pool.runTask(bufs[1], ee), /The task has been aborted/);
-  is(pool.queueSize, 1);
+  equal(pool.queueSize, 1);
 
   ee.emit('abort');
 
@@ -82,7 +82,7 @@ test('abortable tasks will not share workers (abortable posted second)', async (
   await task1;
 });
 
-test('abortable tasks will not share workers (abortable posted first)', async ({ is, rejects }) => {
+test('abortable tasks will not share workers (abortable posted first)', async ({ equal, rejects }) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js'),
     maxThreads: 1,
@@ -92,15 +92,15 @@ test('abortable tasks will not share workers (abortable posted first)', async ({
   const ee = new EventEmitter();
   rejects(pool.runTask('while(true);', ee), /The task has been aborted/);
   const task2 = pool.runTask('42');
-  is(pool.queueSize, 1);
+  equal(pool.queueSize, 1);
 
   ee.emit('abort');
 
   // Wake up the thread handling the second task.
-  is(await task2, 42);
+  equal(await task2, 42);
 });
 
-test('abortable tasks will not share workers (on worker available)', async ({ is }) => {
+test('abortable tasks will not share workers (on worker available)', async ({ equal }) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/sleep.js'),
     maxThreads: 1,
@@ -119,9 +119,9 @@ test('abortable tasks will not share workers (on worker available)', async ({ is
     pool.runTask({ time: 100, a: 3 }, new EventEmitter())
   ]);
 
-  is(ret[0], 0);
-  is(ret[1], 1);
-  is(ret[2], 2);
+  equal(ret[0], 0);
+  equal(ret[1], 1);
+  equal(ret[2], 2);
 });
 
 test('abortable tasks will not share workers (destroy workers)', async ({ rejects }) => {
@@ -146,7 +146,7 @@ test('abortable tasks will not share workers (destroy workers)', async ({ reject
     /Terminating worker thread/);
 });
 
-test('aborted AbortSignal rejects task immediately', async ({ rejects, is }) => {
+test('aborted AbortSignal rejects task immediately', async ({ rejects, equal }) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/move.ts')
   });
@@ -154,17 +154,17 @@ test('aborted AbortSignal rejects task immediately', async ({ rejects, is }) => 
   const controller = new AbortController();
   // Abort the controller early
   controller.abort();
-  is(controller.signal.aborted, true);
+  equal(controller.signal.aborted, true);
 
   // The data won't be moved because the task will abort immediately.
   const data = new Uint8Array(new SharedArrayBuffer(4));
   rejects(pool.runTask(data, [data.buffer], controller.signal),
     /The task has been aborted/);
 
-  is(data.length, 4);
+  equal(data.length, 4);
 });
 
-test('task with AbortSignal cleans up properly', async ({ is }) => {
+test('task with AbortSignal cleans up properly', async ({ equal }) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js')
   });
@@ -175,7 +175,7 @@ test('task with AbortSignal cleans up properly', async ({ is }) => {
 
   const { getEventListeners } = EventEmitter as any;
   if (typeof getEventListeners === 'function') {
-    is(getEventListeners(ee, 'abort').length, 0);
+    equal(getEventListeners(ee, 'abort').length, 0);
   }
 
   const controller = new AbortController();

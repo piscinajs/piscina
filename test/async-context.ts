@@ -3,7 +3,7 @@ import Piscina from '..';
 import { test } from 'tap';
 import { resolve } from 'path';
 
-test('postTask() calls the correct async hooks', async ({ is }) => {
+test('postTask() calls the correct async hooks', async ({ equal }) => {
   let taskId;
   let initCalls = 0;
   let beforeCalls = 0;
@@ -36,8 +36,8 @@ test('postTask() calls the correct async hooks', async ({ is }) => {
   await pool.runTask('42');
 
   hook.disable();
-  is(initCalls, 1);
-  is(beforeCalls, 1);
-  is(afterCalls, 1);
-  is(resolveCalls, 1);
+  equal(initCalls, 1);
+  equal(beforeCalls, 1);
+  equal(afterCalls, 1);
+  equal(resolveCalls, 1);
 });
