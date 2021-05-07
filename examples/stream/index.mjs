@@ -9,7 +9,7 @@ const pool = new Piscina({
 
 const { port1, port2 } = new MessageChannel();
 
-pool.runTask(port2, [port2]);
+pool.run(port2, { transferList: [port2] });
 
 const duplex = new MessagePortDuplex(port1);
 pipeline(

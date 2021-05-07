@@ -16,7 +16,7 @@ async function task (a, b) {
   const mc = new MessageChannel();
   mc.port2.onmessage = () => bar.tick();
   mc.port2.unref();
-  return await piscina.runTask({ a, b, port: mc.port1 }, [mc.port1]);
+  return await piscina.run({ a, b, port: mc.port1 }, { transferList: [mc.port1] });
 }
 
 Promise.all([

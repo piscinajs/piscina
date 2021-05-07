@@ -15,7 +15,7 @@ const piscina = new Piscina({
 
 (async function () {
   try {
-    await piscina.runTask();
+    await piscina.run();
   } catch (err) {
     console.log('Worker terminated due to resource limits');
     strictEqual(err.code, 'ERR_WORKER_OUT_OF_MEMORY');
