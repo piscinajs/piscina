@@ -14,5 +14,5 @@ const piscina = new Piscina({
     console.log(message);
     channel.port2.close();
   });
-  await piscina.runTask({ port: channel.port1 }, [channel.port1]);
+  await piscina.run({ port: channel.port1 }, { transferList: [channel.port1] });
 })();

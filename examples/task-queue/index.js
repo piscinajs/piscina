@@ -48,13 +48,13 @@ function makeTask (task, priority) {
 (async () => {
   // Submit enough tasks to ensure that at least some are queued
   console.log(await Promise.all([
-    pool.runTask(makeTask({ priority: 1 }, 1)),
-    pool.runTask(makeTask({ priority: 2 }, 2)),
-    pool.runTask(makeTask({ priority: 3 }, 3)),
-    pool.runTask(makeTask({ priority: 4 }, 4)),
-    pool.runTask(makeTask({ priority: 5 }, 5)),
-    pool.runTask(makeTask({ priority: 6 }, 6)),
-    pool.runTask(makeTask({ priority: 7 }, 7)),
-    pool.runTask(makeTask({ priority: 8 }, 8))
+    pool.run(makeTask({ priority: 1 }, 1)),
+    pool.run(makeTask({ priority: 2 }, 2)),
+    pool.run(makeTask({ priority: 3 }, 3)),
+    pool.run(makeTask({ priority: 4 }, 4)),
+    pool.run(makeTask({ priority: 5 }, 5)),
+    pool.run(makeTask({ priority: 6 }, 6)),
+    pool.run(makeTask({ priority: 7 }, 7)),
+    pool.run(makeTask({ priority: 8 }, 8))
   ]));
 })();

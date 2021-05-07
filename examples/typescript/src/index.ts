@@ -11,7 +11,7 @@ if (isMainThread) {
 
   (async function () {
     const task : Inputs = { a: 1, b: 2 };
-    console.log(await piscina.runTask(task));
+    console.log(await piscina.run(task));
   })();
 } else {
   module.exports = ({ a, b } : Inputs) : number => {

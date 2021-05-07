@@ -77,7 +77,7 @@ test('filename can be null when initially provided', async ({ equal }) => {
 test('filename must be provided while posting', async ({ rejects }) => {
   const worker = new Piscina();
   rejects(worker.runTask('doesn’t matter'),
-    /filename must be provided to runTask\(\) or in options object/);
+    /filename must be provided to run\(\) or in options object/);
 });
 
 test('passing env to workers works', async ({ same }) => {
@@ -165,4 +165,12 @@ test('duration and utilization calculations work', async ({ equal, ok }) => {
 
   // Duration must be non-zero.
   ok(worker.duration > 0);
+});
+
+test('run works also', async () => {
+  const worker = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js')
+  });
+
+  await worker.run(42);
 });

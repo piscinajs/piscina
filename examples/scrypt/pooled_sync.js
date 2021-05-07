@@ -41,7 +41,7 @@ async function * generateInput () {
   const keylen = 64;
 
   for await (const input of generateInput()) {
-    await piscina.runTask({ input, keylen });
+    await piscina.run({ input, keylen });
   }
 
   performance.mark('end');

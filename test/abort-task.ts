@@ -28,6 +28,7 @@ test('tasks can be aborted through EventEmitter while running', async ({ equal, 
   const buf = new Int32Array(new SharedArrayBuffer(4));
   const ee = new EventEmitter();
   rejects(pool.runTask(buf, ee), /The task has been aborted/);
+  rejects(pool.run(buf, { signal: ee }), /The task has been aborted/);
 
   Atomics.wait(buf, 0, 0);
   equal(Atomics.load(buf, 0), 1);
@@ -48,7 +49,8 @@ test('tasks can be aborted through EventEmitter before running', async ({ equal,
   const task1 = pool.runTask(bufs[0]);
   const ee = new EventEmitter();
   rejects(pool.runTask(bufs[1], ee), /The task has been aborted/);
-  equal(pool.queueSize, 1);
+  rejects(pool.run(bufs[1], { signal: ee }), /The task has been aborted/);
+  equal(pool.queueSize, 2);
 
   ee.emit('abort');
 

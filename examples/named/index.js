@@ -10,8 +10,8 @@ const piscina = new Piscina({
 
 (async function () {
   const result = await Promise.all([
-    piscina.runTask(makeTask('add', 4, 6)),
-    piscina.runTask(makeTask('sub', 4, 6))
+    piscina.run(makeTask('add', 4, 6)),
+    piscina.run(makeTask('sub', 4, 6))
   ]);
   console.log(result);
 })();

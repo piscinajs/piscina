@@ -7,10 +7,10 @@ const pool = new Piscina({
 
 (async () => {
   console.log(await Promise.all([
-    pool.runTask(),
-    pool.runTask(),
-    pool.runTask(),
-    pool.runTask(),
-    pool.runTask()
+    pool.run(),
+    pool.run(),
+    pool.run(),
+    pool.run(),
+    pool.run()
   ]));
 })();

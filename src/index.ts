@@ -145,6 +145,24 @@ const kDefaultOptions : FilledOptions = {
   trackUnmanagedFds: true
 };
 
+interface RunOptions {
+  transferList? : TransferList,
+  filename? : string | null,
+  signal? : AbortSignalAny | null
+}
+
+interface FilledRunOptions extends RunOptions {
+  transferList : TransferList | never,
+  filename : string | null,
+  signal : AbortSignalAny | null
+}
+
+const kDefaultRunOptions : FilledRunOptions = {
+  transferList: undefined,
+  filename: null,
+  signal: null
+};
+
 class DirectlyTransferable implements Transferable {
   #value : object;
   constructor (value : object) {
@@ -212,7 +230,7 @@ class TaskInfo extends AsyncResource implements Task {
     // Piscina.move(), then add it to the transferList
     // automatically
     if (isMovable(task)) {
-      if (this.transferList === undefined) {
+      if (this.transferList == null) {
         this.transferList = [];
       }
       this.transferList =
@@ -352,7 +370,7 @@ const Errors = {
   ThreadTermination:
     () => new Error('Terminating worker thread'),
   FilenameNotProvided:
-    () => new Error('filename must be provided to runTask() or in options object'),
+    () => new Error('filename must be provided to run() or in options object'),
   TaskQueueAtLimit:
     () => new Error('Task queue is at limit'),
   NoTaskQueueAvailable:
@@ -697,10 +715,13 @@ class ThreadPool {
 
   runTask (
     task : any,
-    transferList : TransferList,
-    filename : string | null,
-    abortSignal : AbortSignalAny | null) : Promise<any> {
-    if (filename === null) {
+    options : RunOptions) : Promise<any> {
+    let { filename } = options;
+    const {
+      transferList = [],
+      signal = null
+    } = options;
+    if (filename == null) {
       filename = this.options.filename;
     }
     if (typeof filename !== 'string') {
@@ -724,13 +745,13 @@ class ThreadPool {
           resolve(result);
         }
       },
-      abortSignal,
+      signal,
       this.publicInterface.asyncResource.asyncId());
 
-    if (abortSignal !== null) {
+    if (signal !== null) {
       // If the AbortSignal has an aborted property and it's truthy,
       // reject immediately.
-      if ((abortSignal as AbortSignalEventTarget).aborted) {
+      if ((signal as AbortSignalEventTarget).aborted) {
         return Promise.reject(new AbortError());
       }
       taskInfo.abortListener = () => {
@@ -748,7 +769,7 @@ class ThreadPool {
           this.taskQueue.remove(taskInfo);
         }
       };
-      onabort(abortSignal, taskInfo.abortListener);
+      onabort(signal, taskInfo.abortListener);
     }
 
     // If there is a task queue, there's no point in looking for an available
@@ -776,7 +797,7 @@ class ThreadPool {
 
     // If we want the ability to abort this task, use only workers that have
     // no running tasks.
-    if (workerInfo !== null && workerInfo.currentUsage() > 0 && abortSignal) {
+    if (workerInfo !== null && workerInfo.currentUsage() > 0 && signal) {
       workerInfo = null;
     }
 
@@ -901,22 +922,30 @@ class Piscina extends EventEmitterAsyncResource {
     this.#pool = new ThreadPool(this, options);
   }
 
+  /** @deprecated Use run(task, options) instead **/
   runTask (task : any, transferList? : TransferList, filename? : string, abortSignal? : AbortSignalAny) : Promise<any>;
+
+  /** @deprecated Use run(task, options) instead **/
   runTask (task : any, transferList? : TransferList, filename? : AbortSignalAny, abortSignal? : undefined) : Promise<any>;
+
+  /** @deprecated Use run(task, options) instead **/
   runTask (task : any, transferList? : string, filename? : AbortSignalAny, abortSignal? : undefined) : Promise<any>;
+
+  /** @deprecated Use run(task, options) instead **/
   runTask (task : any, transferList? : AbortSignalAny, filename? : undefined, abortSignal? : undefined) : Promise<any>;
 
-  runTask (task : any, transferList? : any, filename? : any, abortSignal? : any) {
+  /** @deprecated Use run(task, options) instead **/
+  runTask (task : any, transferList? : any, filename? : any, signal? : any) {
     // If transferList is a string or AbortSignal, shift it.
     if ((typeof transferList === 'object' && !Array.isArray(transferList)) ||
         typeof transferList === 'string') {
-      abortSignal = filename as (AbortSignalAny | undefined);
+      signal = filename as (AbortSignalAny | undefined);
       filename = transferList;
       transferList = undefined;
     }
     // If filename is an AbortSignal, shift it.
     if (typeof filename === 'object' && !Array.isArray(filename)) {
-      abortSignal = filename;
+      signal = filename;
       filename = undefined;
     }
 
@@ -928,12 +957,41 @@ class Piscina extends EventEmitterAsyncResource {
       return Promise.reject(
         new TypeError('filename argument must be a string'));
     }
-    if (abortSignal !== undefined && typeof abortSignal !== 'object') {
+    if (signal !== undefined && typeof signal !== 'object') {
       return Promise.reject(
-        new TypeError('abortSignal argument must be an object'));
+        new TypeError('signal argument must be an object'));
     }
     return this.#pool.runTask(
-      task, transferList, filename || null, abortSignal || null);
+      task, {
+        transferList,
+        filename: filename || null,
+        signal: signal || null
+      });
+  }
+
+  run (task : any, options : RunOptions = kDefaultRunOptions) {
+    if (options === null || typeof options !== 'object') {
+      return Promise.reject(
+        new TypeError('options must be an object'));
+    }
+    const {
+      transferList,
+      filename,
+      signal
+    } = options;
+    if (transferList !== undefined && !Array.isArray(transferList)) {
+      return Promise.reject(
+        new TypeError('transferList argument must be an Array'));
+    }
+    if (filename != null && typeof filename !== 'string') {
+      return Promise.reject(
+        new TypeError('filename argument must be a string'));
+    }
+    if (signal != null && typeof signal !== 'object') {
+      return Promise.reject(
+        new TypeError('signal argument must be an object'));
+    }
+    return this.#pool.runTask(task, { transferList, filename, signal });
   }
 
   destroy () {
