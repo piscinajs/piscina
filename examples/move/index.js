@@ -10,6 +10,6 @@ const pool = new Piscina({
   // The task will transfer an ArrayBuffer
   // back to the main thread rather than
   // cloning it.
-  const u8 = await pool.run();
+  const u8 = await pool.run(Piscina.move(new Uint8Array(2)));
   console.log(u8.length);
 })();

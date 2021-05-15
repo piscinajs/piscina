@@ -36,7 +36,7 @@ const piscina = new Piscina({
 });
 
 (async function() {
-  const result = await piscina.runTask({ a: 4, b: 6 });
+  const result = await piscina.run({ a: 4, b: 6 });
   console.log(result);  // Prints 10
 })();
 ```
@@ -75,7 +75,7 @@ const piscina = new Piscina({
   filename: new URL('./worker.mjs', import.meta.url).href
 });
 
-const result = await piscina.runTask({ a: 4, b: 6 });
+const result = await piscina.run({ a: 4, b: 6 });
 console.log(result); // Prints 10
 ```
 
@@ -85,6 +85,43 @@ In `worker.mjs`:
 export default ({ a, b }) => {
   return a + b;
 };
+```
+
+### Exporting multiple worker functions
+
+A single worker file may export multiple named handler functions.
+
+```js
+'use strict';
+
+function add({ a, b }) { return a + b; }
+
+function multiply({ a, b }) { return a * b; }
+
+add.add = add;
+add.multiply = multiply;
+
+module.exports = add;
+```
+
+The export to target can then be specified when the task is submitted:
+
+```js
+'use strict';
+
+const Piscina = require('piscina');
+const { resolve } = require('path');
+
+const piscina = new Piscina({
+  filename: resolve(__dirname, 'worker.js')
+});
+
+(async function() {
+  const res = await Promise.all([
+    piscina.run({ a: 4, b: 6 }, { name: 'add' }),
+    piscina.run({ a: 4, b: 6 }, { name: 'multiply' })
+  ]);
+})();
 ```
 
 ### Cancelable Tasks
@@ -106,7 +143,8 @@ const piscina = new Piscina({
 (async function() {
   const abortController = new AbortController();
   try {
-    const task = piscina.runTask({ a: 4, b: 6 }, abortController.signal);
+    const { signal } = abortController;
+    const task = piscina.run({ a: 4, b: 6 }, { signal });
     abortController.abort();
     await task;
   } catch (err) {
@@ -138,7 +176,7 @@ const piscina = new Piscina({
 (async function() {
   const ee = new EventEmitter();
   try {
-    const task = piscina.runTask({ a: 4, b: 6 }, ee);
+    const task = piscina.run({ a: 4, b: 6 }, { signal: ee });
     ee.emit('abort');
     await task;
   } catch (err) {
@@ -202,7 +240,7 @@ pool.on('drain', () => {
 
 stream
   .on('data', (data) => {
-    pool.runTask(data);
+    pool.run(data);
     if (pool.queueSize === pool.options.maxQueue) {
       console.log('pausing...', counter, pool.queueSize);
       stream.pause();
@@ -238,6 +276,9 @@ This class extends [`EventEmitter`][] from Node.js.
     absolute `file://` URL to a file that exports a JavaScript `function` or
     `async function` as its default export or `module.exports`. [ES modules][]
     are supported.
+  * `name`: (`string | null`) Provides the name of the default exported worker
+    function. The default is `'default'`, indicating the default export of the
+    worker module.
   * `minThreads`: (`number`) Sets the minimum number of threads that are always
     running for this thread pool. The default is based on the number of
     available CPUs.
@@ -300,7 +341,36 @@ This class extends [`EventEmitter`][] from Node.js.
 Use caution when setting resource limits. Setting limits that are too low may
 result in the `Piscina` worker threads being unusable.
 
+### Method: `run(task[, options])`
+
+Schedules a task to be run on a Worker thread.
+
+* `task`: Any value. This will be passed to the function that is exported from
+  `filename`.
+* `options`:
+  * `transferList`: An optional lists of objects that is passed to
+    [`postMessage()`] when posting `task` to the Worker, which are transferred
+    rather than cloned.
+  * `filename`: Optionally overrides the `filename` option passed to the
+    constructor for this task. If no `filename` was specified to the constructor,
+    this is mandatory.
+  * `name`: Optionally overrides the exported worker function used for the task.
+  * `abortSignal`: An [`AbortSignal`][] instance. If passed, this can be used to
+    cancel a task. If the task is already running, the corresponding `Worker`
+    thread will be stopped.
+    (More generally, any `EventEmitter` or `EventTarget` that emits `'abort'`
+    events can be passed here.) Abortable tasks cannot share threads regardless
+    of the `concurrentTasksPerWorker` options.
+
+This returns a `Promise` for the return value of the (async) function call
+made to the function exported from `filename`. If the (async) function throws
+an error, the returned `Promise` will be rejected with that error.
+If the task is aborted, the returned `Promise` is rejected with an error
+as well.
+
 ### Method: `runTask(task[, transferList][, filename][, abortSignal])`
+
+**Deprecated** -- Use `run(task, options)` instead.
 
 Schedules a task to be run on a Worker thread.
 
@@ -340,7 +410,8 @@ An `'error'` event is emitted by instances of this class when:
 - Unexpected messages are sent from from Worker threads.
 
 All other errors are reported by rejecting the `Promise` returned from
-`runTask()`, including rejections reported by the handler function itself.
+`run()` or `runTask()`, including rejections reported by the handler function
+itself.
 
 ### Event: `'drain'`
 
@@ -579,8 +650,8 @@ An example of a custom task queue that uses a shuffled priority queue
 is available in [`examples/task-queue`](./examples/task-queue/index.js);
 
 The special symbol `Piscina.queueOptionsSymbol` may be set as a property
-on tasks submitted to `runTask()` as a way of passing additional options
-on to the custom `TaskQueue` implementation. (Note that because the
+on tasks submitted to `run()` or `runTask()` as a way of passing additional
+options on to the custom `TaskQueue` implementation. (Note that because the
 queue options are set as a property on the task, tasks with queue
 options cannot be submitted as JavaScript primitives).
 

@@ -174,3 +174,24 @@ test('run works also', async () => {
 
   await worker.run(42);
 });
+
+test('named tasks work', async ({ equal }) => {
+  const worker = new Piscina({
+    filename: resolve(__dirname, 'fixtures/multiple.js')
+  });
+
+  equal(await worker.run({}, { name: 'a' }), 'a');
+  equal(await worker.run({}, { name: 'b' }), 'b');
+  equal(await worker.run({}), 'a');
+});
+
+test('named tasks work', async ({ equal }) => {
+  const worker = new Piscina({
+    filename: resolve(__dirname, 'fixtures/multiple.js'),
+    name: 'b'
+  });
+
+  equal(await worker.run({}, { name: 'a' }), 'a');
+  equal(await worker.run({}, { name: 'b' }), 'b');
+  equal(await worker.run({}), 'b');
+});
