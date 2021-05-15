@@ -74,6 +74,15 @@ test('postTask() validates filename', async ({ rejects }) => {
     /filename argument must be a string/);
 });
 
+test('postTask() validates name', async ({ rejects }) => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js')
+  });
+
+  rejects(pool.run('0', { name: 42 as any }),
+    /name argument must be a string/);
+});
+
 test('postTask() validates abortSignal', async ({ rejects }) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js')

@@ -7,6 +7,12 @@ test('filename cannot be non-null/non-string', async ({ throws }) => {
   }) as any), /options.filename must be a string or null/);
 });
 
+test('name cannot be non-null/non-string', async ({ throws }) => {
+  throws(() => new Piscina(({
+    name: 12
+  }) as any), /options.name must be a string or null/);
+});
+
 test('minThreads must be non-negative integer', async ({ throws }) => {
   throws(() => new Piscina(({
     minThreads: -1

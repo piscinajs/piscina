@@ -34,8 +34,8 @@ function getImportESM () {
 
 // Look up the handler function that we call when a task is posted.
 // This is either going to be "the" export from a file, or the default export.
-async function getHandler (filename : string) : Promise<Function | null> {
-  let handler = handlerCache.get(filename);
+async function getHandler (filename : string, name : string) : Promise<Function | null> {
+  let handler = handlerCache.get(`${filename}/${name}`);
   if (handler !== undefined) {
     return handler;
   }
@@ -45,13 +45,13 @@ async function getHandler (filename : string) : Promise<Function | null> {
     // `require(filename)`.
     handler = await import(filename);
     if (typeof handler !== 'function') {
-      handler = await (handler as any).default;
+      handler = await ((handler as any)[name]);
     }
   } catch {}
   if (typeof handler !== 'function') {
     handler = await getImportESM()(pathToFileURL(filename).href);
     if (typeof handler !== 'function') {
-      handler = await (handler as any).default;
+      handler = await ((handler as any)[name]);
     }
   }
   if (typeof handler !== 'function') {
@@ -65,7 +65,7 @@ async function getHandler (filename : string) : Promise<Function | null> {
     handlerCache.delete(key);
   }
 
-  handlerCache.set(filename, handler);
+  handlerCache.set(`${filename}/${name}`, handler);
   return handler;
 }
 
@@ -75,7 +75,7 @@ async function getHandler (filename : string) : Promise<Function | null> {
 // (so we can pre-load and cache the handler).
 parentPort!.on('message', (message : StartupMessage) => {
   useAtomics = message.useAtomics;
-  const { port, sharedBuffer, filename, niceIncrement } = message;
+  const { port, sharedBuffer, filename, name, niceIncrement } = message;
   (async function () {
     try {
       if (niceIncrement !== 0 && process.platform === 'linux') {
@@ -86,7 +86,7 @@ parentPort!.on('message', (message : StartupMessage) => {
     } catch {}
 
     if (filename !== null) {
-      await getHandler(filename);
+      await getHandler(filename, name);
     }
 
     const readyMessage : ReadyMessage = { ready: true };
@@ -134,13 +134,13 @@ function onMessage (
   sharedBuffer : Int32Array,
   message : RequestMessage) {
   currentTasks++;
-  const { taskId, task, filename } = message;
+  const { taskId, task, filename, name } = message;
 
   (async function () {
     let response : ResponseMessage;
     const transferList : any[] = [];
     try {
-      const handler = await getHandler(filename);
+      const handler = await getHandler(filename, name);
       if (handler === null) {
         throw new Error(`No handler function exported from ${filename}`);
       }

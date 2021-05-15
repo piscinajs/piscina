@@ -2,6 +2,7 @@ import type { MessagePort } from 'worker_threads';
 
 export interface StartupMessage {
   filename : string | null;
+  name : string;
   port : MessagePort;
   sharedBuffer : Int32Array;
   useAtomics : boolean;
@@ -12,6 +13,7 @@ export interface RequestMessage {
   taskId : number;
   task : any;
   filename: string;
+  name : string;
 }
 
 export interface ReadyMessage {

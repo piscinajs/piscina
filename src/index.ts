@@ -104,6 +104,7 @@ class ArrayTaskQueue implements TaskQueue {
 
 interface Options {
   filename? : string | null,
+  name?: string,
   minThreads? : number,
   maxThreads? : number,
   idleTimeout? : number,
@@ -122,6 +123,7 @@ interface Options {
 
 interface FilledOptions extends Options {
   filename : string | null,
+  name: string,
   minThreads : number,
   maxThreads : number,
   idleTimeout : number,
@@ -134,6 +136,7 @@ interface FilledOptions extends Options {
 
 const kDefaultOptions : FilledOptions = {
   filename: null,
+  name: 'default',
   minThreads: Math.max(cpuCount / 2, 1),
   maxThreads: cpuCount * 1.5,
   idleTimeout: 0,
@@ -148,19 +151,22 @@ const kDefaultOptions : FilledOptions = {
 interface RunOptions {
   transferList? : TransferList,
   filename? : string | null,
-  signal? : AbortSignalAny | null
+  signal? : AbortSignalAny | null,
+  name? : string | null
 }
 
 interface FilledRunOptions extends RunOptions {
   transferList : TransferList | never,
   filename : string | null,
-  signal : AbortSignalAny | null
+  signal : AbortSignalAny | null,
+  name : string | null
 }
 
 const kDefaultRunOptions : FilledRunOptions = {
   transferList: undefined,
   filename: null,
-  signal: null
+  signal: null,
+  name: null
 };
 
 class DirectlyTransferable implements Transferable {
@@ -207,6 +213,7 @@ class TaskInfo extends AsyncResource implements Task {
   task : any;
   transferList : TransferList;
   filename : string;
+  name : string;
   taskId : number;
   abortSignal : AbortSignalAny | null;
   abortListener : (() => void) | null = null;
@@ -218,6 +225,7 @@ class TaskInfo extends AsyncResource implements Task {
     task : any,
     transferList : TransferList,
     filename : string,
+    name : string,
     callback : TaskCallback,
     abortSignal : AbortSignalAny | null,
     triggerAsyncId : number) {
@@ -230,6 +238,9 @@ class TaskInfo extends AsyncResource implements Task {
     // Piscina.move(), then add it to the transferList
     // automatically
     if (isMovable(task)) {
+      // This condition should never be hit but typescript
+      // complains if we dont do the check.
+      /* istanbul ignore if */
       if (this.transferList == null) {
         this.transferList = [];
       }
@@ -239,6 +250,7 @@ class TaskInfo extends AsyncResource implements Task {
     }
 
     this.filename = filename;
+    this.name = name;
     this.taskId = taskIdCounter++;
     this.abortSignal = abortSignal;
     this.created = performance.now();
@@ -445,7 +457,8 @@ class WorkerInfo extends AsynchronouslyCreatedResource {
     const message : RequestMessage = {
       task: taskInfo.releaseTask(),
       taskId: taskInfo.taskId,
-      filename: taskInfo.filename
+      filename: taskInfo.filename,
+      name: taskInfo.name
     };
 
     try {
@@ -573,6 +586,7 @@ class ThreadPool {
 
     const message : StartupMessage = {
       filename: this.options.filename,
+      name: this.options.name,
       port: port2,
       sharedBuffer: workerInfo.sharedBuffer,
       useAtomics: this.options.useAtomics,
@@ -716,13 +730,19 @@ class ThreadPool {
   runTask (
     task : any,
     options : RunOptions) : Promise<any> {
-    let { filename } = options;
+    let {
+      filename,
+      name
+    } = options;
     const {
       transferList = [],
       signal = null
     } = options;
     if (filename == null) {
       filename = this.options.filename;
+    }
+    if (name == null) {
+      name = this.options.name;
     }
     if (typeof filename !== 'string') {
       return Promise.reject(Errors.FilenameNotProvided());
@@ -734,7 +754,11 @@ class ThreadPool {
     // eslint-disable-next-line
     const ret = new Promise((res, rej) => { resolve = res; reject = rej; });
     const taskInfo = new TaskInfo(
-      task, transferList, filename, (err : Error | null, result : any) => {
+      task,
+      transferList,
+      filename,
+      name,
+      (err : Error | null, result : any) => {
         this.completed++;
         if (taskInfo.started) {
           this.runTime.recordValue(performance.now() - taskInfo.started);
@@ -871,6 +895,9 @@ class Piscina extends EventEmitterAsyncResource {
     if (typeof options.filename !== 'string' && options.filename != null) {
       throw new TypeError('options.filename must be a string or null');
     }
+    if (typeof options.name !== 'string' && options.name != null) {
+      throw new TypeError('options.name must be a string or null');
+    }
     if (options.minThreads !== undefined &&
         (typeof options.minThreads !== 'number' || options.minThreads < 0)) {
       throw new TypeError('options.minThreads must be a non-negative integer');
@@ -965,6 +992,7 @@ class Piscina extends EventEmitterAsyncResource {
       task, {
         transferList,
         filename: filename || null,
+        name: 'default',
         signal: signal || null
       });
   }
@@ -977,6 +1005,7 @@ class Piscina extends EventEmitterAsyncResource {
     const {
       transferList,
       filename,
+      name,
       signal
     } = options;
     if (transferList !== undefined && !Array.isArray(transferList)) {
@@ -987,11 +1016,14 @@ class Piscina extends EventEmitterAsyncResource {
       return Promise.reject(
         new TypeError('filename argument must be a string'));
     }
+    if (name != null && typeof name !== 'string') {
+      return Promise.reject(new TypeError('name argument must be a string'));
+    }
     if (signal != null && typeof signal !== 'object') {
       return Promise.reject(
         new TypeError('signal argument must be an object'));
     }
-    return this.#pool.runTask(task, { transferList, filename, signal });
+    return this.#pool.runTask(task, { transferList, filename, name, signal });
   }
 
   destroy () {
