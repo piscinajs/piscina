@@ -782,6 +782,13 @@ as a configuration option in lieu of always creating their own.
 
 ## Release Notes
 
+### 3.1.0
+
+* Deprecates `piscina.runTask()`; adds `piscina.run()` as an alternative.
+  https://github.com/piscinajs/piscina/commit/d7fa24d7515789001f7237ad6ae9ad42d582fc75
+* Allows multiple exported handler functions from a single file.
+  https://github.com/piscinajs/piscina/commit/d7fa24d7515789001f7237ad6ae9ad42d582fc75
+
 ### 3.0.0
 
 * Drops Node.js 10.x support

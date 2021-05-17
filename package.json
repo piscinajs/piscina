@@ -1,6 +1,6 @@
 {
   "name": "piscina",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "A fast, efficient Node.js Worker Thread Pool implementation",
   "main": "./dist/src/index.js",
   "exports": {
