@@ -1,4 +1,5 @@
 import { MessageChannel } from 'worker_threads';
+import { cpus } from 'os';
 import Piscina from '..';
 import { test } from 'tap';
 import { resolve } from 'path';
@@ -130,4 +131,48 @@ test('Piscina.run options is correct type', async ({ rejects }) => {
   });
 
   rejects(pool.run(42, 1 as any), /options must be an object/);
+});
+
+test('Piscina.maxThreads should return the max number of threads to be used (default)', ({ equal, plan }) => {
+  plan(1);
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js')
+  });
+
+  const maxThreads = (cpus().length || 1) * 1.5;
+
+  equal(pool.maxThreads, maxThreads);
+});
+
+test('Piscina.minThreads should return the max number of threads to be used (custom)', ({ equal, plan }) => {
+  const maxThreads = 3;
+  const pool = new Piscina({
+    maxThreads,
+    filename: resolve(__dirname, 'fixtures/eval.js')
+  });
+
+  plan(1);
+
+  equal(pool.maxThreads, maxThreads);
+});
+
+test('Piscina.minThreads should return the max number of threads to be used (default)', ({ equal, plan }) => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js')
+  });
+  const minThreads = Math.max((cpus().length || 1) / 2, 1);
+
+  plan(1);
+  equal(pool.minThreads, minThreads);
+});
+
+test('Piscina.minThreads should return the max number of threads to be used (custom)', ({ equal, plan }) => {
+  const minThreads = 2;
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js'),
+    minThreads
+  });
+  plan(1);
+
+  equal(pool.minThreads, minThreads);
 });
