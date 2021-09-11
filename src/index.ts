@@ -1030,6 +1030,14 @@ class Piscina extends EventEmitterAsyncResource {
     return this.#pool.destroy();
   }
 
+  get maxThreads (): number {
+    return this.#pool.options.maxThreads;
+  }
+
+  get minThreads (): number {
+    return this.#pool.options.minThreads;
+  }
+
   get options () : FilledOptions {
     return this.#pool.options;
   }
