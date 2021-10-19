@@ -138,7 +138,7 @@ function onMessage (
 
   (async function () {
     let response : ResponseMessage;
-    const transferList : any[] = [];
+    let transferList : any[] = [];
     try {
       const handler = await getHandler(filename, name);
       if (handler === null) {
@@ -146,7 +146,7 @@ function onMessage (
       }
       let result = await handler(task);
       if (isMovable(result)) {
-        transferList.concat(result[kTransferable]);
+        transferList = result[kTransferable];
         result = result[kValue];
       }
       response = {
