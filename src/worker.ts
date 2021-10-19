@@ -146,7 +146,7 @@ function onMessage (
       }
       let result = await handler(task);
       if (isMovable(result)) {
-        transferList = result[kTransferable];
+        transferList = transferList.concat(result[kTransferable]);
         result = result[kValue];
       }
       response = {
