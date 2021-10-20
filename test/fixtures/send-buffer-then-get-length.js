@@ -2,18 +2,17 @@
 
 const Piscina = require('../../dist/src');
 
-const response = {};
+let time;
 module.exports = {
   send: async () => {
-    const data = Buffer.from('this is a test').buffer;
+    const data = new ArrayBuffer(128);
     try {
-      return Piscina.move(data)
+      return Piscina.move(data);
     } finally {
-      response.initial = data.byteLength;
-      setTimeout(() => { response.after = data.byteLength; }, 1000);
+      setTimeout(() => { time = data.byteLength; }, 1000);
     }
   },
   get: () => {
-    return response;
+    return time;
   }
-}
+};

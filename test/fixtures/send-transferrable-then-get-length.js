@@ -21,19 +21,18 @@ class Shared {
   }
 }
 
-const response = {};
+let time;
 module.exports = {
   send: async () => {
-    const data = Buffer.from('this is a test').buffer;
+    const data = new ArrayBuffer(128);
     const shared = new Shared(data);
     try {
       return shared.make();
     } finally {
-      response.initial = data.byteLength;
-      setTimeout(() => { response.after = data.byteLength; }, 1000);
+      setTimeout(() => { time = data.byteLength; }, 1000);
     }
   },
   get: () => {
-    return response;
+    return time;
   }
-}
+};
