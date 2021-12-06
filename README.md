@@ -303,7 +303,8 @@ This class extends [`EventEmitter`][] from Node.js.
     to the task. Keep in mind that Worker threads are generally not built for
     handling I/O in parallel.
   * `useAtomics`: (`boolean`) Use the [`Atomics`][] API for faster communication
-    between threads. This is on by default.
+    between threads. This is on by default. You can disable `Atomics` globally by
+    setting the environment variable `PISCINA_DISABLE_ATOMICS` to `1`.
   * `resourceLimits`: (`object`) See [Node.js new Worker options][]
     * `maxOldGenerationSizeMb`: (`number`) The maximum size of each worker threads
       main heap in MB.

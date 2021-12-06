@@ -17,7 +17,7 @@ commonState.isWorkerThread = true;
 commonState.workerData = workerData;
 
 const handlerCache : Map<string, Function> = new Map();
-let useAtomics : boolean = true;
+let useAtomics : boolean = process.env.PISCINA_DISABLE_ATOMICS !== '1';
 
 // Get `import(x)` as a function that isn't transpiled to `require(x)` by
 // TypeScript for dual ESM/CJS support.
@@ -74,7 +74,7 @@ async function getHandler (filename : string, name : string) : Promise<Function 
 // communication using Atomics, and the name of the default filename for tasks
 // (so we can pre-load and cache the handler).
 parentPort!.on('message', (message : StartupMessage) => {
-  useAtomics = message.useAtomics;
+  useAtomics = process.env.PISCINA_DISABLE_ATOMICS === '1' ? false : message.useAtomics;
   const { port, sharedBuffer, filename, name, niceIncrement } = message;
   (async function () {
     try {
