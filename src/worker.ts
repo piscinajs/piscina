@@ -26,6 +26,7 @@ let useAtomics : boolean = process.env.PISCINA_DISABLE_ATOMICS !== '1';
 let importESMCached : (specifier : string) => Promise<any> | undefined;
 function getImportESM () {
   if (importESMCached === undefined) {
+    // eslint-disable-next-line no-new-func
     importESMCached = new Function('specifier', 'return import(specifier)') as typeof importESMCached;
   }
   return importESMCached;
