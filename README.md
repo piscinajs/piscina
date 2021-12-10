@@ -783,6 +783,13 @@ as a configuration option in lieu of always creating their own.
 
 ## Release Notes
 
+### 3.2.0
+
+* Adds a new `PISCINA_DISABLE_ATOMICS` environment variable as an alternative way of
+  disabling Piscina's internal use of the `Atomics` API. (https://github.com/piscinajs/piscina/pull/163)
+* Fixes a bug with transferable objects. (https://github.com/piscinajs/piscina/pull/155)
+* Fixes CI issues with TypeScript. (https://github.com/piscinajs/piscina/pull/161)
+
 ### 3.1.0
 
 * Deprecates `piscina.runTask()`; adds `piscina.run()` as an alternative.
