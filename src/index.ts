@@ -463,7 +463,7 @@ class WorkerInfo extends AsynchronouslyCreatedResource {
 
     try {
       this.port.postMessage(message, taskInfo.transferList);
-    } catch (err) {
+    } catch (err : any) {
       // This would mostly happen if e.g. message contains unserializable data
       // or transferList is invalid.
       taskInfo.done(err);

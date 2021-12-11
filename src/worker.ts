@@ -165,7 +165,7 @@ function onMessage (
       if (process.stderr.writableLength > 0) {
         await new Promise((resolve) => process.stderr.write('', resolve));
       }
-    } catch (error) {
+    } catch (error : any) {
       response = {
         taskId,
         result: null,
