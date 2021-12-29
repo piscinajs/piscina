@@ -46,7 +46,7 @@
   },
   "dependencies": {
     "eventemitter-asyncresource": "^1.0.0",
-    "hdr-histogram-js": "^2.0.1",
+    "hdr-histogram-js": "^3.0.0",
     "hdr-histogram-percentiles-obj": "^3.0.0"
   },
   "optionalDependencies": {
