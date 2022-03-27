@@ -616,7 +616,7 @@ class ThreadPool {
       pool._processPendingMessages();
     }
 
-    function onReady() {
+    function onReady () {
       if (workerInfo.currentUsage() === 0) {
         workerInfo.unref();
       }
@@ -626,7 +626,7 @@ class ThreadPool {
       }
     }
 
-    function onEventMessage(message: any) {
+    function onEventMessage (message: any) {
       pool.publicInterface.emit('message', message);
     }
 

@@ -9,7 +9,7 @@ const piscina = new Piscina({
 
 (async function () {
   piscina.on('message', (event) => {
-      console.log("Messsage received from worker: ", event);
+    console.log('Messsage received from worker: ', event);
   });
 
   await piscina.run();
