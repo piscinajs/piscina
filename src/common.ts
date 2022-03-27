@@ -1,5 +1,7 @@
 import type { MessagePort } from 'worker_threads';
 
+export const READY = '_WORKER_READY';
+
 export interface StartupMessage {
   filename : string | null;
   name : string;
@@ -17,7 +19,7 @@ export interface RequestMessage {
 }
 
 export interface ReadyMessage {
-  ready: true
+  [READY]: true
 };
 
 export interface ResponseMessage {
@@ -25,7 +27,6 @@ export interface ResponseMessage {
   result : any;
   error: Error | null;
 }
-
 export const commonState = {
   isWorkerThread: false,
   workerData: undefined

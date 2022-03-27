@@ -418,6 +418,10 @@ itself.
 
 A `'drain'` event is emitted whenever the `queueSize` reaches `0`.
 
+### Event: `'message'`
+
+A `'message'` event is emitted whenever a message is received from a worker thread.
+
 ### Property: `completed` (readonly)
 
 The current number of completed tasks.
