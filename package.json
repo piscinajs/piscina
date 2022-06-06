@@ -42,7 +42,7 @@
     "standardx": "^7.0.0",
     "tap": "^15.0.6",
     "ts-node": "^9.1.1",
-    "typescript": "4.3.x"
+    "typescript": "4.7.x"
   },
   "dependencies": {
     "eventemitter-asyncresource": "^1.0.0",
