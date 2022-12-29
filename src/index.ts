@@ -12,6 +12,7 @@ import { performance } from 'perf_hooks';
 import hdrobj from 'hdr-histogram-percentiles-obj';
 import {
   READY,
+  DEFAULT_WORKER_ID_ENV,
   RequestMessage,
   ResponseMessage,
   StartupMessage,
@@ -119,6 +120,7 @@ interface Options {
   taskQueue? : TaskQueue,
   niceIncrement? : number,
   trackUnmanagedFds? : boolean,
+  workerIdEnv? : boolean | string
 }
 
 interface FilledOptions extends Options {
@@ -131,7 +133,8 @@ interface FilledOptions extends Options {
   concurrentTasksPerWorker : number,
   useAtomics: boolean,
   taskQueue : TaskQueue,
-  niceIncrement : number
+  niceIncrement : number,
+  workerIdEnv : string
 }
 
 const kDefaultOptions : FilledOptions = {
@@ -145,7 +148,8 @@ const kDefaultOptions : FilledOptions = {
   useAtomics: true,
   taskQueue: new ArrayTaskQueue(),
   niceIncrement: 0,
-  trackUnmanagedFds: true
+  trackUnmanagedFds: true,
+  workerIdEnv: ''
 };
 
 interface RunOptions {
@@ -397,13 +401,16 @@ class WorkerInfo extends AsynchronouslyCreatedResource {
   sharedBuffer : Int32Array;
   lastSeenResponseCount : number = 0;
   onMessage : ResponseCallback;
+  id : number;
 
   constructor (
     worker : Worker,
+    id : number,
     port : MessagePort,
     onMessage : ResponseCallback) {
     super();
     this.worker = worker;
+    this.id = id;
     this.port = port;
     this.port.on('message',
       (message : ResponseMessage) => this._handleResponse(message));
@@ -515,6 +522,7 @@ class WorkerInfo extends AsynchronouslyCreatedResource {
 class ThreadPool {
   publicInterface : Piscina;
   workers : AsynchronouslyCreatedResourcePool<WorkerInfo>;
+  nextWorkerId : number;
   options : FilledOptions;
   taskQueue : TaskQueue;
   skipQueue : TaskInfo[] = [];
@@ -534,7 +542,7 @@ class ThreadPool {
 
     const filename =
       options.filename ? maybeFileURLToPath(options.filename) : null;
-    this.options = { ...kDefaultOptions, ...options, filename, maxQueue: 0 };
+    this.options = { ...kDefaultOptions, ...options, filename, maxQueue: 0, workerIdEnv: '' };
     // The >= and <= could be > and < but this way we get 100 % coverage 🙃
     if (options.maxThreads !== undefined &&
         this.options.minThreads >= options.maxThreads) {
@@ -549,7 +557,13 @@ class ThreadPool {
     } else {
       this.options.maxQueue = options.maxQueue ?? kDefaultOptions.maxQueue;
     }
+    if (options.workerIdEnv === true) {
+      this.options.workerIdEnv = DEFAULT_WORKER_ID_ENV;
+    } else if (options.workerIdEnv !== false && options.workerIdEnv !== undefined) {
+      this.options.workerIdEnv = options.workerIdEnv;
+    }
 
+    this.nextWorkerId = 1;
     this.workers = new AsynchronouslyCreatedResourcePool<WorkerInfo>(
       this.options.concurrentTasksPerWorker);
     this.workers.onAvailable((w : WorkerInfo) => this._onWorkerAvailable(w));
@@ -567,8 +581,17 @@ class ThreadPool {
 
   _addNewWorker () : void {
     const pool = this;
+
+    const id = this.nextWorkerId++;
+    let { env } = this.options;
+    if (this.options.workerIdEnv) {
+      if (!env) env = { ...process.env };
+      // @ts-ignore
+      env[this.options.workerIdEnv] = `${id}`;
+    }
+
     const worker = new Worker(resolve(__dirname, 'worker.js'), {
-      env: this.options.env,
+      env,
       argv: this.options.argv,
       execArgv: this.options.execArgv,
       resourceLimits: this.options.resourceLimits,
@@ -577,7 +600,7 @@ class ThreadPool {
     });
 
     const { port1, port2 } = new MessageChannel();
-    const workerInfo = new WorkerInfo(worker, port1, onMessage);
+    const workerInfo = new WorkerInfo(worker, id, port1, onMessage);
     if (this.startingUp) {
       // There is no point in waiting for the initial set of Workers to indicate
       // that they are ready, we just mark them as such from the start.
@@ -946,6 +969,11 @@ class Piscina extends EventEmitterAsyncResource {
     if (options.trackUnmanagedFds !== undefined &&
         typeof options.trackUnmanagedFds !== 'boolean') {
       throw new TypeError('options.trackUnmanagedFds must be a boolean value');
+    }
+    if (options.workerIdEnv !== undefined &&
+        typeof options.workerIdEnv !== 'boolean' &&
+        typeof options.workerIdEnv !== 'string') {
+      throw new TypeError('options.workerIdEnv must be a boolean or string value');
     }
 
     this.#pool = new ThreadPool(this, options);

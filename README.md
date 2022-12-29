@@ -338,6 +338,9 @@ This class extends [`EventEmitter`][] from Node.js.
     `fs.close()`, and will close them automatically when the Worker exits.
     Defaults to `true`. (This option is only supported on Node.js 12.19+ and
     all Node.js versions higher than 14.6.0).
+  * `workerIdEnv`: (`boolean|string`) If `true`, sets an environment variable in
+    worker threads `WORKER_ID` with the ID of each thread (`process.env.WORKER_ID`).
+    If a string, that name is used instead of `WORKER_ID`.
 
 Use caution when setting resource limits. Setting limits that are too low may
 result in the `Piscina` worker threads being unusable.

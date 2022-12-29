@@ -2,6 +2,8 @@ import type { MessagePort } from 'worker_threads';
 
 export const READY = '_WORKER_READY';
 
+export const DEFAULT_WORKER_ID_ENV = 'WORKER_ID';
+
 export interface StartupMessage {
   filename : string | null;
   name : string;
