@@ -252,6 +252,25 @@ stream
   });
 ```
 
+### Out of scope asynchronous code
+
+A worker thread is **only** active from the moment you call it, to the moment it returns a result. Once this is done, Piscina will wait for stdout and stderr to be flushed, and then pause the worker's event-loop until the next call. If async code is scheduled without being awaited before returning, since Piscina has no way of detecting this, that code execution will be resumed on the next call. Thus, it is highly recommended to properly handle all async tasks before returning a result as it could make your code unpredictable.
+
+For example:
+
+```js
+const { setTimeout } = require('timers/promises');
+
+module.exports = ({ a, b }) => {
+  // This promise should be awaited
+  setTimeout(1000).then(() => {
+    console.log('Working'); // This will **not** run during the same worker call
+  });
+  
+  return a + b;
+};
+```
+
 ### Additional Examples
 
 Additional examples can be found in the GitHub repo at
