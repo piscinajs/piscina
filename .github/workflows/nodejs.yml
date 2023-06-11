@@ -8,16 +8,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Install Node.js 17
+      - name: Install Node.js
         uses: actions/setup-node@v1
         with:
-          node-version: v17.x
+          node-version: v20.x
       - name: Install dependencies
         run: npm install
       - name: Check linting
         run: npm run lint
 
   test:
+    needs: [lint]
     name: Test
     strategy:
       fail-fast: false
@@ -26,12 +27,24 @@ jobs:
         node-version: [16.x, 18.x, 20.x]
     runs-on: ${{matrix.os}}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
+
+      - uses: actions/cache@v3
+        id: check-cache
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ matrix.node-version }}-${{ hashFiles('**/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-${{ matrix.node-version }}-
+      
       - name: Install Dependencies
         run: npm install
-      - name: Test
+      - name: Run Tests
         run: npm test
