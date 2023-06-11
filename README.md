@@ -787,6 +787,11 @@ as a configuration option in lieu of always creating their own.
 
 ## Release Notes
 
+### 4.0.0
+
+* Drop Node.js 14.x support
+* Add Node.js 20.x to CI
+
 ### 3.2.0
 
 * Adds a new `PISCINA_DISABLE_ATOMICS` environment variable as an alternative way of
