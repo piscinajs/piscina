@@ -1,6 +1,7 @@
 import { parentPort, MessagePort, receiveMessageOnPort, workerData } from 'worker_threads';
 import { pathToFileURL } from 'url';
 import {
+  READY,
   commonState,
   ReadyMessage,
   RequestMessage,
@@ -89,7 +90,7 @@ parentPort!.on('message', (message : StartupMessage) => {
       await getHandler(filename, name);
     }
 
-    const readyMessage : ReadyMessage = { ready: true };
+    const readyMessage : ReadyMessage = { [READY]: true };
     parentPort!.postMessage(readyMessage);
 
     port.on('message', onMessage.bind(null, port, sharedBuffer));

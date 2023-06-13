@@ -255,7 +255,7 @@ stream
 ### Additional Examples
 
 Additional examples can be found in the GitHub repo at
-https://github.com/jasnell/piscina/tree/master/examples
+https://github.com/piscinajs/piscina/tree/master/examples
 
 ## Class: `Piscina`
 
@@ -417,6 +417,10 @@ itself.
 ### Event: `'drain'`
 
 A `'drain'` event is emitted whenever the `queueSize` reaches `0`.
+
+### Event: `'message'`
+
+A `'message'` event is emitted whenever a message is received from a worker thread.
 
 ### Property: `completed` (readonly)
 

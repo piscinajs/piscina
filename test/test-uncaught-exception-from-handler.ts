@@ -44,14 +44,3 @@ test('uncaught exception in immediate after task yields error event', async ({ e
   // This is the main aassertion here.
   equal((await errorEvent)[0].message, 'not_caught');
 });
-
-test('using parentPort is treated as an error', async ({ rejects }) => {
-  const pool = new Piscina({
-    filename: resolve(__dirname, 'fixtures/eval.js')
-  });
-  await rejects(
-    pool.runTask(`
-      require('worker_threads').parentPort.postMessage("some message");
-      new Promise(() => {}) /* act as if we were doing some work */
-    `), /Unexpected message on Worker: 'some message'/);
-});

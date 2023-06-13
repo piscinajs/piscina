@@ -11,7 +11,7 @@ import { Histogram, build } from 'hdr-histogram-js';
 import { performance } from 'perf_hooks';
 import hdrobj from 'hdr-histogram-percentiles-obj';
 import {
-  ReadyMessage,
+  READY,
   RequestMessage,
   ResponseMessage,
   StartupMessage,
@@ -616,20 +616,22 @@ class ThreadPool {
       pool._processPendingMessages();
     }
 
-    worker.on('message', (message : ReadyMessage) => {
-      if (message.ready === true) {
-        if (workerInfo.currentUsage() === 0) {
-          workerInfo.unref();
-        }
-
-        if (!workerInfo.isReady()) {
-          workerInfo.markAsReady();
-        }
-        return;
+    function onReady () {
+      if (workerInfo.currentUsage() === 0) {
+        workerInfo.unref();
       }
 
-      worker.emit('error', new Error(
-        `Unexpected message on Worker: ${inspect(message)}`));
+      if (!workerInfo.isReady()) {
+        workerInfo.markAsReady();
+      }
+    }
+
+    function onEventMessage (message: any) {
+      pool.publicInterface.emit('message', message);
+    }
+
+    worker.on('message', (message : any) => {
+      message instanceof Object && READY in message ? onReady() : onEventMessage(message);
     });
 
     worker.on('error', (err : Error) => {
@@ -1028,6 +1030,14 @@ class Piscina extends EventEmitterAsyncResource {
 
   destroy () {
     return this.#pool.destroy();
+  }
+
+  get maxThreads (): number {
+    return this.#pool.options.maxThreads;
+  }
+
+  get minThreads (): number {
+    return this.#pool.options.minThreads;
   }
 
   get options () : FilledOptions {
