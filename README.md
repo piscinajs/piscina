@@ -17,7 +17,7 @@
 
 Written in TypeScript.
 
-For Node.js 12.x and higher.
+For Node.js 16.x and higher.
 
 [MIT Licensed][].
 
@@ -805,6 +805,11 @@ as a configuration option in lieu of always creating their own.
 
 
 ## Release Notes
+
+### 4.0.0
+
+* Drop Node.js 14.x support
+* Add Node.js 20.x to CI
 
 ### 3.2.0
 
