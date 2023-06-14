@@ -123,8 +123,10 @@ test('passing valid workerData works', async ({ equal }) => {
 test('passing invalid workerData does not work', async ({ throws }) => {
   throws(() => new Piscina(({
     filename: resolve(__dirname, 'fixtures/simple-workerdata.ts'),
-    workerData: process.env
-  }) as any), /Cannot transfer object of unsupported type./);
+    workerData: {
+      hello () {}
+    }
+  }) as any), /could not be cloned./);
 });
 
 test('filename can be a file:// URL', async ({ equal }) => {
