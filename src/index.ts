@@ -42,25 +42,27 @@ const cpuCount : number = (() => {
   }
 })();
 
-interface AbortSignalEventTargetAddOptions {
-  once : boolean;
-};
+// interface AbortSignalEventTargetAddOptions {
+//   once : boolean;
+// };
 
-interface AbortSignalEventTarget {
-  addEventListener : (
-    name : 'abort',
-    listener : () => void,
-    options? : AbortSignalEventTargetAddOptions) => void;
-  removeEventListener : (
-    name : 'abort',
-    listener : () => void) => void;
-  aborted? : boolean;
-}
+// interface AbortSignalEventTarget {
+//   addEventListener : (
+//     name : 'abort',
+//     listener : () => void,
+//     options? : AbortSignalEventTargetAddOptions) => void;
+//   removeEventListener : (
+//     name : 'abort',
+//     listener : () => void) => void;
+//   aborted? : boolean;
+// }
 interface AbortSignalEventEmitter {
   off : (name : 'abort', listener : () => void) => void;
   once : (name : 'abort', listener : () => void) => void;
 }
-type AbortSignalAny = AbortSignalEventTarget | AbortSignalEventEmitter;
+
+// eslint-disable-next-line
+type AbortSignalAny = AbortSignal | AbortSignalEventEmitter;
 function onabort (abortSignal : AbortSignalAny, listener : () => void) {
   if ('addEventListener' in abortSignal) {
     abortSignal.addEventListener('abort', listener, { once: true });
