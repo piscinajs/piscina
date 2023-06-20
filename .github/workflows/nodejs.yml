@@ -6,7 +6,7 @@ on:
      - 'v*'
   pull_request:
 
-name: CI
+name: ci
 
 jobs:
   lint:
@@ -23,7 +23,7 @@ jobs:
       - name: Check linting
         run: npm run lint
 
-  test:
+  tests:
     needs: [lint]
     name: Test
     strategy:
