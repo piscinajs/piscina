@@ -6,7 +6,7 @@ on:
      - 'v*'
   pull_request:
 
-name: ci
+name: CI
 
 jobs:
   lint:
@@ -25,7 +25,7 @@ jobs:
 
   tests:
     needs: [lint]
-    name: Test
+    name: Tests
     strategy:
       fail-fast: false
       matrix:
