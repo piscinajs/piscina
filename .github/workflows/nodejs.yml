@@ -1,4 +1,10 @@
-on: [push, pull_request]
+on:
+  push:
+    branches:
+     - current
+     - next
+     - 'v*'
+  pull_request:
 
 name: CI
 
