@@ -1,4 +1,10 @@
-on: [push, pull_request]
+on:
+  push:
+    branches:
+     - current
+     - next
+     - 'v*'
+  pull_request:
 
 name: CI
 
@@ -7,9 +13,9 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Install Node.js
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v3
         with:
           node-version: v20.x
       - name: Install dependencies
@@ -17,9 +23,9 @@ jobs:
       - name: Check linting
         run: npm run lint
 
-  test:
+  tests:
     needs: [lint]
-    name: Test
+    name: Tests
     strategy:
       fail-fast: false
       matrix:
@@ -47,4 +53,4 @@ jobs:
       - name: Install Dependencies
         run: npm install
       - name: Run Tests
-        run: npm test
+        run: npm run test:ci
