@@ -17,7 +17,7 @@
 
 Written in TypeScript.
 
-For Node.js 12.x and higher.
+For Node.js 16.x and higher.
 
 [MIT Licensed][].
 
@@ -252,6 +252,25 @@ stream
   });
 ```
 
+### Out of scope asynchronous code
+
+A worker thread is **only** active until the moment it returns a result, it can be a result of a synchronous call or a Promise that will be fulfilled/rejected in the future. Once this is done, Piscina will wait for stdout and stderr to be flushed, and then pause the worker's event-loop until the next call. If async code is scheduled without being awaited before returning since Piscina has no way of detecting this, that code execution will be resumed on the next call. Thus, it is highly recommended to properly handle all async tasks before returning a result as it could make your code unpredictable.
+
+For example:
+
+```js
+const { setTimeout } = require('timers/promises');
+
+module.exports = ({ a, b }) => {
+  // This promise should be awaited
+  setTimeout(1000).then(() => {
+    console.log('Working'); // This will **not** run during the same worker call
+  });
+  
+  return a + b;
+};
+```
+
 ### Additional Examples
 
 Additional examples can be found in the GitHub repo at
@@ -304,7 +323,10 @@ This class extends [`EventEmitter`][] from Node.js.
     handling I/O in parallel.
   * `useAtomics`: (`boolean`) Use the [`Atomics`][] API for faster communication
     between threads. This is on by default. You can disable `Atomics` globally by
-    setting the environment variable `PISCINA_DISABLE_ATOMICS` to `1`.
+    setting the environment variable `PISCINA_DISABLE_ATOMICS` to `1`. 
+    If `useAtomics` is `true`, it will cause to pause threads (stoping all execution)
+    between tasks. Ideally, threads should wait for all operations to finish before 
+    returning control to the main thread (avoid having open handles within a thread).
   * `resourceLimits`: (`object`) See [Node.js new Worker options][]
     * `maxOldGenerationSizeMb`: (`number`) The maximum size of each worker threads
       main heap in MB.
@@ -789,6 +811,11 @@ as a configuration option in lieu of always creating their own.
 
 
 ## Release Notes
+
+### 4.0.0
+
+* Drop Node.js 14.x support
+* Add Node.js 20.x to CI
 
 ### 3.2.0
 
