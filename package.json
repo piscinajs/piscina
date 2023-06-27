@@ -4,6 +4,7 @@
   "description": "A fast, efficient Node.js Worker Thread Pool implementation",
   "main": "./dist/src/index.js",
   "exports": {
+    "types": "./dist/src/index.d.ts",
     "import": "./dist/esm-wrapper.mjs",
     "require": "./dist/src/index.js"
   },
@@ -11,8 +12,9 @@
   "scripts": {
     "build": "tsc && gen-esm-wrapper . dist/esm-wrapper.mjs",
     "lint": "standardx \"**/*.{ts,mjs,js,cjs}\" | snazzy",
-    "test": "npm run lint && npm run build && npm run test-only",
-    "test-only": "tap --ts",
+    "test": "tap --ts",
+    "test:ci": "npm run lint && npm run build && npm run test:coverage",
+    "test:coverage" : "tap --ts --cov --coverage-report=html --no-browser --no-check-coverage",
     "prepack": "npm run build"
   },
   "repository": {
@@ -40,7 +42,7 @@
     "gen-esm-wrapper": "^1.1.1",
     "snazzy": "^9.0.0",
     "standardx": "^7.0.0",
-    "tap": "^15.0.6",
+    "tap": "^16.3.7",
     "ts-node": "^9.1.1",
     "typescript": "4.3.x"
   },
