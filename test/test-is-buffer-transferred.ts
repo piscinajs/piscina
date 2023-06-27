@@ -8,8 +8,8 @@ function wait () {
 
 test('transferable objects must be transferred', async ({ equal }) => {
   const pool = new Piscina({
-    filename: resolve(__dirname, 'fixtures/send-buffer-then-get-length.js')
-    // useAtomics: false // let's see if turning on atomics makes a difference
+    filename: resolve(__dirname, 'fixtures/send-buffer-then-get-length.js'),
+    useAtomics: false
   });
   await pool.run({}, { name: 'send' });
   await wait();
