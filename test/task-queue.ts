@@ -51,7 +51,7 @@ test('will put items into a task queue until they can run', async ({ equal }) =>
 
 test('will reject items over task queue limit', async ({ equal, rejects }) => {
   const pool = new Piscina({
-    filename: resolve(__dirname, 'fixtures/eval.ts'),
+    filename: resolve(__dirname, 'fixtures/eval.js'),
     minThreads: 0,
     maxThreads: 1,
     maxQueue: 2
@@ -78,7 +78,7 @@ test('will reject items over task queue limit', async ({ equal, rejects }) => {
 
 test('will reject items when task queue is unavailable', async ({ equal, rejects }) => {
   const pool = new Piscina({
-    filename: resolve(__dirname, 'fixtures/eval.ts'),
+    filename: resolve(__dirname, 'fixtures/eval.js'),
     minThreads: 0,
     maxThreads: 1,
     maxQueue: 0
@@ -97,7 +97,7 @@ test('will reject items when task queue is unavailable', async ({ equal, rejects
 
 test('will reject items when task queue is unavailable (fixed thread count)', async ({ equal, rejects }) => {
   const pool = new Piscina({
-    filename: resolve(__dirname, 'fixtures/eval.ts'),
+    filename: resolve(__dirname, 'fixtures/eval.js'),
     minThreads: 1,
     maxThreads: 1,
     maxQueue: 0
