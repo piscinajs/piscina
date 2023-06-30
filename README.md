@@ -503,6 +503,14 @@ An Array of the `Worker` instances used by this pool.
 
 The current number of tasks waiting to be assigned to a Worker thread.
 
+### Property: `needsDrain` (readonly)
+
+Boolean value that specifices wether the capacity of the pool has
+been exceeded by the number of tasks submitted.
+
+This property is helpful to make decisions towards creating backpressure
+over the number of tasks submitted to the pool.
+
 ### Property: `utilization` (readonly)
 
 A point-in-time ratio comparing the approximate total mean run time
