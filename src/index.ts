@@ -526,6 +526,7 @@ class ThreadPool {
   inProcessPendingMessages : boolean = false;
   startingUp : boolean = false;
   workerFailsDuringBootstrap : boolean = false;
+  checkpointStatus: boolean = true;
 
   constructor (publicInterface : Piscina, options : Options) {
     this.publicInterface = publicInterface;
@@ -883,9 +884,30 @@ class ThreadPool {
     const totalCapacity = this.options.maxQueue + this.pendingCapacity();
     const totalQueueSize = this.taskQueue.size + this.skipQueue.length;
 
-    if (totalQueueSize === 0) {
-      this.needsDrain = false;
+    /**
+     * The rationale is to checkpoint the capacity every time new
+     * task is being schedulded or appended to the queue.
+     * If capacity exceeded but we having checkpointed yet the check,
+     * we allow the pool to see if it can flush itself soon.
+     *
+     * At subsequent checks, we verify that the previously checkpoint
+     * was negative, and its current capacity. If the capacity excheded
+     * and previous checkpoint was negative, and the capacity is above
+     * the workload, we emit the drain event.
+     *
+     * If previous checkpoint is false, but the capacity stills exceeded,
+     * we checkpoint as false, and wait for a further checkpoint to validate
+     * once more the checks.
+     */
+    const isCapacityExceeded = totalQueueSize >= totalCapacity;
+    const shouldEmitDrain = !isCapacityExceeded && !this.checkpointStatus;
+
+    if (shouldEmitDrain) {
       this.publicInterface.emit('drain');
+    } else if (isCapacityExceeded) {
+      this.checkpointStatus = false;
+    } else {
+      this.checkpointStatus = true;
     }
 
     if (totalQueueSize >= totalCapacity) {
