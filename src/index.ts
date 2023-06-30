@@ -522,6 +522,7 @@ class ThreadPool {
   runTime : Histogram;
   waitTime : Histogram;
   start : number = performance.now();
+  needsDrain : boolean = false;
   inProcessPendingMessages : boolean = false;
   startingUp : boolean = false;
   workerFailsDuringBootstrap : boolean = false;
@@ -874,8 +875,16 @@ class ThreadPool {
   }
 
   _maybeDrain () {
-    if (this.taskQueue.size === 0 && this.skipQueue.length === 0) {
+    const totalCapacity = this.options.maxQueue + this.pendingCapacity();
+    const totalQueueSize = this.taskQueue.size + this.skipQueue.length;
+
+    if (totalQueueSize === 0) {
       this.publicInterface.emit('drain');
+      this.needsDrain = false;
+    }
+
+    if (totalQueueSize > totalCapacity) {
+      this.needsDrain = true;
     }
   }
 
@@ -1105,6 +1114,10 @@ class Piscina extends EventEmitterAsyncResource {
 
   get duration () : number {
     return performance.now() - this.#pool.start;
+  }
+
+  get needsDrain () : boolean {
+    return this.#pool.needsDrain;
   }
 
   static get isWorkerThread () : boolean {

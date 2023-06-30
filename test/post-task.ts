@@ -96,7 +96,25 @@ test('postTask() validates abortSignal', async ({ rejects }) => {
     /signal argument must be an object/);
 });
 
-test('Piscina emits drain', async ({ ok }) => {
+test('Piscina emits drain', async ({ ok, notOk }) => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js')
+  });
+
+  let drained = false;
+  let needsDrain = true;
+  pool.on('drain', () => {
+    drained = true;
+    needsDrain = pool.needsDrain;
+  });
+
+  await Promise.all([pool.runTask('123'), pool.runTask('123')]);
+
+  ok(drained);
+  notOk(needsDrain);
+});
+
+test('Piscina exposes needsDrain to true when capacity is exceeded', async ({ ok }) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js')
   });
@@ -106,7 +124,11 @@ test('Piscina emits drain', async ({ ok }) => {
     drained = true;
   });
 
-  await Promise.all([pool.runTask('123'), pool.runTask('123')]);
+  const promises = Promise.all([pool.runTask('123'), pool.runTask('123'), pool.runTask('123')]);
+
+  ok(pool.needsDrain);
+
+  await promises;
 
   ok(drained);
 });
