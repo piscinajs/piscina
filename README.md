@@ -505,7 +505,7 @@ The current number of tasks waiting to be assigned to a Worker thread.
 
 ### Property: `needsDrain` (readonly)
 
-Boolean value that specifices wether the capacity of the pool has
+Boolean value that specifies whether the capacity of the pool has
 been exceeded by the number of tasks submitted.
 
 This property is helpful to make decisions towards creating backpressure
