@@ -108,28 +108,35 @@ test('Piscina emits drain', async ({ ok, notOk }) => {
     needsDrain = pool.needsDrain;
   });
 
-  await Promise.all([pool.runTask('123'), pool.runTask('123')]);
+  await Promise.all([pool.run('123'), pool.run('123')]);
 
   ok(drained);
   notOk(needsDrain);
 });
 
-test('Piscina exposes needsDrain to true when capacity is exceeded', async ({ ok }) => {
+test('Piscina exposes/emits needsDrain to true when capacity is exceeded', { only: true }, async ({ ok }) => {
   const pool = new Piscina({
-    filename: resolve(__dirname, 'fixtures/eval.js')
+    filename: resolve(__dirname, 'fixtures/eval.js'),
+    maxQueue: 3,
+    maxThreads: 1
   });
 
+  let triggered = false;
   let drained = false;
-  pool.on('drain', () => {
+  pool.once('drain', () => {
     drained = true;
   });
+  pool.once('needsDrain', () => {
+    triggered = true;
+  });
 
-  const promises = Promise.all([pool.runTask('123'), pool.runTask('123'), pool.runTask('123')]);
+  pool.run('123');
+  pool.run('123');
+  pool.run('123');
+  pool.run('123');
 
   ok(pool.needsDrain);
-
-  await promises;
-
+  ok(triggered);
   ok(drained);
 });
 

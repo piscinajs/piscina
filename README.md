@@ -436,6 +436,12 @@ itself.
 
 A `'drain'` event is emitted whenever the `queueSize` reaches `0`.
 
+### Event: `'needsDrain'`
+
+Similar to [`Piscina#needsDrain`](#property-needsdrain-readonly);
+this event is triggered once the total capacity of the pool is exceeded
+by number of tasks enequeued that are pending of execution.
+
 ### Event: `'message'`
 
 A `'message'` event is emitted whenever a message is received from a worker thread.

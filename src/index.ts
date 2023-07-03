@@ -466,7 +466,7 @@ class WorkerInfo extends AsynchronouslyCreatedResource {
     } catch (err) {
       // This would mostly happen if e.g. message contains unserializable data
       // or transferList is invalid.
-      taskInfo.done(err);
+      taskInfo.done(<Error>err);
       return;
     }
 
@@ -521,8 +521,8 @@ class ThreadPool {
   completed : number = 0;
   runTime : Histogram;
   waitTime : Histogram;
+  needsDrain : boolean;
   start : number = performance.now();
-  needsDrain : boolean = false;
   inProcessPendingMessages : boolean = false;
   startingUp : boolean = false;
   workerFailsDuringBootstrap : boolean = false;
@@ -558,6 +558,7 @@ class ThreadPool {
     this.startingUp = true;
     this._ensureMinimumWorkers();
     this.startingUp = false;
+    this.needsDrain = false;
   }
 
   _ensureMinimumWorkers () : void {
@@ -783,6 +784,8 @@ class ThreadPool {
         } else {
           resolve(result);
         }
+
+        this._maybeDrain();
       },
       signal,
       this.publicInterface.asyncResource.asyncId());
@@ -828,6 +831,7 @@ class ThreadPool {
         this.taskQueue.push(taskInfo);
       }
 
+      this._maybeDrain();
       return ret;
     }
 
@@ -857,6 +861,7 @@ class ThreadPool {
         this.taskQueue.push(taskInfo);
       }
 
+      this._maybeDrain();
       return ret;
     }
 
@@ -883,7 +888,8 @@ class ThreadPool {
       this.needsDrain = false;
     }
 
-    if (totalQueueSize > totalCapacity) {
+    if (totalQueueSize >= totalCapacity) {
+      this.publicInterface.emit('needsDrain');
       this.needsDrain = true;
     }
   }
