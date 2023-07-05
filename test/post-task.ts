@@ -114,7 +114,7 @@ test('Piscina emits drain', async ({ ok, notOk }) => {
   notOk(needsDrain);
 });
 
-test('Piscina exposes/emits needsDrain to true when capacity is exceeded', { only: true }, async ({ ok }) => {
+test('Piscina exposes/emits needsDrain to true when capacity is exceeded', async ({ ok }) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js'),
     maxQueue: 3,
