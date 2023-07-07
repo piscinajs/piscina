@@ -374,6 +374,17 @@ class AsynchronouslyCreatedResourcePool<
   onAvailable (fn : (item : T) => void) {
     this.onAvailableListeners.push(fn);
   }
+
+  getCurrentUsage (): number {
+    let inFlight = 0;
+    for (const worker of this.readyItems) {
+      const currentUsage = worker.currentUsage();
+
+      if (currentUsage < Infinity) inFlight += currentUsage;
+    }
+
+    return inFlight;
+  }
 }
 
 type ResponseCallback = (response : ResponseMessage) => void;
@@ -526,7 +537,6 @@ class ThreadPool {
   inProcessPendingMessages : boolean = false;
   startingUp : boolean = false;
   workerFailsDuringBootstrap : boolean = false;
-  checkpointStatus: boolean = true;
 
   constructor (publicInterface : Piscina, options : Options) {
     this.publicInterface = publicInterface;
@@ -881,33 +891,18 @@ class ThreadPool {
   }
 
   _maybeDrain () {
-    const totalCapacity = this.options.maxQueue + this.pendingCapacity();
-    const totalQueueSize = this.taskQueue.size + this.skipQueue.length;
-
     /**
-     * The rationale is to checkpoint the capacity every time new
-     * task is being schedulded or appended to the queue.
-     * If capacity exceeded but we having checkpointed yet the check,
-     * we allow the pool to see if it can flush itself soon.
-     *
-     * At subsequent checks, we verify that the previously checkpoint
-     * was negative, and its current capacity. If the capacity excheded
-     * and previous checkpoint was negative, and the capacity is above
-     * the workload, we emit the drain event.
-     *
-     * If previous checkpoint is false, but the capacity stills exceeded,
-     * we checkpoint as false, and wait for a further checkpoint to validate
-     * once more the checks.
+     * Our goal is to make it possible for user space to use the pool
+     * in a way where always waiting === 0, since we want to avoid creating tasks that can't execute
+     * immediately in order to provide back pressure to the task source.
      */
-    const isCapacityExceeded = totalQueueSize >= totalCapacity;
-    const shouldEmitDrain = !isCapacityExceeded && !this.checkpointStatus;
+    const maxCapacity = this.options.maxThreads * this.options.concurrentTasksPerWorker;
+    const currentUsage = this.workers.getCurrentUsage();
 
-    if (shouldEmitDrain) {
+    if (maxCapacity === currentUsage) {
+      // TODO: needs drain goes here
+    } else if (maxCapacity > currentUsage) {
       this.publicInterface.emit('drain');
-    } else if (isCapacityExceeded) {
-      this.checkpointStatus = false;
-    } else {
-      this.checkpointStatus = true;
     }
 
     if (totalQueueSize >= totalCapacity) {
