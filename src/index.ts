@@ -380,7 +380,7 @@ class AsynchronouslyCreatedResourcePool<
     for (const worker of this.readyItems) {
       const currentUsage = worker.currentUsage();
 
-      if (currentUsage < Infinity) inFlight += currentUsage;
+      if (Number.isFinite(currentUsage)) inFlight += currentUsage;
     }
 
     return inFlight;
