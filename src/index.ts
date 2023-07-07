@@ -884,8 +884,8 @@ class ThreadPool {
     const totalQueueSize = this.taskQueue.size + this.skipQueue.length;
 
     if (totalQueueSize === 0) {
-      this.publicInterface.emit('drain');
       this.needsDrain = false;
+      this.publicInterface.emit('drain');
     }
 
     if (totalQueueSize >= totalCapacity) {
