@@ -658,33 +658,14 @@ class ThreadPool {
     });
 
     worker.on('error', (err : Error) => {
-      // Work around the bug in https://github.com/nodejs/node/pull/33394
-      worker.ref = () => {};
+      this._onError(worker, workerInfo, err, false);
+    });
 
-      // In case of an uncaught exception: Call the callback that was passed to
-      // `postTask` with the error, or emit an 'error' event if there is none.
-      const taskInfos = [...workerInfo.taskInfos.values()];
-      workerInfo.taskInfos.clear();
-
-      // Remove the worker from the list and potentially start a new Worker to
-      // replace the current one.
-      this._removeWorker(workerInfo);
-
-      if (workerInfo.isReady() && !this.workerFailsDuringBootstrap) {
-        this._ensureMinimumWorkers();
-      } else {
-        // Do not start new workers over and over if they already fail during
-        // bootstrap, there's no point.
-        this.workerFailsDuringBootstrap = true;
-      }
-
-      if (taskInfos.length > 0) {
-        for (const taskInfo of taskInfos) {
-          taskInfo.done(err, null);
-        }
-      } else {
-        this.publicInterface.emit('error', err);
-      }
+    worker.on('exit', (exitCode : number) => {
+      const err = new Error(`worker exited with code: ${exitCode}`);
+      // Only error unfinished tasks on process exit, since there are legitimate
+      // reasons to exit workers and we want to handle that gracefully when possible.
+      this._onError(worker, workerInfo, err, true);
     });
 
     worker.unref();
@@ -696,6 +677,37 @@ class ThreadPool {
     });
 
     this.workers.add(workerInfo);
+  }
+
+  _onError (worker: Worker, workerInfo: WorkerInfo, err: Error, onlyErrorUnfinishedTasks: boolean) {
+    // Work around the bug in https://github.com/nodejs/node/pull/33394
+    worker.ref = () => {};
+
+    const taskInfos = [...workerInfo.taskInfos.values()];
+    workerInfo.taskInfos.clear();
+
+    // Remove the worker from the list and potentially start a new Worker to
+    // replace the current one.
+    this._removeWorker(workerInfo);
+
+    if (workerInfo.isReady() && !this.workerFailsDuringBootstrap) {
+      this._ensureMinimumWorkers();
+    } else {
+      // Do not start new workers over and over if they already fail during
+      // bootstrap, there's no point.
+      this.workerFailsDuringBootstrap = true;
+    }
+
+    if (taskInfos.length > 0) {
+      // If there are remaining unfinished tasks, call the callback that was
+      // passed to `postTask` with the error
+      for (const taskInfo of taskInfos) {
+        taskInfo.done(err, null);
+      }
+    } else if (!onlyErrorUnfinishedTasks) {
+      // If there are no unfinished tasks, instead emit an 'error' event
+      this.publicInterface.emit('error', err);
+    }
   }
 
   _processPendingMessages () {
