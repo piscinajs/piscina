@@ -889,8 +889,8 @@ class ThreadPool {
     }
 
     if (totalQueueSize >= totalCapacity) {
-      this.publicInterface.emit('needsDrain');
       this.needsDrain = true;
+      this.publicInterface.emit('needsDrain');
     }
   }
 
