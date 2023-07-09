@@ -537,6 +537,7 @@ class ThreadPool {
   inProcessPendingMessages : boolean = false;
   startingUp : boolean = false;
   workerFailsDuringBootstrap : boolean = false;
+  maxCapacity: number;
 
   constructor (publicInterface : Piscina, options : Options) {
     this.publicInterface = publicInterface;
@@ -565,6 +566,7 @@ class ThreadPool {
     this.workers = new AsynchronouslyCreatedResourcePool<WorkerInfo>(
       this.options.concurrentTasksPerWorker);
     this.workers.onAvailable((w : WorkerInfo) => this._onWorkerAvailable(w));
+    this.maxCapacity = this.options.maxThreads * this.options.concurrentTasksPerWorker;
 
     this.startingUp = true;
     this._ensureMinimumWorkers();
@@ -896,7 +898,7 @@ class ThreadPool {
      * in a way where always waiting === 0, since we want to avoid creating tasks that can't execute
      * immediately in order to provide back pressure to the task source.
      */
-    const maxCapacity = this.options.maxThreads * this.options.concurrentTasksPerWorker;
+    const { maxCapacity } = this;
     const currentUsage = this.workers.getCurrentUsage();
 
     if (maxCapacity === currentUsage) {
