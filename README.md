@@ -52,10 +52,6 @@ module.exports = ({ a, b }) => {
 The worker may also be an async function or may return a Promise:
 
 ```js
-const { promisify } = require('util');
-
-// Awaitable timers are available in Node.js 15.x+
-// For Node.js 12 and 14, use promisify(setTimeout)
 const { setTimeout } = require('timers/promises');
 
 module.exports = async ({ a, b }) => {
