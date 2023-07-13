@@ -436,6 +436,12 @@ itself.
 
 A `'drain'` event is emitted whenever the `queueSize` reaches `0`.
 
+### Event: `'needsDrain'`
+
+Similar to [`Piscina#needsDrain`](#property-needsdrain-readonly);
+this event is triggered once the total capacity of the pool is exceeded
+by number of tasks enequeued that are pending of execution.
+
 ### Event: `'message'`
 
 A `'message'` event is emitted whenever a message is received from a worker thread.
@@ -502,6 +508,14 @@ An Array of the `Worker` instances used by this pool.
 ### Property: `queueSize` (readonly)
 
 The current number of tasks waiting to be assigned to a Worker thread.
+
+### Property: `needsDrain` (readonly)
+
+Boolean value that specifies whether the capacity of the pool has
+been exceeded by the number of tasks submitted.
+
+This property is helpful to make decisions towards creating backpressure
+over the number of tasks submitted to the pool.
 
 ### Property: `utilization` (readonly)
 
