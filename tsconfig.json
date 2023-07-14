@@ -15,7 +15,7 @@
     "noUnusedParameters": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "esModuleInterop": true,
+    "esModuleInterop": false,
 
     "resolveJsonModule": true,                /* Include modules imported with '.json' extension */
     "forceConsistentCasingInFileNames": true  /* Disallow inconsistently-cased references to the same file. */
