@@ -532,7 +532,7 @@ class ThreadPool {
   completed : number = 0;
   runTime : Histogram;
   waitTime : Histogram;
-  needsDrain : boolean;
+  _needsDrain : boolean;
   start : number = performance.now();
   inProcessPendingMessages : boolean = false;
   startingUp : boolean = false;
@@ -571,7 +571,7 @@ class ThreadPool {
     this.startingUp = true;
     this._ensureMinimumWorkers();
     this.startingUp = false;
-    this.needsDrain = false;
+    this._needsDrain = false;
   }
 
   _ensureMinimumWorkers () : void {
@@ -895,21 +895,19 @@ class ThreadPool {
   _maybeDrain () {
     /**
      * Our goal is to make it possible for user space to use the pool
-     * in a way where always waiting === 0, since we want to avoid creating tasks that can't execute
+     * in a way where always waiting === 0,
+     * since we want to avoid creating tasks that can't execute
      * immediately in order to provide back pressure to the task source.
      */
     const { maxCapacity } = this;
     const currentUsage = this.workers.getCurrentUsage();
 
     if (maxCapacity === currentUsage) {
-      // TODO: needs drain goes here
-    } else if (maxCapacity > currentUsage) {
-      this.publicInterface.emit('drain');
-    }
-
-    if (totalQueueSize >= totalCapacity) {
-      this.needsDrain = true;
+      this._needsDrain = true;
       this.publicInterface.emit('needsDrain');
+    } else if (maxCapacity > currentUsage && this._needsDrain) {
+      this._needsDrain = false;
+      this.publicInterface.emit('drain');
     }
   }
 
@@ -1142,7 +1140,7 @@ class Piscina extends EventEmitterAsyncResource {
   }
 
   get needsDrain () : boolean {
-    return this.#pool.needsDrain;
+    return this.#pool._needsDrain;
   }
 
   static get isWorkerThread () : boolean {
