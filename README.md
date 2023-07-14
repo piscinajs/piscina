@@ -451,7 +451,11 @@ itself.
 
 ### Event: `'drain'`
 
-A `'drain'` event is emitted whenever the `queueSize` reaches `0`.
+A `'drain'` event is emitted when the current usage of the
+pool is below the maximum capacity of the same.
+The intended goal is to provide backpressure to the task source
+so creating tasks that can not be executed at immediately can be avoided.
+
 
 ### Event: `'needsDrain'`
 
