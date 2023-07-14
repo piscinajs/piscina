@@ -1,12 +1,12 @@
 import { Worker, MessageChannel, MessagePort, receiveMessageOnPort } from 'worker_threads';
 import { once } from 'events';
-import EventEmitterAsyncResource from 'eventemitter-asyncresource';
+import EventEmitterAsyncResource = require('eventemitter-asyncresource');
 import { AsyncResource } from 'async_hooks';
 import { cpus } from 'os';
 import { fileURLToPath, URL } from 'url';
 import { resolve } from 'path';
 import { inspect, types } from 'util';
-import assert from 'assert';
+import assert = require('assert');
 import { Histogram, build } from 'hdr-histogram-js';
 import { performance } from 'perf_hooks';
 import hdrobj from 'hdr-histogram-percentiles-obj';
