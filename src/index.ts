@@ -1,6 +1,6 @@
 import { Worker, MessageChannel, MessagePort, receiveMessageOnPort } from 'worker_threads';
 import { once } from 'events';
-import EventEmitterAsyncResource from 'eventemitter-asyncresource';
+import EventEmitterAsyncResource = require('eventemitter-asyncresource');
 import { AsyncResource } from 'async_hooks';
 import { cpus } from 'os';
 import { fileURLToPath, URL } from 'url';
