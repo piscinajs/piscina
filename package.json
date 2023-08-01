@@ -1,6 +1,6 @@
 {
   "name": "piscina",
-  "version": "4.0.0",
+  "version": "4.1.0",
   "description": "A fast, efficient Node.js Worker Thread Pool implementation",
   "main": "./dist/src/index.js",
   "exports": {
@@ -14,7 +14,7 @@
     "lint": "standardx \"**/*.{ts,mjs,js,cjs}\" | snazzy",
     "test": "tap --ts",
     "test:ci": "npm run lint && npm run build && npm run test:coverage",
-    "test:coverage" : "tap --ts --cov --coverage-report=html --no-browser --no-check-coverage",
+    "test:coverage": "tap --ts --cov --coverage-report=html --no-browser --no-check-coverage",
     "prepack": "npm run build"
   },
   "repository": {
