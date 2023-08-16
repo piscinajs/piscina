@@ -1,6 +1,6 @@
 import { Worker, MessageChannel, MessagePort, receiveMessageOnPort } from 'worker_threads';
 import { once } from 'events';
-import EventEmitterAsyncResource from 'eventemitter-asyncresource';
+import EventEmitterAsyncResource = require('eventemitter-asyncresource');
 import { AsyncResource } from 'async_hooks';
 import { cpus } from 'os';
 import { fileURLToPath, URL } from 'url';
@@ -473,7 +473,7 @@ class WorkerInfo extends AsynchronouslyCreatedResource {
     } catch (err) {
       // This would mostly happen if e.g. message contains unserializable data
       // or transferList is invalid.
-      taskInfo.done(err);
+      taskInfo.done(<Error>err);
       return;
     }
 
@@ -529,6 +529,7 @@ class ThreadPool {
   completed : number = 0;
   runTime : Histogram;
   waitTime : Histogram;
+  needsDrain : boolean;
   start : number = performance.now();
   inProcessPendingMessages : boolean = false;
   startingUp : boolean = false;
@@ -571,6 +572,7 @@ class ThreadPool {
     this.startingUp = true;
     this._ensureMinimumWorkers();
     this.startingUp = false;
+    this.needsDrain = false;
   }
 
   _ensureMinimumWorkers () : void {
@@ -805,6 +807,8 @@ class ThreadPool {
         } else {
           resolve(result);
         }
+
+        this._maybeDrain();
       },
       signal,
       this.publicInterface.asyncResource.asyncId());
@@ -850,6 +854,7 @@ class ThreadPool {
         this.taskQueue.push(taskInfo);
       }
 
+      this._maybeDrain();
       return ret;
     }
 
@@ -879,6 +884,7 @@ class ThreadPool {
         this.taskQueue.push(taskInfo);
       }
 
+      this._maybeDrain();
       return ret;
     }
 
@@ -897,8 +903,17 @@ class ThreadPool {
   }
 
   _maybeDrain () {
-    if (this.taskQueue.size === 0 && this.skipQueue.length === 0) {
+    const totalCapacity = this.options.maxQueue + this.pendingCapacity();
+    const totalQueueSize = this.taskQueue.size + this.skipQueue.length;
+
+    if (totalQueueSize === 0) {
+      this.needsDrain = false;
       this.publicInterface.emit('drain');
+    }
+
+    if (totalQueueSize >= totalCapacity) {
+      this.needsDrain = true;
+      this.publicInterface.emit('needsDrain');
     }
   }
 
@@ -1133,6 +1148,10 @@ class Piscina extends EventEmitterAsyncResource {
 
   get duration () : number {
     return performance.now() - this.#pool.start;
+  }
+
+  get needsDrain () : boolean {
+    return this.#pool.needsDrain;
   }
 
   static get isWorkerThread () : boolean {

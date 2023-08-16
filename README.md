@@ -52,10 +52,6 @@ module.exports = ({ a, b }) => {
 The worker may also be an async function or may return a Promise:
 
 ```js
-const { promisify } = require('util');
-
-// Awaitable timers are available in Node.js 15.x+
-// For Node.js 12 and 14, use promisify(setTimeout)
 const { setTimeout } = require('timers/promises');
 
 module.exports = async ({ a, b }) => {
@@ -443,6 +439,12 @@ itself.
 
 A `'drain'` event is emitted whenever the `queueSize` reaches `0`.
 
+### Event: `'needsDrain'`
+
+Similar to [`Piscina#needsDrain`](#property-needsdrain-readonly);
+this event is triggered once the total capacity of the pool is exceeded
+by number of tasks enequeued that are pending of execution.
+
 ### Event: `'message'`
 
 A `'message'` event is emitted whenever a message is received from a worker thread.
@@ -509,6 +511,14 @@ An Array of the `Worker` instances used by this pool.
 ### Property: `queueSize` (readonly)
 
 The current number of tasks waiting to be assigned to a Worker thread.
+
+### Property: `needsDrain` (readonly)
+
+Boolean value that specifies whether the capacity of the pool has
+been exceeded by the number of tasks submitted.
+
+This property is helpful to make decisions towards creating backpressure
+over the number of tasks submitted to the pool.
 
 ### Property: `utilization` (readonly)
 
@@ -811,6 +821,19 @@ as a configuration option in lieu of always creating their own.
 
 
 ## Release Notes
+
+### 4.1.0
+
+#### Features
+
+* add `needsDrain` property ([#368](https://github.com/piscinajs/piscina/issues/368)) ([2d49b63](https://github.com/piscinajs/piscina/commit/2d49b63368116c172a52e2019648049b4d280162))
+* correctly handle process.exit calls outside of a task ([#361](https://github.com/piscinajs/piscina/issues/361)) ([8e6d16e](https://github.com/piscinajs/piscina/commit/8e6d16e1dc23f8bb39772ed954f6689852ad435f))
+
+
+#### Bug Fixes
+
+* Fix types for TypeScript 4.7 ([#239](https://github.com/piscinajs/piscina/issues/239)) ([a38fb29](https://github.com/piscinajs/piscina/commit/a38fb292e8fcc45cc20abab8668f82d908a24dc0))
+* use CJS imports ([#374](https://github.com/piscinajs/piscina/issues/374)) ([edf8dc4](https://github.com/piscinajs/piscina/commit/edf8dc4f1a19e9b49e266109cdb70d9acc86f3ca))
 
 ### 4.0.0
 
