@@ -31,6 +31,7 @@ import {
   kValue
 } from './common';
 import { version } from '../package.json';
+import { setTimeout as sleep } from 'timers/promises';
 
 const cpuCount : number = (() => {
   try {
@@ -167,6 +168,16 @@ const kDefaultRunOptions : FilledRunOptions = {
   filename: null,
   signal: null,
   name: null
+};
+
+interface CloseOptions {
+  force?: boolean,
+  timeout?: number
+}
+
+const kDefaultCloseOptions : Required<CloseOptions> = {
+  force: false,
+  timeout: 3000
 };
 
 class DirectlyTransferable implements Transferable {
@@ -386,7 +397,9 @@ const Errors = {
   TaskQueueAtLimit:
     () => new Error('Task queue is at limit'),
   NoTaskQueueAvailable:
-    () => new Error('No task queue available and all Workers are busy')
+    () => new Error('No task queue available and all Workers are busy'),
+  CloseTimeout:
+    () => new Error('Close operation timed out')
 };
 
 class WorkerInfo extends AsynchronouslyCreatedResource {
@@ -525,6 +538,7 @@ class ThreadPool {
   start : number = performance.now();
   inProcessPendingMessages : boolean = false;
   startingUp : boolean = false;
+  closingUp : boolean = false;
   workerFailsDuringBootstrap : boolean = false;
 
   constructor (publicInterface : Piscina, options : Options) {
@@ -562,6 +576,9 @@ class ThreadPool {
   }
 
   _ensureMinimumWorkers () : void {
+    if (this.closingUp) {
+      return;
+    }
     while (this.workers.size < this.options.minThreads) {
       this._addNewWorker();
     }
@@ -751,8 +768,7 @@ class ThreadPool {
       name
     } = options;
     const {
-      transferList = [],
-      signal = null
+      transferList = []
     } = options;
     if (filename == null) {
       filename = this.options.filename;
@@ -764,6 +780,16 @@ class ThreadPool {
       return Promise.reject(Errors.FilenameNotProvided());
     }
     filename = maybeFileURLToPath(filename);
+
+    let signal: AbortSignalAny | null;
+    if (this.closingUp) {
+      const closingUpAbortController = new AbortController();
+      closingUpAbortController.abort('queue is closing up');
+
+      signal = closingUpAbortController.signal;
+    } else {
+      signal = options.signal ?? null;
+    }
 
     let resolve : (result : any) => void;
     let reject : (err : Error) => void;
@@ -913,6 +939,71 @@ class ThreadPool {
 
     await Promise.all(exitEvents);
   }
+
+  async close (options : Required<CloseOptions>) {
+    this.closingUp = true;
+
+    if (options.force) {
+      const skipQueueLength = this.skipQueue.length;
+      for (let i = 0; i < skipQueueLength; i++) {
+        const taskInfo : TaskInfo = this.skipQueue.shift() as TaskInfo;
+        if (taskInfo.workerInfo === null) {
+          taskInfo.done(new AbortError());
+        } else {
+          this.skipQueue.push(taskInfo);
+        }
+      }
+
+      const taskQueueLength = this.taskQueue.size;
+      for (let i = 0; i < taskQueueLength; i++) {
+        const taskInfo : TaskInfo = this.taskQueue.shift() as TaskInfo;
+        if (taskInfo.workerInfo === null) {
+          taskInfo.done(new AbortError());
+        } else {
+          this.taskQueue.push(taskInfo);
+        }
+      }
+    }
+
+    const onPoolFlushed = () => new Promise<void>((resolve) => {
+      const numberOfWorkers = this.workers.size;
+      let numberOfWorkersDone = 0;
+
+      const checkIfWorkerIsDone = (workerInfo: WorkerInfo) => {
+        if (workerInfo.taskInfos.size === 0) {
+          numberOfWorkersDone++;
+        }
+
+        if (numberOfWorkers === numberOfWorkersDone) {
+          resolve();
+        }
+      };
+
+      for (const workerInfo of this.workers) {
+        checkIfWorkerIsDone(workerInfo);
+
+        workerInfo.port.on('message', () => checkIfWorkerIsDone(workerInfo));
+      }
+    });
+
+    const throwOnTimeOut = async (timeout: number) => {
+      await sleep(timeout);
+      throw Errors.CloseTimeout();
+    };
+
+    try {
+      await Promise.race([
+        onPoolFlushed(),
+        throwOnTimeOut(options.timeout)
+      ]);
+    } catch (error) {
+      this.publicInterface.emit('error', error);
+    } finally {
+      await this.destroy();
+    }
+
+    this.closingUp = false;
+  }
 }
 
 class Piscina extends EventEmitterAsyncResource {
@@ -945,7 +1036,7 @@ class Piscina extends EventEmitterAsyncResource {
     }
     if (options.maxQueue !== undefined &&
         options.maxQueue !== 'auto' &&
-        (typeof options.maxQueue !== 'number' || options.maxQueue < 0)) {
+          (typeof options.maxQueue !== 'number' || options.maxQueue < 0)) {
       throw new TypeError('options.maxQueue must be a non-negative integer');
     }
     if (options.concurrentTasksPerWorker !== undefined &&
@@ -1053,6 +1144,33 @@ class Piscina extends EventEmitterAsyncResource {
         new TypeError('signal argument must be an object'));
     }
     return this.#pool.runTask(task, { transferList, filename, name, signal });
+  }
+
+  async close (options : CloseOptions = kDefaultCloseOptions) {
+    if (options === null || typeof options !== 'object') {
+      throw TypeError('options must be an object');
+    }
+
+    let { force } = options;
+
+    if (force !== undefined && typeof force !== 'boolean') {
+      return Promise.reject(
+        new TypeError('force argument must be a boolean'));
+    }
+    force ??= kDefaultCloseOptions.force;
+
+    let { timeout: closeTimeout } = options;
+
+    if (closeTimeout !== undefined && typeof closeTimeout !== 'number') {
+      return Promise.reject(
+        new TypeError('closeTimeout argument must be a number'));
+    }
+    closeTimeout ??= kDefaultCloseOptions.timeout;
+
+    return this.#pool.close({
+      force,
+      timeout: closeTimeout
+    });
   }
 
   destroy () {
