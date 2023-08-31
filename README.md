@@ -420,6 +420,23 @@ Stops all Workers and rejects all `Promise`s for pending tasks.
 
 This returns a `Promise` that is fulfilled once all threads have stopped.
 
+### Method: `close([options])`
+
+* `options`:
+  * `force`: A `boolean` value that indicates whether to abort all tasks that 
+  are enqueued but not started yet. The default is `false`.
+  * `timeout`: A `number` time (in milliseconds) to wait for the pool to 
+  complete all in-flight tasks. The default is `3000`
+
+Stops all Workers gracefully.
+
+This returns a `Promise` that is fulfilled once all tasks that were started 
+have completed and all threads have stopped.
+
+This method is similar to `destroy()`, but with the difference that `close()` 
+will wait for the worker tasks to finish, while `destroy()` 
+will abort them immediately.
+
 ### Event: `'error'`
 
 An `'error'` event is emitted by instances of this class when:
