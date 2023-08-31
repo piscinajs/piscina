@@ -457,7 +457,7 @@ A `'drain'` event is emitted whenever the `queueSize` reaches `0`.
 
 Similar to [`Piscina#needsDrain`](#property-needsdrain-readonly);
 this event is triggered once the total capacity of the pool is exceeded
-by number of tasks enequeued that are pending of execution.
+by number of tasks enqueued that are pending of execution.
 
 ### Event: `'message'`
 
