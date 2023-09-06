@@ -1000,9 +1000,8 @@ class ThreadPool {
       this.publicInterface.emit('error', error);
     } finally {
       await this.destroy();
+      this.closingUp = false;
     }
-
-    this.closingUp = false;
   }
 }
 
