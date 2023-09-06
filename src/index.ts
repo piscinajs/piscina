@@ -120,6 +120,7 @@ interface Options {
   taskQueue? : TaskQueue,
   niceIncrement? : number,
   trackUnmanagedFds? : boolean,
+  closeTimeout?: number
 }
 
 interface FilledOptions extends Options {
@@ -132,7 +133,8 @@ interface FilledOptions extends Options {
   concurrentTasksPerWorker : number,
   useAtomics: boolean,
   taskQueue : TaskQueue,
-  niceIncrement : number
+  niceIncrement : number,
+  closeTimeout : number
 }
 
 const kDefaultOptions : FilledOptions = {
@@ -146,7 +148,8 @@ const kDefaultOptions : FilledOptions = {
   useAtomics: true,
   taskQueue: new ArrayTaskQueue(),
   niceIncrement: 0,
-  trackUnmanagedFds: true
+  trackUnmanagedFds: true,
+  closeTimeout: 3000
 };
 
 interface RunOptions {
@@ -172,12 +175,10 @@ const kDefaultRunOptions : FilledRunOptions = {
 
 interface CloseOptions {
   force?: boolean,
-  timeout?: number
 }
 
 const kDefaultCloseOptions : Required<CloseOptions> = {
-  force: false,
-  timeout: 3000
+  force: false
 };
 
 class DirectlyTransferable implements Transferable {
@@ -994,7 +995,7 @@ class ThreadPool {
     try {
       await Promise.race([
         onPoolFlushed(),
-        throwOnTimeOut(options.timeout)
+        throwOnTimeOut(this.options.closeTimeout)
       ]);
     } catch (error) {
       this.publicInterface.emit('error', error);
@@ -1063,6 +1064,9 @@ class Piscina extends EventEmitterAsyncResource {
     if (options.trackUnmanagedFds !== undefined &&
         typeof options.trackUnmanagedFds !== 'boolean') {
       throw new TypeError('options.trackUnmanagedFds must be a boolean value');
+    }
+    if (options.closeTimeout !== undefined && (typeof options.closeTimeout !== 'number' || options.closeTimeout < 0)) {
+      throw new TypeError('options.closeTimeout must be a non-negative integer');
     }
 
     this.#pool = new ThreadPool(this, options);
@@ -1158,17 +1162,8 @@ class Piscina extends EventEmitterAsyncResource {
     }
     force ??= kDefaultCloseOptions.force;
 
-    let { timeout: closeTimeout } = options;
-
-    if (closeTimeout !== undefined && typeof closeTimeout !== 'number') {
-      return Promise.reject(
-        new TypeError('closeTimeout argument must be a number'));
-    }
-    closeTimeout ??= kDefaultCloseOptions.timeout;
-
     return this.#pool.close({
-      force,
-      timeout: closeTimeout
+      force
     });
   }
 

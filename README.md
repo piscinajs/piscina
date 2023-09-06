@@ -356,6 +356,8 @@ This class extends [`EventEmitter`][] from Node.js.
     `fs.close()`, and will close them automatically when the Worker exits.
     Defaults to `true`. (This option is only supported on Node.js 12.19+ and
     all Node.js versions higher than 14.6.0).
+  * `closeTimeout`: (`number`) An optional time (in milliseconds) to wait for the pool to 
+  complete all in-flight tasks when `close()` is called. The default is `3000`
 
 Use caution when setting resource limits. Setting limits that are too low may
 result in the `Piscina` worker threads being unusable.
@@ -425,8 +427,6 @@ This returns a `Promise` that is fulfilled once all threads have stopped.
 * `options`:
   * `force`: A `boolean` value that indicates whether to abort all tasks that 
   are enqueued but not started yet. The default is `false`.
-  * `timeout`: A `number` time (in milliseconds) to wait for the pool to 
-  complete all in-flight tasks. The default is `3000`
 
 Stops all Workers gracefully.
 

@@ -71,12 +71,16 @@ test('close({force: true})', async (t) => {
 });
 
 test('timed out close operation destroys the pool', async (t) => {
-  const pool = new Piscina({ filename: resolve(__dirname, 'fixtures/sleep.js'), maxThreads: 1 });
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/sleep.js'),
+    maxThreads: 1,
+    closeTimeout: 500
+  });
 
   const task1 = pool.run({ time: 5000 });
   const task2 = pool.run({ time: 5000 });
 
-  setImmediate(() => t.resolves(pool.close({ timeout: 500 }), 'close is resolved on timeout'));
+  setImmediate(() => t.resolves(pool.close(), 'close is resolved on timeout'));
 
   await Promise.all([
     t.resolves(once(pool, 'error'), 'error handler is called on timeout'),
