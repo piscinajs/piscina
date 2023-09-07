@@ -19,6 +19,7 @@ test('close()', async (t) => {
     setImmediate(() => t.resolves(pool.close(), 'close is resolved when all running tasks are completed'));
 
     await Promise.all([
+      t.resolves(once(pool, 'close'), 'handler is called when pool is closed'),
       t.resolves(task1, 'complete running task'),
       t.resolves(task2, 'complete running task')
     ]);
@@ -46,6 +47,7 @@ test('close({force: true})', async (t) => {
     setImmediate(() => t.resolves(pool.close({ force: true }), 'close is resolved when all running tasks are completed'));
 
     await Promise.all([
+      t.resolves(once(pool, 'close'), 'handler is called when pool is closed'),
       t.resolves(task1, 'complete running task'),
       t.rejects(task2, /The task has been aborted/, 'abort task that are not started yet')
     ]);
@@ -62,6 +64,7 @@ test('close({force: true})', async (t) => {
     setImmediate(() => t.resolves(pool.close({ force: true }), 'close is resolved when all running tasks are completed'));
 
     await Promise.all([
+      t.resolves(once(pool, 'close'), 'handler is called when pool is closed'),
       t.resolves(task1, 'complete running task'),
       t.resolves(task2, 'complete running task'),
       t.rejects(task3, /The task has been aborted/, 'abort task that are not started yet'),

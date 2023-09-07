@@ -1001,6 +1001,7 @@ class ThreadPool {
       this.publicInterface.emit('error', error);
     } finally {
       await this.destroy();
+      this.publicInterface.emit('close');
       this.closingUp = false;
     }
   }
