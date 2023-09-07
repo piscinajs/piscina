@@ -149,7 +149,7 @@ const kDefaultOptions : FilledOptions = {
   taskQueue: new ArrayTaskQueue(),
   niceIncrement: 0,
   trackUnmanagedFds: true,
-  closeTimeout: 3000
+  closeTimeout: 30000
 };
 
 interface RunOptions {
