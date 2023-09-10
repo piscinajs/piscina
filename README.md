@@ -356,6 +356,8 @@ This class extends [`EventEmitter`][] from Node.js.
     `fs.close()`, and will close them automatically when the Worker exits.
     Defaults to `true`. (This option is only supported on Node.js 12.19+ and
     all Node.js versions higher than 14.6.0).
+  * `closeTimeout`: (`number`) An optional time (in milliseconds) to wait for the pool to 
+  complete all in-flight tasks when `close()` is called. The default is `30000`
 
 Use caution when setting resource limits. Setting limits that are too low may
 result in the `Piscina` worker threads being unusable.
@@ -420,6 +422,21 @@ Stops all Workers and rejects all `Promise`s for pending tasks.
 
 This returns a `Promise` that is fulfilled once all threads have stopped.
 
+### Method: `close([options])`
+
+* `options`:
+  * `force`: A `boolean` value that indicates whether to abort all tasks that 
+  are enqueued but not started yet. The default is `false`.
+
+Stops all Workers gracefully.
+
+This returns a `Promise` that is fulfilled once all tasks that were started 
+have completed and all threads have stopped.
+
+This method is similar to `destroy()`, but with the difference that `close()` 
+will wait for the worker tasks to finish, while `destroy()` 
+will abort them immediately.
+
 ### Event: `'error'`
 
 An `'error'` event is emitted by instances of this class when:
@@ -440,7 +457,7 @@ A `'drain'` event is emitted whenever the `queueSize` reaches `0`.
 
 Similar to [`Piscina#needsDrain`](#property-needsdrain-readonly);
 this event is triggered once the total capacity of the pool is exceeded
-by number of tasks enequeued that are pending of execution.
+by number of tasks enqueued that are pending of execution.
 
 ### Event: `'message'`
 
