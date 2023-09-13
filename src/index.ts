@@ -47,8 +47,7 @@ interface AbortSignalEventEmitter {
   once : (name : 'abort', listener : () => void) => void;
 }
 
-// eslint-disable-next-line
-type AbortSignalAny = AbortSignal | AbortSignalEventEmitter;
+type AbortSignalAny = globalThis.AbortSignal | AbortSignalEventEmitter;
 function onabort (abortSignal : AbortSignalAny, listener : () => void) {
   if ('addEventListener' in abortSignal) {
     abortSignal.addEventListener('abort', listener, { once: true });
@@ -821,7 +820,7 @@ class ThreadPool {
     if (signal !== null) {
       // If the AbortSignal has an aborted property and it's truthy,
       // reject immediately.
-      if ((signal as AbortSignalEventTarget).aborted) {
+      if ((<globalThis.AbortSignal>signal).aborted) {
         return Promise.reject(new AbortError());
       }
       taskInfo.abortListener = () => {
