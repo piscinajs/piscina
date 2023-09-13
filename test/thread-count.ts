@@ -10,15 +10,15 @@ test('will start with minThreads and max out at maxThreads', async ({ equal, rej
     maxThreads: 4
   });
   equal(pool.threads.length, 2);
-  rejects(pool.runTask('while(true) {}'));
+  rejects(pool.run('while(true) {}'));
   equal(pool.threads.length, 2);
-  rejects(pool.runTask('while(true) {}'));
+  rejects(pool.run('while(true) {}'));
   equal(pool.threads.length, 2);
-  rejects(pool.runTask('while(true) {}'));
+  rejects(pool.run('while(true) {}'));
   equal(pool.threads.length, 3);
-  rejects(pool.runTask('while(true) {}'));
+  rejects(pool.run('while(true) {}'));
   equal(pool.threads.length, 4);
-  rejects(pool.runTask('while(true) {}'));
+  rejects(pool.run('while(true) {}'));
   equal(pool.threads.length, 4);
   await pool.destroy();
 });

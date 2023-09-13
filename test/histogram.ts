@@ -9,7 +9,7 @@ test('pool will maintain run and wait time histograms', async ({ equal, ok }) =>
 
   const tasks = [];
   for (let n = 0; n < 10; n++) {
-    tasks.push(pool.runTask('42'));
+    tasks.push(pool.run('42'));
   }
   await Promise.all(tasks);
 

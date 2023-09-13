@@ -7,7 +7,7 @@ test('uncaught exception resets Worker', async ({ rejects }) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js')
   });
-  await rejects(pool.runTask('throw new Error("not_caught")'), /not_caught/);
+  await rejects(pool.run('throw new Error("not_caught")'), /not_caught/);
 });
 
 test('uncaught exception in immediate resets Worker', async ({ rejects }) => {
@@ -15,7 +15,7 @@ test('uncaught exception in immediate resets Worker', async ({ rejects }) => {
     filename: resolve(__dirname, 'fixtures/eval.js')
   });
   await rejects(
-    pool.runTask(`
+    pool.run(`
       setImmediate(() => { throw new Error("not_caught") });
       new Promise(() => {}) /* act as if we were doing some work */
     `), /not_caught/);
@@ -30,7 +30,7 @@ test('uncaught exception in immediate after task yields error event', async ({ e
 
   const errorEvent : Promise<Error[]> = once(pool, 'error');
 
-  const taskResult = pool.runTask(`
+  const taskResult = pool.run(`
     setTimeout(() => { throw new Error("not_caught") }, 500);
     42
   `);
@@ -51,7 +51,7 @@ test('exiting process resets worker', async ({ not, rejects }) => {
     minThreads: 1
   });
   const originalThreadId = pool.threads[0].threadId;
-  await rejects(pool.runTask('process.exit(1);'), /worker exited with code: 1/);
+  await rejects(pool.run('process.exit(1);'), /worker exited with code: 1/);
   const newThreadId = pool.threads[0].threadId;
   not(originalThreadId, newThreadId);
 });
@@ -63,13 +63,13 @@ test('exiting process in immediate after task errors next task and resets worker
   });
 
   const originalThreadId = pool.threads[0].threadId;
-  const taskResult = await pool.runTask(`
+  const taskResult = await pool.run(`
     setTimeout(() => { process.exit(1); }, 50);
     42
   `);
   equal(taskResult, 42);
 
-  await rejects(pool.runTask(`
+  await rejects(pool.run(`
   'use strict';
 
   const { promisify } = require('util');

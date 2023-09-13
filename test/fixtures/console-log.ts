@@ -6,4 +6,4 @@ const pool = new Piscina({
   maxThreads: 1
 });
 
-pool.runTask('console.log("A"); console.log("B");');
+pool.run('console.log("A"); console.log("B");');

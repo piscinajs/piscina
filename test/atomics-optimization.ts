@@ -16,7 +16,7 @@ test('coverage test for Atomics optimization', async ({ equal }) => {
   // Post 4 tasks, and wait for all of them to be ready.
   const i32array = new Int32Array(new SharedArrayBuffer(4));
   for (let index = 0; index < 4; index++) {
-    tasks.push(pool.runTask({ i32array, index }));
+    tasks.push(pool.run({ i32array, index }));
   }
 
   // Wait for 2 tasks to enter 'wait' state.
@@ -74,7 +74,7 @@ test('avoids unbounded recursion', async () => {
 
   const tasks = [];
   for (let i = 1; i <= 10000; i++) {
-    tasks.push(pool.runTask(null));
+    tasks.push(pool.run(null));
   }
 
   await Promise.all(tasks);

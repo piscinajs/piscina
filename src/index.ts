@@ -42,20 +42,6 @@ const cpuCount : number = (() => {
   }
 })();
 
-// interface AbortSignalEventTargetAddOptions {
-//   once : boolean;
-// };
-
-// interface AbortSignalEventTarget {
-//   addEventListener : (
-//     name : 'abort',
-//     listener : () => void,
-//     options? : AbortSignalEventTargetAddOptions) => void;
-//   removeEventListener : (
-//     name : 'abort',
-//     listener : () => void) => void;
-//   aborted? : boolean;
-// }
 interface AbortSignalEventEmitter {
   off : (name : 'abort', listener : () => void) => void;
   once : (name : 'abort', listener : () => void) => void;

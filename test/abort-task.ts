@@ -170,7 +170,7 @@ test('task with AbortSignal cleans up properly', async ({ equal }) => {
 
   const ee = new EventEmitter();
 
-  await pool.runTask('1+1', ee);
+  await pool.run('1+1', { signal: ee });
 
   const { getEventListeners } = EventEmitter as any;
   if (typeof getEventListeners === 'function') {

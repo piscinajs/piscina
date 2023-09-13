@@ -10,7 +10,7 @@ test('Pool receive message from workers', async ({ equal }) => {
 
   const messagePromise = once(pool, 'message');
 
-  const taskResult = pool.runTask(`
+  const taskResult = pool.run(`
         require('worker_threads').parentPort.postMessage("some message");
         42
     `);
