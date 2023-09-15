@@ -69,6 +69,7 @@ function onabort (abortSignal : AbortSignalAny, listener : () => void) {
     abortSignal.once('abort', listener);
   }
 }
+
 class AbortError extends Error {
   constructor (reason?: AbortSignalEventTarget['reason']) {
     // TS does not recognizes the cause clause
@@ -830,7 +831,7 @@ class ThreadPool {
         // Call reject() first to make sure we always reject with the AbortError
         // if the task is aborted, not with an Error from the possible
         // thread termination below.
-        reject(new AbortError((signal as AbortSignalEventTarget)));
+        reject(new AbortError((signal as AbortSignalEventTarget).reason));
 
         if (taskInfo.workerInfo !== null) {
           // Already running: We cancel the Worker this is running on.
@@ -952,7 +953,7 @@ class ThreadPool {
       for (let i = 0; i < skipQueueLength; i++) {
         const taskInfo : TaskInfo = this.skipQueue.shift() as TaskInfo;
         if (taskInfo.workerInfo === null) {
-          taskInfo.done(new AbortError('pool is closing up'));
+          taskInfo.done(new AbortError('pool is closed'));
         } else {
           this.skipQueue.push(taskInfo);
         }
@@ -962,7 +963,7 @@ class ThreadPool {
       for (let i = 0; i < taskQueueLength; i++) {
         const taskInfo : TaskInfo = this.taskQueue.shift() as TaskInfo;
         if (taskInfo.workerInfo === null) {
-          taskInfo.done(new AbortError('pool is closing up'));
+          taskInfo.done(new AbortError('pool is closed'));
         } else {
           this.taskQueue.push(taskInfo);
         }
