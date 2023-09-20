@@ -30,7 +30,10 @@ test('close()', async (t) => {
 
     setImmediate(() => {
       t.resolves(pool.close(), 'close is resolved when running tasks are completed');
-      t.rejects(pool.run({ time: 1000 }), /The task has been aborted/, 'abort any task enqueued during close');
+      t.resolves(pool.run({ time: 1000 }).then(null, err => {
+        t.equal(err.message, 'The task has been aborted');
+        t.equal(err.cause, 'queue is closing up');
+      }));
     });
 
     await t.resolves(pool.run({ time: 100 }), 'complete running task');
@@ -39,9 +42,9 @@ test('close()', async (t) => {
 
 test('close({force: true})', async (t) => {
   t.test('queued tasks waits for all tasks already running and aborts tasks that are not started yet', async (t) => {
-    const pool = new Piscina({ filename: resolve(__dirname, 'fixtures/sleep.js'), maxThreads: 1 });
+    const pool = new Piscina({ filename: resolve(__dirname, 'fixtures/sleep.js'), maxThreads: 1, concurrentTasksPerWorker: 1 });
 
-    const task1 = pool.run({ time: 100 });
+    const task1 = pool.run({ time: 1000 });
     const task2 = pool.run({ time: 200 });
 
     setImmediate(() => t.resolves(pool.close({ force: true }), 'close is resolved when all running tasks are completed'));
@@ -49,7 +52,10 @@ test('close({force: true})', async (t) => {
     await Promise.all([
       t.resolves(once(pool, 'close'), 'handler is called when pool is closed'),
       t.resolves(task1, 'complete running task'),
-      t.rejects(task2, /The task has been aborted/, 'abort task that are not started yet')
+      t.resolves(task2.then(null, err => {
+        t.equal(err.message, 'The task has been aborted');
+        t.equal(err.cause, 'pool is closed');
+      }))
     ]);
   });
 
