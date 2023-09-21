@@ -55,6 +55,7 @@ interface AbortSignalEventTarget {
     name : 'abort',
     listener : () => void) => void;
   aborted? : boolean;
+  reason?: unknown;
 }
 interface AbortSignalEventEmitter {
   off : (name : 'abort', listener : () => void) => void;
@@ -68,9 +69,12 @@ function onabort (abortSignal : AbortSignalAny, listener : () => void) {
     abortSignal.once('abort', listener);
   }
 }
+
 class AbortError extends Error {
-  constructor () {
-    super('The task has been aborted');
+  constructor (reason?: AbortSignalEventTarget['reason']) {
+    // TS does not recognizes the cause clause
+    // @ts-expect-error
+    super('The task has been aborted', { cause: reason });
   }
 
   get name () { return 'AbortError'; }
@@ -821,13 +825,13 @@ class ThreadPool {
       // If the AbortSignal has an aborted property and it's truthy,
       // reject immediately.
       if ((signal as AbortSignalEventTarget).aborted) {
-        return Promise.reject(new AbortError());
+        return Promise.reject(new AbortError((signal as AbortSignalEventTarget).reason));
       }
       taskInfo.abortListener = () => {
         // Call reject() first to make sure we always reject with the AbortError
         // if the task is aborted, not with an Error from the possible
         // thread termination below.
-        reject(new AbortError());
+        reject(new AbortError((signal as AbortSignalEventTarget).reason));
 
         if (taskInfo.workerInfo !== null) {
           // Already running: We cancel the Worker this is running on.
@@ -949,7 +953,7 @@ class ThreadPool {
       for (let i = 0; i < skipQueueLength; i++) {
         const taskInfo : TaskInfo = this.skipQueue.shift() as TaskInfo;
         if (taskInfo.workerInfo === null) {
-          taskInfo.done(new AbortError());
+          taskInfo.done(new AbortError('pool is closed'));
         } else {
           this.skipQueue.push(taskInfo);
         }
@@ -959,7 +963,7 @@ class ThreadPool {
       for (let i = 0; i < taskQueueLength; i++) {
         const taskInfo : TaskInfo = this.taskQueue.shift() as TaskInfo;
         if (taskInfo.workerInfo === null) {
-          taskInfo.done(new AbortError());
+          taskInfo.done(new AbortError('pool is closed'));
         } else {
           this.taskQueue.push(taskInfo);
         }

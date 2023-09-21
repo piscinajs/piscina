@@ -1,4 +1,3 @@
-import { AbortController } from 'abort-controller';
 import { EventEmitter } from 'events';
 import Piscina from '..';
 import { test } from 'tap';
@@ -183,4 +182,52 @@ test('task with AbortSignal cleans up properly', async ({ equal }) => {
   const controller = new AbortController();
 
   await pool.runTask('1+1', controller.signal);
+});
+
+test('aborted AbortSignal rejects task immediately (with reason)', async ({ match, equal }) => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/move.ts')
+  });
+  const customReason = new Error('custom reason');
+
+  const controller = new AbortController();
+  controller.abort(customReason);
+  equal(controller.signal.aborted, true);
+  equal(controller.signal.reason, customReason);
+
+  // The data won't be moved because the task will abort immediately.
+  const data = new Uint8Array(new SharedArrayBuffer(4));
+
+  try {
+    await pool.run(data, { transferList: [data.buffer], signal: controller.signal });
+  } catch (error) {
+    equal(error.message, 'The task has been aborted');
+    match(error.cause, customReason);
+  }
+
+  equal(data.length, 4);
+});
+
+test('tasks can be aborted through AbortController while running', async ({ equal, match }) => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/notify-then-sleep.ts')
+  });
+  const reason = new Error('custom reason');
+
+  const buf = new Int32Array(new SharedArrayBuffer(4));
+  const abortController = new AbortController();
+
+  try {
+    const promise = pool.run(buf, { signal: abortController.signal });
+
+    Atomics.wait(buf, 0, 0);
+    equal(Atomics.load(buf, 0), 1);
+
+    abortController.abort(reason);
+
+    await promise;
+  } catch (error) {
+    equal(error.message, 'The task has been aborted');
+    match(error.cause, reason);
+  }
 });
