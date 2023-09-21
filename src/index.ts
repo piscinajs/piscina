@@ -42,25 +42,12 @@ const cpuCount : number = (() => {
   }
 })();
 
-interface AbortSignalEventTargetAddOptions {
-  once : boolean;
-};
-
-interface AbortSignalEventTarget {
-  addEventListener : (
-    name : 'abort',
-    listener : () => void,
-    options? : AbortSignalEventTargetAddOptions) => void;
-  removeEventListener : (
-    name : 'abort',
-    listener : () => void) => void;
-  aborted? : boolean;
-}
 interface AbortSignalEventEmitter {
   off : (name : 'abort', listener : () => void) => void;
   once : (name : 'abort', listener : () => void) => void;
 }
-type AbortSignalAny = AbortSignalEventTarget | AbortSignalEventEmitter;
+
+type AbortSignalAny = globalThis.AbortSignal | AbortSignalEventEmitter;
 function onabort (abortSignal : AbortSignalAny, listener : () => void) {
   if ('addEventListener' in abortSignal) {
     abortSignal.addEventListener('abort', listener, { once: true });
@@ -833,7 +820,7 @@ class ThreadPool {
     if (signal !== null) {
       // If the AbortSignal has an aborted property and it's truthy,
       // reject immediately.
-      if ((signal as AbortSignalEventTarget).aborted) {
+      if ((<globalThis.AbortSignal>signal).aborted) {
         return Promise.reject(new AbortError());
       }
       taskInfo.abortListener = () => {
@@ -1088,54 +1075,6 @@ class Piscina extends EventEmitterAsyncResource {
     }
 
     this.#pool = new ThreadPool(this, options);
-  }
-
-  /** @deprecated Use run(task, options) instead **/
-  runTask (task : any, transferList? : TransferList, filename? : string, abortSignal? : AbortSignalAny) : Promise<any>;
-
-  /** @deprecated Use run(task, options) instead **/
-  runTask (task : any, transferList? : TransferList, filename? : AbortSignalAny, abortSignal? : undefined) : Promise<any>;
-
-  /** @deprecated Use run(task, options) instead **/
-  runTask (task : any, transferList? : string, filename? : AbortSignalAny, abortSignal? : undefined) : Promise<any>;
-
-  /** @deprecated Use run(task, options) instead **/
-  runTask (task : any, transferList? : AbortSignalAny, filename? : undefined, abortSignal? : undefined) : Promise<any>;
-
-  /** @deprecated Use run(task, options) instead **/
-  runTask (task : any, transferList? : any, filename? : any, signal? : any) {
-    // If transferList is a string or AbortSignal, shift it.
-    if ((typeof transferList === 'object' && !Array.isArray(transferList)) ||
-        typeof transferList === 'string') {
-      signal = filename as (AbortSignalAny | undefined);
-      filename = transferList;
-      transferList = undefined;
-    }
-    // If filename is an AbortSignal, shift it.
-    if (typeof filename === 'object' && !Array.isArray(filename)) {
-      signal = filename;
-      filename = undefined;
-    }
-
-    if (transferList !== undefined && !Array.isArray(transferList)) {
-      return Promise.reject(
-        new TypeError('transferList argument must be an Array'));
-    }
-    if (filename !== undefined && typeof filename !== 'string') {
-      return Promise.reject(
-        new TypeError('filename argument must be a string'));
-    }
-    if (signal !== undefined && typeof signal !== 'object') {
-      return Promise.reject(
-        new TypeError('signal argument must be an object'));
-    }
-    return this.#pool.runTask(
-      task, {
-        transferList,
-        filename: filename || null,
-        name: 'default',
-        signal: signal || null
-      });
   }
 
   run (task : any, options : RunOptions = kDefaultRunOptions) {

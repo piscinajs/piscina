@@ -29,6 +29,6 @@ test('resourceLimits causes task to reject', async ({ equal, rejects }) => {
   equal(limits.maxOldGenerationSizeMb, 16);
   equal(limits.maxYoungGenerationSizeMb, 4);
   equal(limits.codeRangeSizeMb, 16);
-  rejects(worker.runTask(null),
+  rejects(worker.run(null),
     /Worker terminated due to reaching memory limit: JS heap out of memory/);
 });
