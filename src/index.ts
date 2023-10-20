@@ -545,6 +545,7 @@ class ThreadPool {
   startingUp : boolean = false;
   closingUp : boolean = false;
   workerFailsDuringBootstrap : boolean = false;
+  destroying : boolean = false;
 
   constructor (publicInterface : Piscina, options : Options) {
     this.publicInterface = publicInterface;
@@ -581,7 +582,7 @@ class ThreadPool {
   }
 
   _ensureMinimumWorkers () : void {
-    if (this.closingUp) {
+    if (this.closingUp || this.destroying) {
       return;
     }
     while (this.workers.size < this.options.minThreads) {
@@ -663,6 +664,10 @@ class ThreadPool {
     });
 
     worker.on('exit', (exitCode : number) => {
+      if (this.destroying) {
+        return;
+      }
+
       const err = new Error(`worker exited with code: ${exitCode}`);
       // Only error unfinished tasks on process exit, since there are legitimate
       // reasons to exit workers and we want to handle that gracefully when possible.
@@ -926,6 +931,7 @@ class ThreadPool {
   }
 
   async destroy () {
+    this.destroying = true;
     while (this.skipQueue.length > 0) {
       const taskInfo : TaskInfo = this.skipQueue.shift() as TaskInfo;
       taskInfo.done(new Error('Terminating worker thread'));
@@ -942,7 +948,11 @@ class ThreadPool {
       this._removeWorker(workerInfo);
     }
 
-    await Promise.all(exitEvents);
+    try {
+      await Promise.all(exitEvents);
+    } finally {
+      this.destroying = false;
+    }
   }
 
   async close (options : Required<CloseOptions>) {
