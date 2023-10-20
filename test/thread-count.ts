@@ -51,3 +51,14 @@ test('conflicting min/max threads is error', async ({ throws }) => {
     maxThreads: 8
   }), /options.minThreads and options.maxThreads must not conflict/);
 });
+
+test('thread count should be 0 upon destruction', async ({ equal }) => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js'),
+    minThreads: 2,
+    maxThreads: 4
+  });
+  equal(pool.threads.length, 2);
+  await pool.destroy();
+  equal(pool.threads.length, 0);
+});
