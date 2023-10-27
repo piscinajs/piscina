@@ -35,8 +35,8 @@
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^20.8.0",
-    "@typescript-eslint/eslint-plugin": "^4.22.0",
-    "@typescript-eslint/parser": "^4.22.0",
+    "@typescript-eslint/eslint-plugin": "^6.9.0",
+    "@typescript-eslint/parser": "^6.9.0",
     "abort-controller": "^3.0.0",
     "concat-stream": "^2.0.0",
     "gen-esm-wrapper": "^1.1.1",
@@ -44,7 +44,7 @@
     "standardx": "^7.0.0",
     "tap": "^16.3.7",
     "ts-node": "^9.1.1",
-    "typescript": "5.2.x"
+    "typescript": "5.1.6"
   },
   "dependencies": {
     "hdr-histogram-js": "^2.0.1",
