@@ -8,6 +8,9 @@
     "import": "./dist/esm-wrapper.mjs",
     "require": "./dist/src/index.js"
   },
+  "files": [
+    "dist"
+  ],
   "types": "./dist/src/index.d.ts",
   "scripts": {
     "build": "tsc && gen-esm-wrapper . dist/esm-wrapper.mjs",
