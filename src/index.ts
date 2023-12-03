@@ -143,7 +143,7 @@ interface FilledOptions extends Options {
 const kDefaultOptions : FilledOptions = {
   filename: null,
   name: 'default',
-  minThreads: Math.max(cpuCount / 2, 1),
+  minThreads: Math.max(Math.floor(cpuCount / 2), 1),
   maxThreads: cpuCount * 1.5,
   idleTimeout: 0,
   maxQueue: Infinity,
