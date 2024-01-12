@@ -1,6 +1,6 @@
 import { MessageChannel } from 'worker_threads';
 import { cpus } from 'os';
-import Piscina from '..';
+import Piscina = require('..');
 import { test } from 'tap';
 import { resolve } from 'path';
 

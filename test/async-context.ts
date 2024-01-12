@@ -1,5 +1,5 @@
 import { createHook, executionAsyncId } from 'async_hooks';
-import Piscina from '..';
+import Piscina = require('..');
 import { test } from 'tap';
 import { resolve } from 'path';
 

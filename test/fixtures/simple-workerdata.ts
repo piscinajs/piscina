@@ -1,4 +1,4 @@
-import Piscina from '../..';
+import Piscina = require('../..');
 import assert from 'assert';
 
 assert.strictEqual(Piscina.workerData, 'ABC');

@@ -1,4 +1,4 @@
-import Piscina from '..';
+import Piscina = require('..');
 import { test } from 'tap';
 import { version } from '../package.json';
 import { pathToFileURL } from 'url';
