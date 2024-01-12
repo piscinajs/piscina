@@ -6,9 +6,7 @@ import { fileURLToPath, URL } from 'url';
 import { resolve } from 'path';
 import { inspect, types } from 'util';
 import assert from 'assert';
-import { Histogram, build } from 'hdr-histogram-js';
-import { performance } from 'perf_hooks';
-import hdrobj from 'hdr-histogram-percentiles-obj';
+import { Histogram, RecordableHistogram, createHistogram, performance } from 'perf_hooks';
 import {
   READY,
   RequestMessage,
@@ -40,6 +38,62 @@ const cpuCount : number = (() => {
     return 1;
   }
 })();
+
+/* eslint-disable camelcase */
+interface HistogramSummary {
+  average: number;
+  mean: number;
+  stddev: number;
+  min: number;
+  max: number;
+  p0_001: number;
+  p0_01: number;
+  p0_1: number;
+  p1: number;
+  p2_5: number;
+  p10: number;
+  p25: number;
+  p50: number;
+  p75: number;
+  p90: number;
+  p97_5: number;
+  p99: number;
+  p99_9: number;
+  p99_99: number;
+  p99_999: number;
+}
+/* eslint-enable camelcase */
+
+function createHistogramSummary (histogram: Histogram): HistogramSummary {
+  const { mean, stddev, min, max } = histogram;
+
+  return {
+    average: mean / 1000,
+    mean: mean / 1000,
+    stddev,
+    min: min / 1000,
+    max: max / 1000,
+    p0_001: histogram.percentile(0.001) / 1000,
+    p0_01: histogram.percentile(0.01) / 1000,
+    p0_1: histogram.percentile(0.1) / 1000,
+    p1: histogram.percentile(1) / 1000,
+    p2_5: histogram.percentile(2.5) / 1000,
+    p10: histogram.percentile(10) / 1000,
+    p25: histogram.percentile(25) / 1000,
+    p50: histogram.percentile(50) / 1000,
+    p75: histogram.percentile(75) / 1000,
+    p90: histogram.percentile(90) / 1000,
+    p97_5: histogram.percentile(97.5) / 1000,
+    p99: histogram.percentile(99) / 1000,
+    p99_9: histogram.percentile(99.9) / 1000,
+    p99_99: histogram.percentile(99.99) / 1000,
+    p99_999: histogram.percentile(99.999) / 1000
+  };
+}
+
+function toIntegerNano (milliseconds: number): number {
+  return Math.trunc(milliseconds * 1000);
+}
 
 interface AbortSignalEventTargetAddOptions {
   once : boolean;
@@ -562,8 +616,8 @@ class ThreadPool {
   constructor (publicInterface : Piscina, options : Options) {
     this.publicInterface = publicInterface;
     this.taskQueue = options.taskQueue || new ArrayTaskQueue();
-    this.runTime = build({ lowestDiscernibleValue: 1 });
-    this.waitTime = build({ lowestDiscernibleValue: 1 });
+    this.runTime = createHistogram();
+    this.waitTime = createHistogram();
 
     const filename =
       options.filename ? maybeFileURLToPath(options.filename) : null;
@@ -765,7 +819,7 @@ class ThreadPool {
         break;
       }
       const now = performance.now();
-      this.waitTime.recordValue(now - taskInfo.created);
+      this.waitTime.record(toIntegerNano(now - taskInfo.created));
       taskInfo.started = now;
       workerInfo.postTask(taskInfo);
       this._maybeDrain();
@@ -826,7 +880,7 @@ class ThreadPool {
       (err : Error | null, result : any) => {
         this.completed++;
         if (taskInfo.started) {
-          this.runTime.recordValue(performance.now() - taskInfo.started);
+          this.runTime.record(toIntegerNano(performance.now() - taskInfo.started));
         }
         if (err !== null) {
           reject(err);
@@ -916,7 +970,7 @@ class ThreadPool {
 
     // TODO(addaleax): Clean up the waitTime/runTime recording.
     const now = performance.now();
-    this.waitTime.recordValue(now - taskInfo.created);
+    this.waitTime.record(toIntegerNano(now - taskInfo.created));
     taskInfo.started = now;
     workerInfo.postTask(taskInfo);
     this._maybeDrain();
@@ -1183,23 +1237,26 @@ class Piscina extends EventEmitterAsyncResource {
   }
 
   get waitTime () : any {
-    const result = hdrobj.histAsObj(this.#pool.waitTime);
-    return hdrobj.addPercentiles(this.#pool.waitTime, result);
+    return createHistogramSummary(this.#pool.waitTime);
   }
 
   get runTime () : any {
-    const result = hdrobj.histAsObj(this.#pool.runTime);
-    return hdrobj.addPercentiles(this.#pool.runTime, result);
+    return createHistogramSummary(this.#pool.runTime);
   }
 
   get utilization () : number {
+    // count is available as of Node.js v16.14.0 but not present in the types
+    const count = (this.#pool.runTime as RecordableHistogram & { count: number}).count;
+    if (count === 0) {
+      return 0;
+    }
+
     // The capacity is the max compute time capacity of the
     // pool to this point in time as determined by the length
     // of time the pool has been running multiplied by the
     // maximum number of threads.
     const capacity = this.duration * this.#pool.options.maxThreads;
-    const totalMeanRuntime = this.#pool.runTime.mean *
-      this.#pool.runTime.totalCount;
+    const totalMeanRuntime = (this.#pool.runTime.mean / 1000) * count;
 
     // We calculate the appoximate pool utilization by multiplying
     // the mean run time of all tasks by the number of runtime
