@@ -5,8 +5,10 @@ import { cpus } from 'os';
 import { fileURLToPath, URL } from 'url';
 import { resolve } from 'path';
 import { inspect, types } from 'util';
+import { setTimeout as sleep } from 'timers/promises';
 import assert from 'assert';
 import { Histogram, RecordableHistogram, createHistogram, performance } from 'perf_hooks';
+
 import {
   READY,
   RequestMessage,
@@ -27,8 +29,8 @@ import {
   kTransferable,
   kValue
 } from './common';
+import { DefaultTaskScheduler, TaskScheduler, isTaskSchedulerLike } from './scheduler';
 import { version } from '../package.json';
-import { setTimeout as sleep } from 'timers/promises';
 
 const cpuCount : number = (() => {
   try {
@@ -174,6 +176,7 @@ interface Options {
   execArgv? : string[],
   env? : EnvSpecifier,
   workerData? : any,
+  scheduler?: TaskScheduler,
   taskQueue? : TaskQueue,
   niceIncrement? : number,
   trackUnmanagedFds? : boolean,
@@ -379,72 +382,6 @@ abstract class AsynchronouslyCreatedResource {
   abstract currentUsage() : number;
 }
 
-class AsynchronouslyCreatedResourcePool<
-  T extends AsynchronouslyCreatedResource> {
-  pendingItems = new Set<T>();
-  readyItems = new Set<T>();
-  maximumUsage : number;
-  onAvailableListeners : ((item : T) => void)[];
-
-  constructor (maximumUsage : number) {
-    this.maximumUsage = maximumUsage;
-    this.onAvailableListeners = [];
-  }
-
-  add (item : T) {
-    this.pendingItems.add(item);
-    item.onReady(() => {
-      /* istanbul ignore else */
-      if (this.pendingItems.has(item)) {
-        this.pendingItems.delete(item);
-        this.readyItems.add(item);
-        this.maybeAvailable(item);
-      }
-    });
-  }
-
-  delete (item : T) {
-    this.pendingItems.delete(item);
-    this.readyItems.delete(item);
-  }
-
-  findAvailable () : T | null {
-    let minUsage = this.maximumUsage;
-    let candidate = null;
-    for (const item of this.readyItems) {
-      const usage = item.currentUsage();
-      if (usage === 0) return item;
-      if (usage < minUsage) {
-        candidate = item;
-        minUsage = usage;
-      }
-    }
-    return candidate;
-  }
-
-  * [Symbol.iterator] () {
-    yield * this.pendingItems;
-    yield * this.readyItems;
-  }
-
-  get size () {
-    return this.pendingItems.size + this.readyItems.size;
-  }
-
-  maybeAvailable (item : T) {
-    /* istanbul ignore else */
-    if (item.currentUsage() < this.maximumUsage) {
-      for (const listener of this.onAvailableListeners) {
-        listener(item);
-      }
-    }
-  }
-
-  onAvailable (fn : (item : T) => void) {
-    this.onAvailableListeners.push(fn);
-  }
-}
-
 type ResponseCallback = (response : ResponseMessage) => void;
 
 const Errors = {
@@ -585,7 +522,7 @@ class WorkerInfo extends AsynchronouslyCreatedResource {
 
 class ThreadPool {
   publicInterface : Piscina;
-  workers : AsynchronouslyCreatedResourcePool<WorkerInfo>;
+  workers : TaskScheduler;
   options : FilledOptions;
   taskQueue : TaskQueue;
   skipQueue : TaskInfo[] = [];
@@ -624,7 +561,7 @@ class ThreadPool {
       this.options.maxQueue = options.maxQueue ?? kDefaultOptions.maxQueue;
     }
 
-    this.workers = new AsynchronouslyCreatedResourcePool<WorkerInfo>(
+    this.workers = options.scheduler ?? new DefaultTaskScheduler(
       this.options.concurrentTasksPerWorker);
     this.workers.onAvailable((w : WorkerInfo) => this._onWorkerAvailable(w));
 
@@ -964,8 +901,7 @@ class ThreadPool {
   }
 
   pendingCapacity () : number {
-    return this.workers.pendingItems.size *
-      this.options.concurrentTasksPerWorker;
+    return this.workers.getAvailableCapacity();
   }
 
   _maybeDrain () {
@@ -1135,6 +1071,9 @@ class Piscina extends EventEmitterAsyncResource {
     }
     if (options.closeTimeout !== undefined && (typeof options.closeTimeout !== 'number' || options.closeTimeout < 0)) {
       throw new TypeError('options.closeTimeout must be a non-negative integer');
+    }
+    if (options.scheduler != null && (typeof options.scheduler !== 'object' || !isTaskSchedulerLike(options.scheduler))) {
+      throw new TypeError('options.scheduler must be a valid scheduler instance');
     }
 
     this.#pool = new ThreadPool(this, options);
@@ -1346,4 +1285,5 @@ class Piscina extends EventEmitterAsyncResource {
   static get queueOptionsSymbol () { return kQueueOptions; }
 }
 
-export = Piscina;
+export default Piscina;
+export { Piscina, WorkerInfo };
