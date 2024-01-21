@@ -10,6 +10,12 @@ import assert from 'assert';
 import { Histogram, RecordableHistogram, createHistogram, performance } from 'perf_hooks';
 
 import {
+  kWorkerPostTask,
+  kWorkerSharedBuffer,
+  kWorkerWorkerThread
+} from './symbols';
+// TODO: move other symbols to symbols.ts
+import {
   READY,
   RequestMessage,
   ResponseMessage,
@@ -20,6 +26,7 @@ import {
   kFieldCount,
   Transferable,
   Task,
+  ThreadWorker,
   TaskQueue,
   kQueueOptions,
   isTaskQueue,
@@ -27,7 +34,8 @@ import {
   markMovable,
   isMovable,
   kTransferable,
-  kValue
+  kValue,
+  AsynchronouslyCreatedResource
 } from './common';
 import { DefaultTaskScheduler, TaskScheduler, isTaskSchedulerLike } from './scheduler';
 import { version } from '../package.json';
@@ -355,33 +363,6 @@ class TaskInfo extends AsyncResource implements Task {
   }
 }
 
-abstract class AsynchronouslyCreatedResource {
-  onreadyListeners : (() => void)[] | null = [];
-
-  markAsReady () : void {
-    const listeners = this.onreadyListeners;
-    assert(listeners !== null);
-    this.onreadyListeners = null;
-    for (const listener of listeners) {
-      listener();
-    }
-  }
-
-  isReady () : boolean {
-    return this.onreadyListeners === null;
-  }
-
-  onReady (fn : () => void) {
-    if (this.onreadyListeners === null) {
-      fn(); // Zalgo is okay here.
-      return;
-    }
-    this.onreadyListeners.push(fn);
-  }
-
-  abstract currentUsage() : number;
-}
-
 type ResponseCallback = (response : ResponseMessage) => void;
 
 const Errors = {
@@ -397,12 +378,12 @@ const Errors = {
     () => new Error('Close operation timed out')
 };
 
-class WorkerInfo extends AsynchronouslyCreatedResource {
-  worker : Worker;
+class WorkerInfo extends AsynchronouslyCreatedResource implements ThreadWorker {
+  [kWorkerWorkerThread] : Worker;
   taskInfos : Map<number, TaskInfo>;
   idleTimeout : NodeJS.Timeout | null = null; // eslint-disable-line no-undef
   port : MessagePort;
-  sharedBuffer : Int32Array;
+  [kWorkerSharedBuffer] : Int32Array;
   lastSeenResponseCount : number = 0;
   onMessage : ResponseCallback;
 
@@ -411,46 +392,46 @@ class WorkerInfo extends AsynchronouslyCreatedResource {
     port : MessagePort,
     onMessage : ResponseCallback) {
     super();
-    this.worker = worker;
+    this[kWorkerWorkerThread] = worker;
     this.port = port;
     this.port.on('message',
-      (message : ResponseMessage) => this._handleResponse(message));
+      (message : ResponseMessage) => this.#handleResponse(message));
     this.onMessage = onMessage;
     this.taskInfos = new Map();
-    this.sharedBuffer = new Int32Array(
+    this[kWorkerSharedBuffer] = new Int32Array(
       new SharedArrayBuffer(kFieldCount * Int32Array.BYTES_PER_ELEMENT));
   }
 
   destroy () : void {
-    this.worker.terminate();
+    this[kWorkerWorkerThread].terminate();
     this.port.close();
-    this.clearIdleTimeout();
+    this.#clearIdleTimeout();
     for (const taskInfo of this.taskInfos.values()) {
       taskInfo.done(Errors.ThreadTermination());
     }
     this.taskInfos.clear();
   }
 
-  clearIdleTimeout () : void {
+  #clearIdleTimeout () : void {
     if (this.idleTimeout !== null) {
       clearTimeout(this.idleTimeout);
       this.idleTimeout = null;
     }
   }
 
-  ref () : WorkerInfo {
+  ref () : ThreadWorker {
     this.port.ref();
     return this;
   }
 
-  unref () : WorkerInfo {
+  unref () : ThreadWorker {
     // Note: Do not call ref()/unref() on the Worker itself since that may cause
     // a hard crash, see https://github.com/nodejs/node/pull/33394.
     this.port.unref();
     return this;
   }
 
-  _handleResponse (message : ResponseMessage) : void {
+  #handleResponse (message : ResponseMessage) : void {
     this.onMessage(message);
 
     if (this.taskInfos.size === 0) {
@@ -460,7 +441,7 @@ class WorkerInfo extends AsynchronouslyCreatedResource {
     }
   }
 
-  postTask (taskInfo : TaskInfo) {
+  [kWorkerPostTask] (taskInfo : TaskInfo) {
     assert(!this.taskInfos.has(taskInfo.taskId));
     const message : RequestMessage = {
       task: taskInfo.releaseTask(),
@@ -481,12 +462,12 @@ class WorkerInfo extends AsynchronouslyCreatedResource {
     taskInfo.workerInfo = this;
     this.taskInfos.set(taskInfo.taskId, taskInfo);
     this.ref();
-    this.clearIdleTimeout();
+    this.#clearIdleTimeout();
 
     // Inform the worker that there are new messages posted, and wake it up
     // if it is waiting for one.
-    Atomics.add(this.sharedBuffer, kRequestCountField, 1);
-    Atomics.notify(this.sharedBuffer, kRequestCountField, 1);
+    Atomics.add(this[kWorkerSharedBuffer], kRequestCountField, 1);
+    Atomics.notify(this[kWorkerSharedBuffer], kRequestCountField, 1);
   }
 
   processPendingMessages () {
@@ -496,13 +477,13 @@ class WorkerInfo extends AsynchronouslyCreatedResource {
     // This would usually break async tracking, but in our case, we already have
     // the extra TaskInfo/AsyncResource layer that rectifies that situation.
     const actualResponseCount =
-      Atomics.load(this.sharedBuffer, kResponseCountField);
+      Atomics.load(this[kWorkerSharedBuffer], kResponseCountField);
     if (actualResponseCount !== this.lastSeenResponseCount) {
       this.lastSeenResponseCount = actualResponseCount;
 
       let entry;
       while ((entry = receiveMessageOnPort(this.port)) !== undefined) {
-        this._handleResponse(entry.message);
+        this.#handleResponse(entry.message);
       }
     }
   }
@@ -561,9 +542,10 @@ class ThreadPool {
       this.options.maxQueue = options.maxQueue ?? kDefaultOptions.maxQueue;
     }
 
+    // TODO: continue merging types
     this.workers = options.scheduler ?? new DefaultTaskScheduler(
       this.options.concurrentTasksPerWorker);
-    this.workers.onAvailable((w : WorkerInfo) => this._onWorkerAvailable(w));
+    this.workers.onAvailable((w : ThreadWorker) => this._onWorkerAvailable(w));
 
     this.startingUp = true;
     this._ensureMinimumWorkers();
@@ -603,7 +585,7 @@ class ThreadPool {
       filename: this.options.filename,
       name: this.options.name,
       port: port2,
-      sharedBuffer: workerInfo.sharedBuffer,
+      sharedBuffer: workerInfo[kWorkerSharedBuffer],
       useAtomics: this.options.useAtomics,
       niceIncrement: this.options.niceIncrement
     };
@@ -617,7 +599,7 @@ class ThreadPool {
       const taskInfo = workerInfo.taskInfos.get(taskId);
       workerInfo.taskInfos.delete(taskId);
 
-      pool.workers.maybeAvailable(workerInfo);
+      pool.workers.onNewWorker(workerInfo);
 
       /* istanbul ignore if */
       if (taskInfo === undefined) {
@@ -721,13 +703,13 @@ class ThreadPool {
     }
   }
 
-  _removeWorker (workerInfo : WorkerInfo) : void {
+  _removeWorker (workerInfo : ThreadWorker) : void {
     workerInfo.destroy();
 
     this.workers.delete(workerInfo);
   }
 
-  _onWorkerAvailable (workerInfo : WorkerInfo) : void {
+  _onWorkerAvailable (workerInfo : ThreadWorker) : void {
     while ((this.taskQueue.size > 0 || this.skipQueue.length > 0) &&
       workerInfo.currentUsage() < this.options.concurrentTasksPerWorker) {
       // The skipQueue will have tasks that we previously shifted off
@@ -744,7 +726,9 @@ class ThreadPool {
       const now = performance.now();
       this.waitTime.record(toIntegerNano(now - taskInfo.created));
       taskInfo.started = now;
-      workerInfo.postTask(taskInfo);
+      // Not meant to be exposed
+      // @ts-expect-error
+      workerInfo[kWorkerPostTask](taskInfo);
       this._maybeDrain();
       return;
     }
@@ -862,7 +846,7 @@ class ThreadPool {
     }
 
     // Look for a Worker with a minimum number of tasks it is currently running.
-    let workerInfo : WorkerInfo | null = this.workers.findAvailable();
+    let workerInfo : ThreadWorker | null = this.workers.pick(taskInfo);
 
     // If we want the ability to abort this task, use only workers that have
     // no running tasks.
@@ -895,7 +879,9 @@ class ThreadPool {
     const now = performance.now();
     this.waitTime.record(toIntegerNano(now - taskInfo.created));
     taskInfo.started = now;
-    workerInfo.postTask(taskInfo);
+    // Not meant to be exposed
+    // @ts-expect-error
+    workerInfo[kWorkerPostTask](taskInfo);
     this._maybeDrain();
     return ret;
   }
@@ -933,7 +919,9 @@ class ThreadPool {
     const exitEvents : Promise<any[]>[] = [];
     while (this.workers.size > 0) {
       const [workerInfo] = this.workers;
-      exitEvents.push(once(workerInfo.worker, 'exit'));
+      // Not meant to be exposed
+      // @ts-expect-error
+      exitEvents.push(once(workerInfo[kWorkerWorkerThread], 'exit'));
       this._removeWorker(workerInfo);
     }
 
@@ -973,7 +961,7 @@ class ThreadPool {
       const numberOfWorkers = this.workers.size;
       let numberOfWorkersDone = 0;
 
-      const checkIfWorkerIsDone = (workerInfo: WorkerInfo) => {
+      const checkIfWorkerIsDone = (workerInfo: ThreadWorker) => {
         if (workerInfo.taskInfos.size === 0) {
           numberOfWorkersDone++;
         }
@@ -1192,7 +1180,9 @@ class Piscina extends EventEmitterAsyncResource {
 
   get threads () : Worker[] {
     const ret : Worker[] = [];
-    for (const workerInfo of this.#pool.workers) { ret.push(workerInfo.worker); }
+    // Not meant to be exposed
+    // @ts-expect-error
+    for (const workerInfo of this.#pool.workers) { ret.push(workerInfo[kWorkerWorkerThread]); }
     return ret;
   }
 
@@ -1285,5 +1275,9 @@ class Piscina extends EventEmitterAsyncResource {
   static get queueOptionsSymbol () { return kQueueOptions; }
 }
 
-export default Piscina;
-export { Piscina, WorkerInfo };
+namespace Piscina { // eslint-disable-line no-redeclare
+  export interface PiscinaWorker extends ThreadWorker {}
+  export interface PiscinaTask extends Task {}
+}
+
+export = Piscina;

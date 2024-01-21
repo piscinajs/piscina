@@ -1,3 +1,4 @@
+import assert from 'assert';
 import type { MessagePort } from 'worker_threads';
 
 export const READY = '_WORKER_READY';
@@ -68,7 +69,49 @@ export interface Transferable {
 }
 
 export interface Task {
-  readonly [kQueueOptions] : object | null;
+  readonly [kQueueOptions] : {} | null;
+  filename: string;
+  name: string;
+  taskId: number;
+}
+
+export abstract class AsynchronouslyCreatedResource {
+  onreadyListeners : (() => void)[] | null = [];
+
+  markAsReady () : void {
+    const listeners = this.onreadyListeners;
+    assert(listeners !== null);
+    this.onreadyListeners = null;
+    for (const listener of listeners) {
+      listener();
+    }
+  }
+
+  isReady () : boolean {
+    return this.onreadyListeners === null;
+  }
+
+  onReady (fn : () => void) {
+    if (this.onreadyListeners === null) {
+      fn(); // Zalgo is okay here.
+      return;
+    }
+    this.onreadyListeners.push(fn);
+  }
+
+  abstract currentUsage() : number;
+}
+
+export interface ThreadWorker extends AsynchronouslyCreatedResource {
+  taskInfos: Map<number, Task>;
+  port: MessagePort;
+  idleTimeout: NodeJS.Timeout | null; // eslint-disable-line no-undef
+  processPendingMessages(): void;
+  destroy(): void;
+  ref(): ThreadWorker;
+  unref(): ThreadWorker;
+  isRunningAbortableTask(): boolean;
+  currentUsage(): number;
 }
 
 export interface TaskQueue {
