@@ -517,6 +517,7 @@ class ThreadPool {
   closingUp : boolean = false;
   workerFailsDuringBootstrap : boolean = false;
   destroying : boolean = false;
+  idOffset : number = 0;
 
   constructor (publicInterface : Piscina, options : Options) {
     this.publicInterface = publicInterface;
@@ -542,7 +543,6 @@ class ThreadPool {
       this.options.maxQueue = options.maxQueue ?? kDefaultOptions.maxQueue;
     }
 
-    // TODO: continue merging types
     this.workers = options.scheduler ?? new DefaultTaskScheduler(
       this.options.concurrentTasksPerWorker);
     this.workers.onAvailable((w : ThreadWorker) => this._onWorkerAvailable(w));
@@ -564,8 +564,11 @@ class ThreadPool {
 
   _addNewWorker () : void {
     const pool = this;
+    const threadId = ++pool.idOffset;
+    // console.log('threadId', threadId)
+    const optionsEnv = Object.assign({ PISCINA_THREAD_ID: threadId }, this.options.env);
     const worker = new Worker(resolve(__dirname, 'worker.js'), {
-      env: this.options.env,
+      env: optionsEnv,
       argv: this.options.argv,
       execArgv: this.options.execArgv,
       resourceLimits: this.options.resourceLimits,
@@ -850,7 +853,8 @@ class ThreadPool {
 
     // If we want the ability to abort this task, use only workers that have
     // no running tasks.
-    if (workerInfo !== null && workerInfo.currentUsage() > 0 && signal) {
+    // TODO: move this to pick of default scheduler
+    if (workerInfo != null && workerInfo.currentUsage() > 0 && signal) {
       workerInfo = null;
     }
 
@@ -1278,6 +1282,8 @@ class Piscina extends EventEmitterAsyncResource {
 namespace Piscina { // eslint-disable-line no-redeclare
   export interface PiscinaWorker extends ThreadWorker {}
   export interface PiscinaTask extends Task {}
+  export class PiscinaDefaultTaskScheduler extends DefaultTaskScheduler {}
+  export class PiscinaBaseTaskScheduler extends TaskScheduler {}
 }
 
 export = Piscina;
