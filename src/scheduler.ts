@@ -61,39 +61,39 @@ class TaskScheduler {
 }
 
 class DefaultTaskScheduler extends TaskScheduler {
-  pendingItems = new Set<PiscinaWorker>();
-  readyItems = new Set<PiscinaWorker>();
-  maximumUsage: number;
-  onAvailableListeners: ((item: PiscinaWorker) => void)[];
+  #pendingItems = new Set<PiscinaWorker>();
+  #readyItems = new Set<PiscinaWorker>();
+  #maximumUsage: number;
+  #onAvailableListeners: ((item: PiscinaWorker) => void)[];
 
   constructor (maximumUsage: number) {
     super(maximumUsage);
-    this.maximumUsage = maximumUsage;
-    this.onAvailableListeners = [];
+    this.#maximumUsage = maximumUsage;
+    this.#onAvailableListeners = [];
   }
 
   add (item: PiscinaWorker) {
-    this.pendingItems.add(item);
+    this.#pendingItems.add(item);
     item.onReady(() => {
       /* istanbul ignore else */
-      if (this.pendingItems.has(item)) {
-        this.pendingItems.delete(item);
-        this.readyItems.add(item);
+      if (this.#pendingItems.has(item)) {
+        this.#pendingItems.delete(item);
+        this.#readyItems.add(item);
         this.onNewWorker(item);
       }
     });
   }
 
   delete (item: PiscinaWorker) {
-    this.pendingItems.delete(item);
-    this.readyItems.delete(item);
+    this.#pendingItems.delete(item);
+    this.#readyItems.delete(item);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   pick (_task: PiscinaTask): PiscinaWorker | null {
-    let minUsage = this.maximumUsage;
+    let minUsage = this.#maximumUsage;
     let candidate = null;
-    for (const item of this.readyItems) {
+    for (const item of this.#readyItems) {
       const usage = item.currentUsage();
       if (usage === 0) return item;
       if (usage < minUsage) {
@@ -105,13 +105,13 @@ class DefaultTaskScheduler extends TaskScheduler {
   }
 
   * [Symbol.iterator] () {
-    yield * this.pendingItems;
-    yield * this.readyItems;
+    yield * this.#pendingItems;
+    yield * this.#readyItems;
   }
 
   // @ts-expect-error
   get size () {
-    return this.pendingItems.size + this.readyItems.size;
+    return this.#pendingItems.size + this.#readyItems.size;
   }
 
   set size (_value) {
@@ -120,19 +120,19 @@ class DefaultTaskScheduler extends TaskScheduler {
 
   onNewWorker (item: PiscinaWorker) {
     /* istanbul ignore else */
-    if (item.currentUsage() < this.maximumUsage) {
-      for (const listener of this.onAvailableListeners) {
+    if (item.currentUsage() < this.#maximumUsage) {
+      for (const listener of this.#onAvailableListeners) {
         listener(item);
       }
     }
   }
 
   onAvailable (fn: (item: PiscinaWorker) => void) {
-    this.onAvailableListeners.push(fn);
+    this.#onAvailableListeners.push(fn);
   }
 
   getAvailableCapacity (): number {
-    return this.pendingItems.size * this.maximumUsage;
+    return this.#pendingItems.size * this.#maximumUsage;
   }
 }
 
