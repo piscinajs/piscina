@@ -37,7 +37,7 @@ class TaskScheduler {
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   pick (_task: PiscinaTask): PiscinaWorker | null {
-    throw new Error('findAvailable Method not implemented.');
+    throw new Error('pick Method not implemented.');
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -52,11 +52,11 @@ class TaskScheduler {
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onNewWorker (_worker: PiscinaWorker): void {
-    throw new Error('maybeAvailable Method not implemented.');
+    throw new Error('onNewWorker Method not implemented.');
   }
 
   getAvailableCapacity (): number {
-    throw new Error('getCurrentCapacity Method not implemented.');
+    throw new Error('getAvailableCapacity Method not implemented.');
   }
 }
 
