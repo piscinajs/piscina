@@ -108,8 +108,9 @@ function createHistogramSummary (histogram: Histogram): HistogramSummary {
   };
 }
 
-function toIntegerNano (milliseconds: number): number {
-  return Math.trunc(milliseconds * 1000);
+// For histogram
+function toHistogramIntegerNano (milliseconds: number): number {
+  return Math.max(1, Math.trunc(milliseconds * 1000));
 }
 
 function onabort (abortSignal : AbortSignalAny, listener : () => void) {
@@ -719,6 +720,7 @@ class ThreadPool {
     }
   }
 
+  // TODO: find a way to remove extra Promises
   runTask (
     task : any,
     options : RunOptions) : Promise<any> {
@@ -762,7 +764,7 @@ class ThreadPool {
       (err : Error | null, result : any) => {
         this.completed++;
         if (taskInfo.started) {
-          this.runTime.record(toIntegerNano(performance.now() - taskInfo.started));
+          this.runTime.record(toHistogramIntegerNano(performance.now() - taskInfo.started));
         }
         if (err !== null) {
           reject(err);
@@ -846,7 +848,7 @@ class ThreadPool {
 
     // TODO(addaleax): Clean up the waitTime/runTime recording.
     const now = performance.now();
-    this.waitTime.record(toIntegerNano(now - taskInfo.created));
+    this.waitTime.record(toHistogramIntegerNano(now - taskInfo.created));
     taskInfo.started = now;
     // Not meant to be exposed
     // @ts-expect-error
