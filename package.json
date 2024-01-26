@@ -30,7 +30,8 @@
   "author": "James M Snell <jasnell@gmail.com>",
   "contributors": [
     "Anna Henningsen <anna@addaleax.net>",
-    "Matteo Collina <matteo.collina@gmail.com>"
+    "Matteo Collina <matteo.collina@gmail.com>",
+    "Carlos Fuentes <me@metcoder.dev>"
   ],
   "license": "MIT",
   "devDependencies": {
