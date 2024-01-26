@@ -35,7 +35,14 @@ import {
   isMovable,
   kTransferable,
   kValue,
-  AsynchronouslyCreatedResource
+  AsynchronouslyCreatedResource,
+  AbortSignalAny,
+  AbortSignalEventTarget,
+  AbortSignalEventEmitter,
+  TaskCallback,
+  TransferList,
+  TransferListItem,
+  RunOptions
 } from './common';
 import { DefaultTaskScheduler, TaskScheduler, isTaskSchedulerLike } from './scheduler';
 import { version } from '../package.json';
@@ -105,26 +112,6 @@ function toIntegerNano (milliseconds: number): number {
   return Math.trunc(milliseconds * 1000);
 }
 
-interface AbortSignalEventTargetAddOptions {
-  once : boolean;
-};
-
-interface AbortSignalEventTarget {
-  addEventListener : (
-    name : 'abort',
-    listener : () => void,
-    options? : AbortSignalEventTargetAddOptions) => void;
-  removeEventListener : (
-    name : 'abort',
-    listener : () => void) => void;
-  aborted? : boolean;
-  reason?: unknown;
-}
-interface AbortSignalEventEmitter {
-  off : (name : 'abort', listener : () => void) => void;
-  once : (name : 'abort', listener : () => void) => void;
-}
-type AbortSignalAny = AbortSignalEventTarget | AbortSignalEventEmitter;
 function onabort (abortSignal : AbortSignalAny, listener : () => void) {
   if ('addEventListener' in abortSignal) {
     abortSignal.addEventListener('abort', listener, { once: true });
@@ -220,13 +207,6 @@ const kDefaultOptions : FilledOptions = {
   closeTimeout: 30000
 };
 
-interface RunOptions {
-  transferList? : TransferList,
-  filename? : string | null,
-  signal? : AbortSignalAny | null,
-  name? : string | null
-}
-
 interface FilledRunOptions extends RunOptions {
   transferList : TransferList | never,
   filename : string | null,
@@ -272,13 +252,6 @@ class ArrayBufferViewTransferable implements Transferable {
 }
 
 let taskIdCounter = 0;
-
-type TaskCallback = (err : Error, result: any) => void;
-// Grab the type of `transferList` off `MessagePort`. At the time of writing,
-// only ArrayBuffer and MessagePort are valid, but let's avoid having to update
-// our types here every time Node.js adds support for more objects.
-type TransferList = MessagePort extends { postMessage(value : any, transferList : infer T) : any; } ? T : never;
-type TransferListItem = TransferList extends (infer T)[] ? T : never;
 
 function maybeFileURLToPath (filename : string) : string {
   return filename.startsWith('file:')
@@ -565,7 +538,6 @@ class ThreadPool {
   _addNewWorker () : void {
     const pool = this;
     const threadId = ++pool.idOffset;
-    // console.log('threadId', threadId)
     const optionsEnv = Object.assign({ PISCINA_THREAD_ID: threadId }, this.options.env);
     const worker = new Worker(resolve(__dirname, 'worker.js'), {
       env: optionsEnv,
@@ -1284,6 +1256,8 @@ namespace Piscina { // eslint-disable-line no-redeclare
   export interface PiscinaTask extends Task {}
   export class PiscinaDefaultTaskScheduler extends DefaultTaskScheduler {}
   export class PiscinaBaseTaskScheduler extends TaskScheduler {}
+  export type RunTaskOptions = RunOptions;
+  export interface PiscinaTaskQueue extends TaskQueue {};
 }
 
 export = Piscina;

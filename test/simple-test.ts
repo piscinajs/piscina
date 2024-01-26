@@ -87,7 +87,7 @@ test('passing env to workers works', async ({ same }) => {
   });
 
   const env = await pool.runTask('({...process.env})');
-  same(env, { A: 'foo' });
+  same(env, { A: 'foo', PISCINA_THREAD_ID: '1' });
 });
 
 test('passing argv to workers works', async ({ same }) => {

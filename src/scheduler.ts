@@ -1,4 +1,4 @@
-import { PiscinaWorker, PiscinaTask } from '.';
+import type { PiscinaWorker, PiscinaTask, RunTaskOptions } from '.';
 
 function isTaskSchedulerLike (obj: {}): obj is TaskScheduler {
   if (Object.getPrototypeOf(obj) === TaskScheduler) return true;
@@ -36,7 +36,7 @@ class TaskScheduler {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  pick (_task: PiscinaTask): PiscinaWorker | null {
+  pick (_task: PiscinaTask, _runOptions: RunTaskOptions): PiscinaWorker | null {
     throw new Error('pick Method not implemented.');
   }
 

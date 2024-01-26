@@ -88,53 +88,49 @@ class CustomTaskScheduler extends PiscinaBaseTaskScheduler {
   }
 }
 
-test('It allows usage of custom scheduler', async ({ plan, strictEqual }) => {
+test('It allows usage of custom scheduler', async ({ plan, strictSame }) => {
   plan(1);
   const maxConcurrent = 1;
-  try {
-    const pool = new Piscina({
-      filename: resolve(__dirname, '../fixtures/roundrobin.js'),
-      scheduler: new CustomTaskScheduler(maxConcurrent),
-      maxThreads: 3,
-      minThreads: 3,
-      concurrentTasksPerWorker: maxConcurrent
-    });
+  const pool = new Piscina({
+    filename: resolve(__dirname, '../fixtures/threadid.js'),
+    scheduler: new CustomTaskScheduler(maxConcurrent),
+    maxThreads: 3,
+    minThreads: 3,
+    concurrentTasksPerWorker: maxConcurrent
+  });
 
-    const results = await Promise.all([
-      pool.run(0),
-      pool.run(1),
-      pool.run(2),
-      pool.run(3),
-      pool.run(4),
-      pool.run(5)
-    ]);
-    strictEqual(results, [
-      {
-        input: 0,
-        threadId: '1'
-      },
-      {
-        input: 1,
-        threadId: '2'
-      },
-      {
-        input: 2,
-        threadId: '3'
-      },
-      {
-        input: 3,
-        threadId: '1'
-      },
-      {
-        input: 4,
-        threadId: '2'
-      },
-      {
-        input: 5,
-        threadId: '3'
-      }
-    ]);
-  } catch (error) {
-    console.log(error);
-  }
+  const results = await Promise.all([
+    pool.run(0),
+    pool.run(1),
+    pool.run(2),
+    pool.run(3),
+    pool.run(4),
+    pool.run(5)
+  ]);
+  strictSame(results, [
+    {
+      input: 0,
+      threadId: '1'
+    },
+    {
+      input: 1,
+      threadId: '2'
+    },
+    {
+      input: 2,
+      threadId: '3'
+    },
+    {
+      input: 3,
+      threadId: '1'
+    },
+    {
+      input: 4,
+      threadId: '2'
+    },
+    {
+      input: 5,
+      threadId: '3'
+    }
+  ]);
 });

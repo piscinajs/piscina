@@ -33,6 +33,42 @@ export const commonState = {
   workerData: undefined
 };
 
+export interface AbortSignalEventTargetAddOptions {
+  once : boolean;
+};
+
+export interface AbortSignalEventTarget {
+  addEventListener : (
+    name : 'abort',
+    listener : () => void,
+    options? : AbortSignalEventTargetAddOptions) => void;
+  removeEventListener : (
+    name : 'abort',
+    listener : () => void) => void;
+  aborted? : boolean;
+  reason?: unknown;
+}
+export interface AbortSignalEventEmitter {
+  off : (name : 'abort', listener : () => void) => void;
+  once : (name : 'abort', listener : () => void) => void;
+}
+
+export type AbortSignalAny = AbortSignalEventTarget | AbortSignalEventEmitter;
+
+export type TaskCallback = (err : Error, result: any) => void;
+// Grab the type of `transferList` off `MessagePort`. At the time of writing,
+// only ArrayBuffer and MessagePort are valid, but let's avoid having to update
+// our types here every time Node.js adds support for more objects.
+export type TransferList = MessagePort extends { postMessage(value : any, transferList : infer T) : any; } ? T : never;
+export type TransferListItem = TransferList extends (infer T)[] ? T : never;
+
+export interface RunOptions {
+  transferList? : TransferList,
+  filename? : string | null,
+  signal? : AbortSignalAny | null,
+  name? : string | null
+}
+
 // Internal symbol used to mark Transferable objects returned
 // by the Piscina.move() function
 const kMovable = Symbol('Piscina.kMovable');
