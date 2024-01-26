@@ -294,6 +294,9 @@ This class extends [`EventEmitter`][] from Node.js.
   * `name`: (`string | null`) Provides the name of the default exported worker
     function. The default is `'default'`, indicating the default export of the
     worker module.
+  * `scheduler`: (`PiscinaTaskScheduler`) (**optional**) Sets a custom scheduler
+    for the pool. See [Custom Worker Scheduling](#custom-worker-scheduling) for
+    additional detail. Default to `PiscinaDefaultTaskScheduler`.
   * `minThreads`: (`number`) Sets the minimum number of threads that are always
     running for this thread pool. The default is based on the number of
     available CPUs.
@@ -673,6 +676,16 @@ module.exports = () => {
 };
 ```
 
+## Worker Environment
+
+By default, a Worker thread inherits the environment of the parent, meaning that everything stored
+within [`process.env` on the parent, will be available on the Worker](https://nodejs.org/api/worker_threads.html#new-workerfilename-options). This can be overridden by
+adding the `env` option to the `Piscina` constructor.
+
+Piscina, on top of that, adds the following environment variables to the Worker:
+
+- `PISCINA_THREAD_ID`: An autoincrement ID for the Worker thread.
+
 ## Custom Task Queues
 
 By default, Piscina uses a simple array-based first-in-first-out (fifo)
@@ -708,6 +721,149 @@ on tasks submitted to `run()` or `runTask()` as a way of passing additional
 options on to the custom `TaskQueue` implementation. (Note that because the
 queue options are set as a property on the task, tasks with queue
 options cannot be submitted as JavaScript primitives).
+
+## Custom Worker Scheduling
+
+Piscina provides a default scheduling algorithm that attempts to spawn threads
+based on the max number of threads, and the possibility of a task being cancelled.
+
+This algorithm can be overriden by passing a Custom Scheduler to the `Piscina`
+constructor.
+
+Custom schedulers must implement the `Scheduler` interface, described below:
+```ts
+class TaskScheduler {
+  size: number = 0
+
+  // The constructor will receive the max number of concurrent task per worker
+  // as passed when instantiating Piscina
+  constructor (concurrentTasksPerWorker: number) {
+  }
+
+  [Symbol.iterator] (): IterableIterator<PiscinaWorker> {
+    // Meant to enable Piscina iterate over the workers for different purposes
+  }
+
+  add (worker: PiscinaWorker): void {
+    // Will be called when a new worker is created
+    // Workers will be marked as ready after initialization
+    // You can listen to it calling worker.onReady and scheduling a callback
+  }
+
+  pick (task: PiscinaTask, runOptions: RunTaskOptions): PiscinaWorker | null {
+    // Will be called when a new task is submitted and seeks to be assigned
+    // to a given worker.
+    // Returning null will mean that no worker is available to run the task, and
+    // Piscina will try to create a new one or will put it into the Task Queue
+    // It is up to the scheduler decide how it wants to pick a worker for a given task.
+  }
+
+  onAvailable (cb: (worker: PiscinaWorker) => void): void {
+    // This method is used by Piscina to listen when a new Worker has been marked as ready
+    // after being created.
+  }
+
+  delete (worker: PiscinaWorker): void {
+    // Will be called when a worker must be terminated for different reasons
+  }
+
+  onWorkerAvailable (worker: PiscinaWorker): void {
+    // Will be called whenever a has finished a task and is ready to receive a new one.
+  }
+
+  getAvailableCapacity (): number {
+    // Will be called whenever Piscina needs to know how many tasks can be run
+  }
+}
+```
+Piscina exposes a set of interfaces to comply with the Scheduler interface, and the `PiscinaBaseTaskScheduler`
+class that any custom implementation can extend from.
+On top, Piscina also provides its own `PiscinaDefaultTaskScheduler` that is used in case none is provided, for being able
+to extend from it and re-use some of its logic.
+
+And example of a Custom scheduler can be found in [`examples/scheduler`](./examples/scheduler/index.js)
+```ts
+  class RoundRobinkScheduler {
+    #maxConcurrent: number;
+    #readyWorkers: Set<PiscinaWorker>;
+    #pendingWorkers: Set<PiscinaWorker>;
+    // TODO: create its own type?
+    #onAvailableListeners: ((item: PiscinaWorker) => void)[];
+    #offset: number;
+
+    constructor (maxConcurrent: number) {
+      this.#maxConcurrent = maxConcurrent;
+      this.#readyWorkers = new Set();
+      this.#pendingWorkers = new Set();
+      this.#onAvailableListeners = [];
+      this.#offset = 0;
+    }
+
+    add (item) {
+      this.#pendingWorkers.add(item);
+      item.onReady(() => {
+        /* istanbul ignore else */
+        if (this.#pendingWorkers.has(item)) {
+          this.#pendingWorkers.delete(item);
+          this.#readyWorkers.add(item);
+          this.onWorkerAvailable(item);
+        }
+      });
+    }
+
+    delete (item) {
+      this.#pendingWorkers.delete(item);
+      this.#readyWorkers.delete(item);
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    pick (_task): PiscinaWorker | null {
+      const workers = [...this.#readyWorkers];
+      let candidate = null;
+
+      if (this.#offset < workers.length) {
+        candidate = workers[this.#offset];
+        this.#offset++;
+      } else {
+        this.#offset = 0;
+        candidate = workers[this.#offset];
+        this.#offset++;
+      }
+
+      return candidate ?? null;
+    }
+
+    * [Symbol.iterator] () {
+      yield * this.#pendingWorkers;
+      yield * this.#readyWorkers;
+    }
+
+    get size () {
+      return this.#pendingWorkers.size + this.#readyWorkers.size;
+    }
+
+    set size (_value) {
+      // no-op
+    }
+
+    onWorkerAvailable (item: PiscinaWorker) {
+      /* istanbul ignore else */
+      if (item.currentUsage() < this.#maxConcurrent) {
+        for (const listener of this.#onAvailableListeners) {
+          listener(item);
+        }
+      }
+    }
+
+    onAvailable (fn: (item: PiscinaWorker) => void) {
+      this.#onAvailableListeners.push(fn);
+    }
+
+    getAvailableCapacity (): number {
+      return this.#pendingWorkers.size * this.#maxConcurrent;
+    }
+  }
+```
 
 ## Current Limitations (Things we're working on / would love help with)
 

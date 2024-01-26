@@ -4,7 +4,7 @@ function isTaskSchedulerLike (obj: {}): obj is TaskScheduler {
   if (Object.getPrototypeOf(obj) === TaskScheduler) return true;
 
   const keys: (keyof TaskScheduler)[] = [
-    'onNewWorker',
+    'onWorkerAvailable',
     'onAvailable',
     'pick',
     'delete',
@@ -51,7 +51,7 @@ class TaskScheduler {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  onNewWorker (_worker: PiscinaWorker): void {
+  onWorkerAvailable (_worker: PiscinaWorker): void {
     throw new Error('onNewWorker Method not implemented.');
   }
 
@@ -79,7 +79,7 @@ class DefaultTaskScheduler extends TaskScheduler {
       if (this.#pendingItems.has(item)) {
         this.#pendingItems.delete(item);
         this.#readyItems.add(item);
-        this.onNewWorker(item);
+        this.onWorkerAvailable(item);
       }
     });
   }
@@ -123,7 +123,7 @@ class DefaultTaskScheduler extends TaskScheduler {
     // no-op
   }
 
-  onNewWorker (item: PiscinaWorker) {
+  onWorkerAvailable (item: PiscinaWorker) {
     /* istanbul ignore else */
     if (item.currentUsage() < this.#maximumUsage) {
       for (const listener of this.#onAvailableListeners) {

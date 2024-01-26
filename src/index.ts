@@ -574,7 +574,7 @@ class ThreadPool {
       const taskInfo = workerInfo.taskInfos.get(taskId);
       workerInfo.taskInfos.delete(taskId);
 
-      pool.workers.onNewWorker(workerInfo);
+      pool.workers.onWorkerAvailable(workerInfo);
 
       /* istanbul ignore if */
       if (taskInfo === undefined) {
@@ -699,7 +699,7 @@ class ThreadPool {
         break;
       }
       const now = performance.now();
-      this.waitTime.record(toIntegerNano(now - taskInfo.created));
+      this.waitTime.record(toHistogramIntegerNano(now - taskInfo.created));
       taskInfo.started = now;
       // Not meant to be exposed
       // @ts-expect-error
