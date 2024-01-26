@@ -821,14 +821,7 @@ class ThreadPool {
     }
 
     // Look for a Worker with a minimum number of tasks it is currently running.
-    let workerInfo : ThreadWorker | null = this.workers.pick(taskInfo);
-
-    // If we want the ability to abort this task, use only workers that have
-    // no running tasks.
-    // TODO: move this to pick of default scheduler
-    if (workerInfo != null && workerInfo.currentUsage() > 0 && signal) {
-      workerInfo = null;
-    }
+    let workerInfo : ThreadWorker | null = this.workers.pick(taskInfo, options);
 
     // If no Worker was found, or that Worker was handling another task in some
     // way, and we still have the ability to spawn new threads, do so.

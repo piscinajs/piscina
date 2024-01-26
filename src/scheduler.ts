@@ -89,18 +89,23 @@ class DefaultTaskScheduler extends TaskScheduler {
     this.#readyItems.delete(item);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  pick (_task: PiscinaTask): PiscinaWorker | null {
+  pick (_task: PiscinaTask, opts: RunTaskOptions): PiscinaWorker | null {
     let minUsage = this.#maximumUsage;
     let candidate = null;
     for (const item of this.#readyItems) {
       const usage = item.currentUsage();
-      if (usage === 0) return item;
-      if (usage < minUsage) {
+      if (usage === 0) {
+        return item;
+      };
+
+      // If we want the ability to abort this task, use only workers that have
+      // no running tasks.
+      if (opts.signal == null && usage < minUsage) {
         candidate = item;
         minUsage = usage;
       }
     }
+
     return candidate;
   }
 
