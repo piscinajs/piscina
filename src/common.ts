@@ -128,7 +128,7 @@ export abstract class AsynchronouslyCreatedResource {
   }
 
   onReady (fn : () => void) {
-    if (this.onreadyListeners === null) {
+    if (this.isReady()) {
       fn(); // Zalgo is okay here.
       return;
     }
