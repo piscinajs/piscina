@@ -91,8 +91,8 @@ function createHistogramSummary (histogram: Histogram): HistogramSummary {
   };
 }
 
-function toIntegerNano (milliseconds: number): number {
-  return Math.trunc(milliseconds * 1000);
+function toHistogramIntegerNano (milliseconds: number): number {
+  return Math.max(1, Math.trunc(milliseconds * 1000));
 }
 
 interface AbortSignalEventTargetAddOptions {
@@ -805,7 +805,7 @@ class ThreadPool {
         break;
       }
       const now = performance.now();
-      this.waitTime.record(toIntegerNano(now - taskInfo.created));
+      this.waitTime.record(toHistogramIntegerNano(now - taskInfo.created));
       taskInfo.started = now;
       workerInfo.postTask(taskInfo);
       this._maybeDrain();
@@ -866,7 +866,7 @@ class ThreadPool {
       (err : Error | null, result : any) => {
         this.completed++;
         if (taskInfo.started) {
-          this.runTime.record(toIntegerNano(performance.now() - taskInfo.started));
+          this.runTime.record(toHistogramIntegerNano(performance.now() - taskInfo.started));
         }
         if (err !== null) {
           reject(err);
@@ -956,7 +956,7 @@ class ThreadPool {
 
     // TODO(addaleax): Clean up the waitTime/runTime recording.
     const now = performance.now();
-    this.waitTime.record(toIntegerNano(now - taskInfo.created));
+    this.waitTime.record(toHistogramIntegerNano(now - taskInfo.created));
     taskInfo.started = now;
     workerInfo.postTask(taskInfo);
     this._maybeDrain();
