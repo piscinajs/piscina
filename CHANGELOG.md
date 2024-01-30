@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [4.3.1](https://github.com/piscinajs/piscina/compare/v4.3.0...v4.3.1) (2024-01-30)
+
+
+### Bug Fixes
+
+* **#491:** out of bounds histogram value ([#496](https://github.com/piscinajs/piscina/issues/496)) ([0b4eada](https://github.com/piscinajs/piscina/commit/0b4eada2485a0f722f5b6d39d657fd51975df0f3)), closes [#491](https://github.com/piscinajs/piscina/issues/491)
+
 ## [4.3.0](https://github.com/piscinajs/piscina/compare/v4.2.1...v4.3.0) (2024-01-16)
 
 
