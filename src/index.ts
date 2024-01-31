@@ -671,7 +671,7 @@ class ThreadPool {
 
     this.inProcessPendingMessages = true;
     try {
-      for (const workerInfo of this.workers) {
+      for (const workerInfo of this.workers.getWorkers()) {
         workerInfo.processPendingMessages();
       }
     } finally {
@@ -888,8 +888,9 @@ class ThreadPool {
     }
 
     const exitEvents : Promise<any[]>[] = [];
+    const workers = this.workers.getWorkers();
     while (this.workers.size > 0) {
-      const [workerInfo] = this.workers;
+      const workerInfo = workers.pop()!;
       // Not meant to be exposed
       // @ts-expect-error
       exitEvents.push(once(workerInfo[kWorkerWorkerThread], 'exit'));
@@ -942,7 +943,7 @@ class ThreadPool {
         }
       };
 
-      for (const workerInfo of this.workers) {
+      for (const workerInfo of this.workers.getWorkers()) {
         checkIfWorkerIsDone(workerInfo);
 
         workerInfo.port.on('message', () => checkIfWorkerIsDone(workerInfo));
@@ -1153,7 +1154,7 @@ class Piscina extends EventEmitterAsyncResource {
     const ret : Worker[] = [];
     // Not meant to be exposed
     // @ts-expect-error
-    for (const workerInfo of this.#pool.workers) { ret.push(workerInfo[kWorkerWorkerThread]); }
+    for (const workerInfo of this.#pool.workers.getWorkers()) { ret.push(workerInfo[kWorkerWorkerThread]); }
     return ret;
   }
 

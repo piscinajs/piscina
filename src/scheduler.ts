@@ -26,8 +26,8 @@ class TaskScheduler {
     this.size = 0;
   }
 
-  [Symbol.iterator] (): IterableIterator<PiscinaWorker> {
-    throw new Error('Iterator not implemented.');
+  getWorkers (): PiscinaWorker[] {
+    throw new Error('getWorkers Method not implemented.');
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -108,9 +108,8 @@ class DefaultTaskScheduler extends TaskScheduler {
     return candidate;
   }
 
-  * [Symbol.iterator] () {
-    yield * this.#pendingItems;
-    yield * this.#readyItems;
+  getWorkers (): PiscinaWorker[] {
+    return [...this.#pendingItems, ...this.#readyItems];
   }
 
   // @ts-expect-error

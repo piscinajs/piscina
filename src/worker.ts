@@ -187,5 +187,5 @@ function onMessage (
 }
 
 function throwInNextTick (error : Error) {
-  process.nextTick(() => { throw error; });
+  queueMicrotask(() => { throw error; });
 }

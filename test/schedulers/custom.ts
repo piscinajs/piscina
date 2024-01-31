@@ -58,9 +58,8 @@ test('It allows usage of custom scheduler', async ({ plan, strictSame }) => {
       return candidate ?? null;
     }
 
-    * [Symbol.iterator] () {
-      yield * this.#pendingWorkers;
-      yield * this.#readyWorkers;
+    getWorkers (): PiscinaWorker[] {
+      return [...this.#pendingWorkers, ...this.#readyWorkers];
     }
 
     // @ts-expect-error
@@ -207,9 +206,8 @@ test('Should accept CustomTaskSchedulers that does not inherit from base', async
       return candidate ?? null;
     }
 
-    * [Symbol.iterator] () {
-      yield * this.#pendingWorkers;
-      yield * this.#readyWorkers;
+    getWorkers (): PiscinaWorker[] {
+      return [...this.#pendingWorkers, ...this.#readyWorkers];
     }
 
     get size () {
