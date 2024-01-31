@@ -132,7 +132,7 @@ export abstract class AsynchronouslyCreatedResource {
       fn(); // Zalgo is okay here.
       return;
     }
-    this.onreadyListeners.push(fn);
+    this.onreadyListeners?.push(fn);
   }
 
   abstract currentUsage() : number;
