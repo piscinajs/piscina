@@ -76,8 +76,7 @@ class DefaultTaskScheduler extends TaskScheduler {
     this.#pendingItems.add(item);
     item.onReady(() => {
       /* istanbul ignore else */
-      if (this.#pendingItems.has(item)) {
-        this.#pendingItems.delete(item);
+      if (this.#pendingItems.delete(item)) {
         this.#readyItems.add(item);
         this.onWorkerAvailable(item);
       }

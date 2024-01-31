@@ -178,8 +178,7 @@ test('Should accept CustomTaskSchedulers that does not inherit from base', async
       this.#pendingWorkers.add(item);
       item.onReady(() => {
         /* istanbul ignore else */
-        if (this.#pendingWorkers.has(item)) {
-          this.#pendingWorkers.delete(item);
+        if (this.#pendingWorkers.delete(item)) {
           this.#readyWorkers.add(item);
           this.onWorkerAvailable(item);
         }
