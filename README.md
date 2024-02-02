@@ -764,7 +764,7 @@ class TaskScheduler {
   }
 
   delete (worker: PiscinaWorker): void {
-    // Will be called when a worker must be terminated for different reasons
+    // Will be called when a worker must be terminated for different reasons. e.g. pool was instructed to destroy the worker, worker was idle for too long, or worker exited. 
   }
 
   onWorkerAvailable (worker: PiscinaWorker): void {
