@@ -1,4 +1,5 @@
 import type { PiscinaWorker, PiscinaTask, RunTaskOptions } from '.';
+import * as os from 'os';
 
 function isTaskSchedulerLike (obj: {}): obj is TaskScheduler {
   if (Object.getPrototypeOf(obj) === TaskScheduler) return true;
@@ -66,10 +67,14 @@ class DefaultTaskScheduler extends TaskScheduler {
   #maximumUsage: number;
   #onAvailableListeners: ((item: PiscinaWorker) => void)[];
 
-  constructor (maximumUsage: number) {
+  constructor (maximumUsage: number = os.availableParallelism()) {
     super(maximumUsage);
     this.#maximumUsage = maximumUsage;
     this.#onAvailableListeners = [];
+
+    if (maximumUsage > os.availableParallelism()) {
+      console.warn(`Warning: maximumUsage (${maximumUsage}) is greater than available CPU cores (${os.availableParallelism()}).`);
+    }
   }
 
   add (item: PiscinaWorker) {
