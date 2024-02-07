@@ -74,9 +74,14 @@ class DefaultTaskScheduler extends TaskScheduler {
 
   add (item: PiscinaWorker) {
     this.#pendingItems.add(item);
-    item.onReady(() => {
-      /* istanbul ignore else */
-      if (this.#pendingItems.delete(item)) {
+    item.onReady((err) => {
+      const itemExists = this.#pendingItems.delete(item);
+
+      if (itemExists) {
+        if (err != null) {
+          return;
+        }
+
         this.#readyItems.add(item);
         this.onWorkerAvailable(item);
       }

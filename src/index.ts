@@ -353,6 +353,7 @@ const Errors = {
 };
 
 class WorkerInfo extends AsynchronouslyCreatedResource implements ThreadWorker {
+  id: string;
   [kWorkerWorkerThread] : Worker;
   taskInfos : Map<number, TaskInfo>;
   idleTimeout : NodeJS.Timeout | null = null; // eslint-disable-line no-undef
@@ -360,12 +361,15 @@ class WorkerInfo extends AsynchronouslyCreatedResource implements ThreadWorker {
   [kWorkerSharedBuffer] : Int32Array;
   lastSeenResponseCount : number = 0;
   onMessage : ResponseCallback;
+  destroyed: boolean = false;
 
   constructor (
+    id: string,
     worker : Worker,
     port : MessagePort,
     onMessage : ResponseCallback) {
     super();
+    this.id = id;
     this[kWorkerWorkerThread] = worker;
     this.port = port;
     this.port.on('message',
@@ -384,6 +388,7 @@ class WorkerInfo extends AsynchronouslyCreatedResource implements ThreadWorker {
       taskInfo.done(Errors.ThreadTermination());
     }
     this.taskInfos.clear();
+    this.destroyed = true;
   }
 
   #clearIdleTimeout () : void {
@@ -550,12 +555,13 @@ class ThreadPool {
     });
 
     const { port1, port2 } = new MessageChannel();
-    const workerInfo = new WorkerInfo(worker, port1, onMessage);
-    if (this.startingUp) {
-      // There is no point in waiting for the initial set of Workers to indicate
-      // that they are ready, we just mark them as such from the start.
-      workerInfo.markAsReady();
-    }
+    const workerInfo = new WorkerInfo(`${threadId}`, worker, port1, onMessage);
+
+    // if (this.startingUp) {
+    //   // There is no point in waiting for the initial set of Workers to indicate
+    //   // that they are ready, we just mark them as such from the start.
+    //   workerInfo.markAsReady(null);
+    // }
 
     const message : StartupMessage = {
       filename: this.options.filename,
@@ -595,7 +601,7 @@ class ThreadPool {
       }
 
       if (!workerInfo.isReady()) {
-        workerInfo.markAsReady();
+        workerInfo.markAsReady(null);
       }
     }
 
@@ -617,6 +623,11 @@ class ThreadPool {
       }
 
       const err = new Error(`worker exited with code: ${exitCode}`);
+
+      if (!workerInfo.isReady()) {
+        workerInfo.markAsReady(err);
+      }
+
       // Only error unfinished tasks on process exit, since there are legitimate
       // reasons to exit workers and we want to handle that gracefully when possible.
       this._onError(worker, workerInfo, err, true);

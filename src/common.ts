@@ -112,14 +112,14 @@ export interface Task {
 }
 
 export abstract class AsynchronouslyCreatedResource {
-  onreadyListeners : (() => void)[] | null = [];
+  onreadyListeners : ((err?: Error | null) => void)[] | null = [];
 
-  markAsReady () : void {
+  markAsReady (err: Error | null) : void {
     const listeners = this.onreadyListeners;
     assert(listeners !== null);
     this.onreadyListeners = null;
     for (const listener of listeners) {
-      listener();
+      listener(err);
     }
   }
 
@@ -127,9 +127,10 @@ export abstract class AsynchronouslyCreatedResource {
     return this.onreadyListeners === null;
   }
 
-  onReady (fn : () => void) {
+  // TODO: add tests for this
+  onReady (fn : (err?: Error | null) => void) {
     if (this.isReady()) {
-      fn(); // Zalgo is okay here.
+      fn();
       return;
     }
     this.onreadyListeners?.push(fn);
@@ -139,6 +140,8 @@ export abstract class AsynchronouslyCreatedResource {
 }
 
 export interface ThreadWorker extends AsynchronouslyCreatedResource {
+  id: string;
+  destroyed: boolean;
   taskInfos: Map<number, Task>;
   port: MessagePort;
   idleTimeout: NodeJS.Timeout | null; // eslint-disable-line no-undef

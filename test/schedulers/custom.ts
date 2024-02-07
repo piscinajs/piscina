@@ -133,6 +133,98 @@ test('It allows usage of custom scheduler', async ({ plan, strictSame }) => {
   ]);
 });
 
+test('On ready should pass down the error thrown by the worker on initialization', { only: true }, async ({ plan, equals }) => {
+  plan(2);
+  // Simplistic RoundRobin example
+  class CustomTaskScheduler extends PiscinaBaseTaskScheduler {
+    #maxConcurrent: number;
+    #readyWorkers: Set<PiscinaWorker>;
+    #pendingWorkers: Set<PiscinaWorker>;
+    // TODO: create its own type?
+    #onAvailableListeners: ((item: PiscinaWorker) => void)[];
+    #offset: number;
+
+    constructor (maxConcurrent: number) {
+      super(maxConcurrent);
+      this.#maxConcurrent = maxConcurrent;
+      this.#readyWorkers = new Set();
+      this.#pendingWorkers = new Set();
+      this.#onAvailableListeners = [];
+      this.#offset = 0;
+    }
+
+    add (item) {
+      this.#pendingWorkers.add(item);
+      item.onReady((err) => {
+        equals(err.message, 'worker exited with code: 1');
+        equals(item.isReady(), false);
+        // equals(err.message, 'Error: Worker failed to initialize');
+      });
+    }
+
+    delete (item) {
+      this.#pendingWorkers.delete(item) || this.#readyWorkers.delete(item);
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    pick (_task): PiscinaWorker | null {
+      const workers = [...this.#readyWorkers];
+      let candidate = null;
+
+      if (this.#offset < workers.length) {
+        candidate = workers[this.#offset];
+        this.#offset++;
+      } else {
+        this.#offset = 0;
+        candidate = workers[this.#offset];
+        this.#offset++;
+      }
+
+      return candidate ?? null;
+    }
+
+    getWorkers (): PiscinaWorker[] {
+      return [...this.#pendingWorkers, ...this.#readyWorkers];
+    }
+
+    // @ts-expect-error
+    get size () {
+      return this.#pendingWorkers.size + this.#readyWorkers.size;
+    }
+
+    set size (_value) {
+      // no-op
+    }
+
+    onWorkerAvailable (item: PiscinaWorker) {
+      /* istanbul ignore else */
+      if (item.currentUsage() < this.#maxConcurrent) {
+        for (const listener of this.#onAvailableListeners) {
+          listener(item);
+        }
+      }
+    }
+
+    onAvailable (fn: (item: PiscinaWorker) => void) {
+      this.#onAvailableListeners.push(fn);
+    }
+
+    getAvailableCapacity (): number {
+      return this.#pendingWorkers.size * this.#maxConcurrent;
+    }
+  }
+  const maxConcurrent = 1;
+  const pool = new Piscina({
+    filename: resolve(__dirname, '../fixtures/fail-on-init.js'),
+    scheduler: new CustomTaskScheduler(maxConcurrent),
+    maxThreads: 1,
+    minThreads: 1,
+    concurrentTasksPerWorker: maxConcurrent
+  });
+
+  await pool.run('throw new Error("Worker failed to initialize")');
+});
+
 test('Should throw if bad CustomTaskScheduler', ({ plan, throws }) => {
   plan(1);
   const maxConcurrent = 1;
