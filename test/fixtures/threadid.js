@@ -1,4 +1,5 @@
 'use strict';
+const { threadId } = require('worker_threads');
 
 module.exports = function (input) {
   let res;
@@ -7,7 +8,7 @@ module.exports = function (input) {
   });
 
   setTimeout(() => {
-    res({ input, threadId: process.env.PISCINA_THREAD_ID });
+    res({ input, threadId });
   }, 500);
   return promise;
 };

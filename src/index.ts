@@ -353,7 +353,7 @@ const Errors = {
 };
 
 class WorkerInfo extends AsynchronouslyCreatedResource implements ThreadWorker {
-  id: string;
+  id: number;
   [kWorkerWorkerThread] : Worker;
   taskInfos : Map<number, TaskInfo>;
   idleTimeout : NodeJS.Timeout | null = null; // eslint-disable-line no-undef
@@ -364,7 +364,7 @@ class WorkerInfo extends AsynchronouslyCreatedResource implements ThreadWorker {
   destroyed: boolean = false;
 
   constructor (
-    id: string,
+    id: number,
     worker : Worker,
     port : MessagePort,
     onMessage : ResponseCallback) {
@@ -496,7 +496,6 @@ class ThreadPool {
   closingUp : boolean = false;
   workerFailsDuringBootstrap : boolean = false;
   destroying : boolean = false;
-  idOffset : number = 0;
 
   constructor (publicInterface : Piscina, options : Options) {
     this.publicInterface = publicInterface;
@@ -543,10 +542,8 @@ class ThreadPool {
 
   _addNewWorker () : void {
     const pool = this;
-    const threadId = ++pool.idOffset;
-    const optionsEnv = Object.assign({ PISCINA_THREAD_ID: threadId }, this.options.env);
     const worker = new Worker(resolve(__dirname, 'worker.js'), {
-      env: optionsEnv,
+      env: this.options.env,
       argv: this.options.argv,
       execArgv: this.options.execArgv,
       resourceLimits: this.options.resourceLimits,
@@ -555,7 +552,7 @@ class ThreadPool {
     });
 
     const { port1, port2 } = new MessageChannel();
-    const workerInfo = new WorkerInfo(`${threadId}`, worker, port1, onMessage);
+    const workerInfo = new WorkerInfo(worker.threadId, worker, port1, onMessage);
 
     // if (this.startingUp) {
     //   // There is no point in waiting for the initial set of Workers to indicate
@@ -595,13 +592,13 @@ class ThreadPool {
       pool._processPendingMessages();
     }
 
-    function onReady () {
+    function onReady (error : Error | null) {
       if (workerInfo.currentUsage() === 0) {
         workerInfo.unref();
       }
 
       if (!workerInfo.isReady()) {
-        workerInfo.markAsReady(null);
+        workerInfo.markAsReady(error);
       }
     }
 
@@ -610,7 +607,11 @@ class ThreadPool {
     }
 
     worker.on('message', (message : any) => {
-      message instanceof Object && READY in message ? onReady() : onEventMessage(message);
+      if (message instanceof Object && READY in message) {
+        onReady(message.error);
+      } else {
+        onEventMessage(message);
+      }
     });
 
     worker.on('error', (err : Error) => {
@@ -623,10 +624,6 @@ class ThreadPool {
       }
 
       const err = new Error(`worker exited with code: ${exitCode}`);
-
-      if (!workerInfo.isReady()) {
-        workerInfo.markAsReady(err);
-      }
 
       // Only error unfinished tasks on process exit, since there are legitimate
       // reasons to exit workers and we want to handle that gracefully when possible.
@@ -661,6 +658,7 @@ class ThreadPool {
       // Do not start new workers over and over if they already fail during
       // bootstrap, there's no point.
       this.workerFailsDuringBootstrap = true;
+      !workerInfo.isReady() && workerInfo.markAsReady(err);
     }
 
     if (taskInfos.length > 0) {

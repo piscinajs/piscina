@@ -41,14 +41,12 @@ async function getHandler (filename : string, name : string) : Promise<Function 
     return handler;
   }
 
-  try {
-    // With our current set of TypeScript options, this is transpiled to
-    // `require(filename)`.
-    handler = await import(filename);
-    if (typeof handler !== 'function') {
-      handler = await ((handler as any)[name]);
-    }
-  } catch {}
+  // With our current set of TypeScript options, this is transpiled to
+  // `require(filename)`.
+  handler = await import(filename);
+  if (typeof handler !== 'function') {
+    handler = await ((handler as any)[name]);
+  }
   if (typeof handler !== 'function') {
     handler = await getImportESM()(pathToFileURL(filename).href);
     if (typeof handler !== 'function') {
@@ -86,11 +84,16 @@ parentPort!.on('message', (message : StartupMessage) => {
       }
     } catch {}
 
-    if (filename !== null) {
-      await getHandler(filename, name);
+    const readyMessage : ReadyMessage = { [READY]: true, error: null };
+    try {
+      if (filename !== null) {
+        await getHandler(filename, name);
+      }
+    } catch (error) {
+      readyMessage[READY] = false;
+      readyMessage.error = <Error>error;
     }
 
-    const readyMessage : ReadyMessage = { [READY]: true };
     parentPort!.postMessage(readyMessage);
 
     port.on('message', onMessage.bind(null, port, sharedBuffer));

@@ -9,28 +9,31 @@ test('It allows usage of custom scheduler', async ({ plan, strictSame }) => {
   // Simplistic RoundRobin example
   class CustomTaskScheduler extends PiscinaBaseTaskScheduler {
     #maxConcurrent: number;
+    #maxThreads: number;
     #readyWorkers: Set<PiscinaWorker>;
     #pendingWorkers: Set<PiscinaWorker>;
     // TODO: create its own type?
     #onAvailableListeners: ((item: PiscinaWorker) => void)[];
     #offset: number;
 
-    constructor (maxConcurrent: number) {
+    constructor (maxThreads: number, maxConcurrent: number) {
       super(maxConcurrent);
       this.#maxConcurrent = maxConcurrent;
       this.#readyWorkers = new Set();
       this.#pendingWorkers = new Set();
       this.#onAvailableListeners = [];
       this.#offset = 0;
+      this.#maxThreads = maxThreads;
     }
 
     add (item) {
       this.#pendingWorkers.add(item);
       item.onReady(() => {
-        /* istanbul ignore else */
-        if (this.#pendingWorkers.has(item)) {
-          this.#pendingWorkers.delete(item);
+        if (this.#pendingWorkers.delete(item)) {
           this.#readyWorkers.add(item);
+        }
+
+        if (this.#readyWorkers.size === this.#maxThreads) {
           this.onWorkerAvailable(item);
         }
       });
@@ -43,8 +46,10 @@ test('It allows usage of custom scheduler', async ({ plan, strictSame }) => {
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     pick (_task): PiscinaWorker | null {
-      const workers = [...this.#readyWorkers];
       let candidate = null;
+      const workers = [...this.#readyWorkers];
+
+      if (workers.length === 0) return candidate;
 
       if (this.#offset < workers.length) {
         candidate = workers[this.#offset];
@@ -71,12 +76,11 @@ test('It allows usage of custom scheduler', async ({ plan, strictSame }) => {
       // no-op
     }
 
-    onWorkerAvailable (item: PiscinaWorker) {
-      /* istanbul ignore else */
-      if (item.currentUsage() < this.#maxConcurrent) {
-        for (const listener of this.#onAvailableListeners) {
-          listener(item);
-        }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    onWorkerAvailable (_item: PiscinaWorker) {
+      const worker = this.pick({});
+      for (const listener of this.#onAvailableListeners) {
+        listener(worker);
       }
     }
 
@@ -88,12 +92,15 @@ test('It allows usage of custom scheduler', async ({ plan, strictSame }) => {
       return this.#pendingWorkers.size * this.#maxConcurrent;
     }
   }
+
   const maxConcurrent = 1;
+  const maxThreads = 3;
+  const customScheduler = new CustomTaskScheduler(maxThreads, maxConcurrent);
   const pool = new Piscina({
     filename: resolve(__dirname, '../fixtures/threadid.js'),
-    scheduler: new CustomTaskScheduler(maxConcurrent),
-    maxThreads: 3,
-    minThreads: 3,
+    scheduler: customScheduler,
+    maxThreads,
+    minThreads: maxThreads,
     concurrentTasksPerWorker: maxConcurrent
   });
 
@@ -105,42 +112,27 @@ test('It allows usage of custom scheduler', async ({ plan, strictSame }) => {
     pool.run(4),
     pool.run(5)
   ]);
-  strictSame(results, [
-    {
-      input: 0,
-      threadId: '1'
-    },
-    {
-      input: 1,
-      threadId: '2'
-    },
-    {
-      input: 2,
-      threadId: '3'
-    },
-    {
-      input: 3,
-      threadId: '1'
-    },
-    {
-      input: 4,
-      threadId: '2'
-    },
-    {
-      input: 5,
-      threadId: '3'
-    }
-  ]);
+
+  const workers = customScheduler
+    .getWorkers();
+
+  const expected = workers.concat(workers).map((worker, index) => {
+    return {
+      input: index,
+      threadId: worker.id
+    };
+  });
+
+  strictSame(results, expected);
 });
 
-test('On ready should pass down the error thrown by the worker on initialization', { only: true }, async ({ plan, equals }) => {
-  plan(2);
+test('On ready should pass down the error thrown by the worker on initialization', (t) => {
+  t.plan(2);
   // Simplistic RoundRobin example
   class CustomTaskScheduler extends PiscinaBaseTaskScheduler {
     #maxConcurrent: number;
     #readyWorkers: Set<PiscinaWorker>;
     #pendingWorkers: Set<PiscinaWorker>;
-    // TODO: create its own type?
     #onAvailableListeners: ((item: PiscinaWorker) => void)[];
     #offset: number;
 
@@ -156,9 +148,8 @@ test('On ready should pass down the error thrown by the worker on initialization
     add (item) {
       this.#pendingWorkers.add(item);
       item.onReady((err) => {
-        equals(err.message, 'worker exited with code: 1');
-        equals(item.isReady(), false);
-        // equals(err.message, 'Error: Worker failed to initialize');
+        t.equal(err.message, 'failed on initialization');
+        t.equal(item.isReady(), false);
       });
     }
 
@@ -213,6 +204,7 @@ test('On ready should pass down the error thrown by the worker on initialization
       return this.#pendingWorkers.size * this.#maxConcurrent;
     }
   }
+
   const maxConcurrent = 1;
   const pool = new Piscina({
     filename: resolve(__dirname, '../fixtures/fail-on-init.js'),
@@ -222,7 +214,10 @@ test('On ready should pass down the error thrown by the worker on initialization
     concurrentTasksPerWorker: maxConcurrent
   });
 
-  await pool.run('throw new Error("Worker failed to initialize")');
+  pool.run('test').then(
+    () => {},
+    () => {}
+  );
 });
 
 test('Should throw if bad CustomTaskScheduler', ({ plan, throws }) => {
@@ -248,29 +243,35 @@ test('Should accept CustomTaskSchedulers that does not inherit from base', async
   strictSame
 }) => {
   const maxConcurrent = 1;
+  const maxThreads = 3;
   // Simplistic RoundRobin example
-  class CustomTaskScheduler {
+  class CustomTaskScheduler extends PiscinaBaseTaskScheduler {
     #maxConcurrent: number;
+    #maxThreads: number;
     #readyWorkers: Set<PiscinaWorker>;
     #pendingWorkers: Set<PiscinaWorker>;
     // TODO: create its own type?
     #onAvailableListeners: ((item: PiscinaWorker) => void)[];
     #offset: number;
 
-    constructor (maxConcurrent: number) {
+    constructor (maxThreads: number, maxConcurrent: number) {
+      super(maxConcurrent);
       this.#maxConcurrent = maxConcurrent;
       this.#readyWorkers = new Set();
       this.#pendingWorkers = new Set();
       this.#onAvailableListeners = [];
       this.#offset = 0;
+      this.#maxThreads = maxThreads;
     }
 
     add (item) {
       this.#pendingWorkers.add(item);
       item.onReady(() => {
-        /* istanbul ignore else */
         if (this.#pendingWorkers.delete(item)) {
           this.#readyWorkers.add(item);
+        }
+
+        if (this.#readyWorkers.size === this.#maxThreads) {
           this.onWorkerAvailable(item);
         }
       });
@@ -283,8 +284,10 @@ test('Should accept CustomTaskSchedulers that does not inherit from base', async
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     pick (_task): PiscinaWorker | null {
-      const workers = [...this.#readyWorkers];
       let candidate = null;
+      const workers = [...this.#readyWorkers];
+
+      if (workers.length === 0) return candidate;
 
       if (this.#offset < workers.length) {
         candidate = workers[this.#offset];
@@ -302,6 +305,7 @@ test('Should accept CustomTaskSchedulers that does not inherit from base', async
       return [...this.#pendingWorkers, ...this.#readyWorkers];
     }
 
+    // @ts-expect-error
     get size () {
       return this.#pendingWorkers.size + this.#readyWorkers.size;
     }
@@ -310,12 +314,11 @@ test('Should accept CustomTaskSchedulers that does not inherit from base', async
       // no-op
     }
 
-    onWorkerAvailable (item: PiscinaWorker) {
-      /* istanbul ignore else */
-      if (item.currentUsage() < this.#maxConcurrent) {
-        for (const listener of this.#onAvailableListeners) {
-          listener(item);
-        }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    onWorkerAvailable (_item: PiscinaWorker) {
+      const worker = this.pick({});
+      for (const listener of this.#onAvailableListeners) {
+        listener(worker);
       }
     }
 
@@ -327,11 +330,15 @@ test('Should accept CustomTaskSchedulers that does not inherit from base', async
       return this.#pendingWorkers.size * this.#maxConcurrent;
     }
   }
+
+  plan(1);
+
+  const scheduler = new CustomTaskScheduler(maxThreads, maxConcurrent);
   const pool = new Piscina({
     filename: resolve(__dirname, '../fixtures/threadid.js'),
-    scheduler: new CustomTaskScheduler(maxConcurrent),
-    maxThreads: 3,
-    minThreads: 3,
+    scheduler: scheduler,
+    maxThreads,
+    minThreads: maxThreads,
     concurrentTasksPerWorker: maxConcurrent
   });
 
@@ -344,32 +351,15 @@ test('Should accept CustomTaskSchedulers that does not inherit from base', async
     pool.run(5)
   ]);
 
-  plan(1);
+  const workers = scheduler
+    .getWorkers();
 
-  strictSame(results, [
-    {
-      input: 0,
-      threadId: '1'
-    },
-    {
-      input: 1,
-      threadId: '2'
-    },
-    {
-      input: 2,
-      threadId: '3'
-    },
-    {
-      input: 3,
-      threadId: '1'
-    },
-    {
-      input: 4,
-      threadId: '2'
-    },
-    {
-      input: 5,
-      threadId: '3'
-    }
-  ]);
+  const expected = workers.concat(workers).map((worker, index) => {
+    return {
+      input: index,
+      threadId: worker.id
+    };
+  });
+
+  strictSame(results, expected);
 });

@@ -20,7 +20,8 @@ export interface RequestMessage {
 }
 
 export interface ReadyMessage {
-  [READY]: true
+  [READY]: boolean;
+  error: Error | null;
 };
 
 export interface ResponseMessage {
@@ -113,18 +114,26 @@ export interface Task {
 
 export abstract class AsynchronouslyCreatedResource {
   onreadyListeners : ((err?: Error | null) => void)[] | null = [];
+  #ready: boolean = false;
 
   markAsReady (err: Error | null) : void {
+    if (this.#ready || this.onreadyListeners == null) {
+      return;
+    }
+
     const listeners = this.onreadyListeners;
-    assert(listeners !== null);
+    // assert(listeners !== null);
     this.onreadyListeners = null;
-    for (const listener of listeners) {
-      listener(err);
+    this.#ready = err == null;
+    if (listeners !== null) {
+      for (const listener of listeners) {
+        listener(err);
+      }
     }
   }
 
   isReady () : boolean {
-    return this.onreadyListeners === null;
+    return this.#ready;
   }
 
   // TODO: add tests for this
@@ -140,7 +149,7 @@ export abstract class AsynchronouslyCreatedResource {
 }
 
 export interface ThreadWorker extends AsynchronouslyCreatedResource {
-  id: string;
+  id: number;
   destroyed: boolean;
   taskInfos: Map<number, Task>;
   port: MessagePort;
