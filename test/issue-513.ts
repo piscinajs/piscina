@@ -4,10 +4,10 @@ import { resolve } from 'path';
 
 test('pool will maintain run and wait time histograms', async ({
   equal,
-  fail,
+  fail
 }) => {
   const pool = new Piscina({
-    filename: resolve(__dirname, 'fixtures/vm.js'),
+    filename: resolve(__dirname, 'fixtures/vm.js')
   });
 
   try {
