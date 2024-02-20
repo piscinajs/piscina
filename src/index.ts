@@ -1074,7 +1074,7 @@ class ThreadPool {
   }
 }
 
-class Piscina extends EventEmitterAsyncResource {
+export default class Piscina extends EventEmitterAsyncResource {
   #pool : ThreadPool;
 
   constructor (options : Options = {}) {
@@ -1346,4 +1346,14 @@ class Piscina extends EventEmitterAsyncResource {
   static get queueOptionsSymbol () { return kQueueOptions; }
 }
 
-export = Piscina;
+export const move = Piscina.move;
+export const isWorkerThread = Piscina.isWorkerThread;
+export const workerData = Piscina.workerData;
+
+export {
+  Piscina,
+  kTransferable as transferableSymbol,
+  kValue as valueSymbol,
+  kQueueOptions as queueOptionsSymbol,
+  version
+};
