@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [4.3.2](https://github.com/piscinajs/piscina/compare/v4.3.1...v4.3.2) (2024-02-16)
+
+
+### Bug Fixes
+
+* **#513:** forward errors correctly to Piscina ([#514](https://github.com/piscinajs/piscina/issues/514)) ([6945d21](https://github.com/piscinajs/piscina/commit/6945d21d47b72dfa801e0309948fea9fbf708c91)), closes [#513](https://github.com/piscinajs/piscina/issues/513)
+
 ### [4.3.1](https://github.com/piscinajs/piscina/compare/v4.3.0...v4.3.1) (2024-01-30)
 
 
