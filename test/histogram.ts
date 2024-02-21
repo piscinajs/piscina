@@ -2,7 +2,7 @@ import Piscina from '..';
 import { test } from 'tap';
 import { resolve } from 'path';
 
-test('pool will maintain run and wait time histograms', async ({ equal, ok }) => {
+test('pool will maintain run and wait time histograms by default', async ({ equal, ok }) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js')
   });
@@ -28,4 +28,50 @@ test('pool will maintain run and wait time histograms', async ({ equal, ok }) =>
   equal(typeof runTime.stddev, 'number');
   equal(typeof runTime.min, 'number');
   equal(typeof runTime.max, 'number');
+});
+
+test('pool will maintain run and wait time histograms when recordTiming is true', async ({ ok }) => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js'),
+    recordTiming: true
+  });
+
+  const tasks = [];
+  for (let n = 0; n < 10; n++) {
+    tasks.push(pool.runTask('42'));
+  }
+  await Promise.all(tasks);
+
+  const waitTime = pool.waitTime as any;
+  ok(waitTime);
+
+  const runTime = pool.runTime as any;
+  ok(runTime);
+});
+
+test('pool does not maintain run and wait time histograms when recordTiming is false', async ({ equal, fail }) => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js'),
+    recordTiming: false
+  });
+
+  const tasks = [];
+  for (let n = 0; n < 10; n++) {
+    tasks.push(pool.runTask('42'));
+  }
+  await Promise.all(tasks);
+
+  try {
+    pool.waitTime as any;
+    fail('Expected time recording disabled error');
+  } catch (error) {
+    equal(error.message, 'Time recording is disabled');
+  }
+
+  try {
+    pool.runTime as any;
+    fail('Expected time recording disabled error');
+  } catch (error) {
+    equal(error.message, 'Time recording is disabled');
+  }
 });

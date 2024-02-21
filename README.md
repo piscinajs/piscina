@@ -358,6 +358,8 @@ This class extends [`EventEmitter`][] from Node.js.
     all Node.js versions higher than 14.6.0).
   * `closeTimeout`: (`number`) An optional time (in milliseconds) to wait for the pool to 
   complete all in-flight tasks when `close()` is called. The default is `30000`
+  * `recordTiming`: (`boolean`) By default, run and wait time will be recorded
+    for the pool. To disable, set to `false`.
 
 Use caution when setting resource limits. Setting limits that are too low may
 result in the `Piscina` worker threads being unusable.
