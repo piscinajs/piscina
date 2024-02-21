@@ -2,6 +2,34 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [4.3.2](https://github.com/piscinajs/piscina/compare/v4.3.1...v4.3.2) (2024-02-16)
+
+
+### Bug Fixes
+
+* **#513:** forward errors correctly to Piscina ([#514](https://github.com/piscinajs/piscina/issues/514)) ([6945d21](https://github.com/piscinajs/piscina/commit/6945d21d47b72dfa801e0309948fea9fbf708c91)), closes [#513](https://github.com/piscinajs/piscina/issues/513)
+
+### [4.3.1](https://github.com/piscinajs/piscina/compare/v4.3.0...v4.3.1) (2024-01-30)
+
+
+### Bug Fixes
+
+* **#491:** out of bounds histogram value ([#496](https://github.com/piscinajs/piscina/issues/496)) ([0b4eada](https://github.com/piscinajs/piscina/commit/0b4eada2485a0f722f5b6d39d657fd51975df0f3)), closes [#491](https://github.com/piscinajs/piscina/issues/491)
+
+## [4.3.0](https://github.com/piscinajs/piscina/compare/v4.2.1...v4.3.0) (2024-01-16)
+
+
+### Features
+
+* use native Node.js histogram support ([#482](https://github.com/piscinajs/piscina/issues/482)) ([aa5b140](https://github.com/piscinajs/piscina/commit/aa5b1408e33420e7c29725381d7824b0b40d26e8))
+
+### [4.2.1](https://github.com/piscinajs/piscina/compare/v4.2.0...v4.2.1) (2023-12-13)
+
+
+### Bug Fixes
+
+* default minThreads with odd CPU count ([#457](https://github.com/piscinajs/piscina/issues/457)) ([f4edf87](https://github.com/piscinajs/piscina/commit/f4edf87c8c4883e06ab70e99a8a5050eded89c5d))
+
 ## [4.2.0](https://github.com/piscinajs/piscina/compare/v4.1.0...v4.2.0) (2023-11-19)
 
 
