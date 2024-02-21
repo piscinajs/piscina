@@ -177,7 +177,8 @@ interface Options {
   taskQueue? : TaskQueue,
   niceIncrement? : number,
   trackUnmanagedFds? : boolean,
-  closeTimeout?: number
+  closeTimeout?: number,
+  recordTiming?: boolean
 }
 
 interface FilledOptions extends Options {
@@ -191,7 +192,8 @@ interface FilledOptions extends Options {
   useAtomics: boolean,
   taskQueue : TaskQueue,
   niceIncrement : number,
-  closeTimeout : number
+  closeTimeout : number,
+  recordTiming : boolean
 }
 
 const kDefaultOptions : FilledOptions = {
@@ -206,7 +208,8 @@ const kDefaultOptions : FilledOptions = {
   taskQueue: new ArrayTaskQueue(),
   niceIncrement: 0,
   trackUnmanagedFds: true,
-  closeTimeout: 30000
+  closeTimeout: 30000,
+  recordTiming: true
 };
 
 interface RunOptions {
@@ -590,8 +593,8 @@ class ThreadPool {
   taskQueue : TaskQueue;
   skipQueue : TaskInfo[] = [];
   completed : number = 0;
-  runTime : RecordableHistogram;
-  waitTime : RecordableHistogram;
+  runTime? : RecordableHistogram;
+  waitTime? : RecordableHistogram;
   needsDrain : boolean;
   start : number = performance.now();
   inProcessPendingMessages : boolean = false;
@@ -603,12 +606,16 @@ class ThreadPool {
   constructor (publicInterface : Piscina, options : Options) {
     this.publicInterface = publicInterface;
     this.taskQueue = options.taskQueue || new ArrayTaskQueue();
-    this.runTime = createHistogram();
-    this.waitTime = createHistogram();
 
     const filename =
       options.filename ? maybeFileURLToPath(options.filename) : null;
     this.options = { ...kDefaultOptions, ...options, filename, maxQueue: 0 };
+
+    if (this.options.recordTiming) {
+      this.runTime = createHistogram();
+      this.waitTime = createHistogram();
+    }
+
     // The >= and <= could be > and < but this way we get 100 % coverage 🙃
     if (options.maxThreads !== undefined &&
         this.options.minThreads >= options.maxThreads) {
@@ -805,7 +812,7 @@ class ThreadPool {
         break;
       }
       const now = performance.now();
-      this.waitTime.record(toHistogramIntegerNano(now - taskInfo.created));
+      this.waitTime?.record(toHistogramIntegerNano(now - taskInfo.created));
       taskInfo.started = now;
       workerInfo.postTask(taskInfo);
       this._maybeDrain();
@@ -866,7 +873,7 @@ class ThreadPool {
       (err : Error | null, result : any) => {
         this.completed++;
         if (taskInfo.started) {
-          this.runTime.record(toHistogramIntegerNano(performance.now() - taskInfo.started));
+          this.runTime?.record(toHistogramIntegerNano(performance.now() - taskInfo.started));
         }
         if (err !== null) {
           reject(err);
@@ -956,7 +963,7 @@ class ThreadPool {
 
     // TODO(addaleax): Clean up the waitTime/runTime recording.
     const now = performance.now();
-    this.waitTime.record(toHistogramIntegerNano(now - taskInfo.created));
+    this.waitTime?.record(toHistogramIntegerNano(now - taskInfo.created));
     taskInfo.started = now;
     workerInfo.postTask(taskInfo);
     this._maybeDrain();
@@ -1267,14 +1274,26 @@ export default class Piscina extends EventEmitterAsyncResource {
   }
 
   get waitTime () : any {
+    if (!this.#pool.waitTime) {
+      return null;
+    }
+
     return createHistogramSummary(this.#pool.waitTime);
   }
 
   get runTime () : any {
+    if (!this.#pool.runTime) {
+      return null;
+    }
+
     return createHistogramSummary(this.#pool.runTime);
   }
 
   get utilization () : number {
+    if (!this.#pool.runTime) {
+      return 0;
+    }
+
     // count is available as of Node.js v16.14.0 but not present in the types
     const count = (this.#pool.runTime as RecordableHistogram & { count: number}).count;
     if (count === 0) {
