@@ -1,12 +1,12 @@
 {
   "name": "piscina",
-  "version": "4.3.2",
+  "version": "4.4.0",
   "description": "A fast, efficient Node.js Worker Thread Pool implementation",
-  "main": "./dist/src/index.js",
+  "main": "./dist/src/main.js",
   "exports": {
     "types": "./dist/src/index.d.ts",
     "import": "./dist/esm-wrapper.mjs",
-    "require": "./dist/src/index.js"
+    "require": "./dist/src/main.js"
   },
   "types": "./dist/src/index.d.ts",
   "scripts": {

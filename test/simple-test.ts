@@ -25,6 +25,14 @@ test('Piscina.isWorkerThread has the correct value (worker)', async ({ equal }) 
   equal(result, 'done');
 });
 
+test('Piscina.isWorkerThread has the correct value (worker) with named import', async ({ equal }) => {
+  const worker = new Piscina({
+    filename: resolve(__dirname, 'fixtures/simple-isworkerthread-named-import.ts')
+  });
+  const result = await worker.runTask(null);
+  equal(result, 'done');
+});
+
 test('Piscina instance is an EventEmitter', async ({ ok }) => {
   const piscina = new Piscina();
   ok(piscina instanceof EventEmitter);
@@ -113,6 +121,16 @@ test('passing execArgv to workers works', async ({ same }) => {
 test('passing valid workerData works', async ({ equal }) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/simple-workerdata.ts'),
+    workerData: 'ABC'
+  });
+  equal(Piscina.workerData, undefined);
+
+  await pool.runTask(null);
+});
+
+test('passing valid workerData works with named import', async ({ equal }) => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/simple-workerdata-named-import.ts'),
     workerData: 'ABC'
   });
   equal(Piscina.workerData, undefined);

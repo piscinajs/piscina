@@ -176,7 +176,8 @@ interface Options {
   taskQueue? : TaskQueue,
   niceIncrement? : number,
   trackUnmanagedFds? : boolean,
-  closeTimeout?: number
+  closeTimeout?: number,
+  recordTiming?: boolean
 }
 
 interface FilledOptions extends Options {
@@ -190,7 +191,8 @@ interface FilledOptions extends Options {
   useAtomics: boolean,
   taskQueue : TaskQueue,
   niceIncrement : number,
-  closeTimeout : number
+  closeTimeout : number,
+  recordTiming : boolean
 }
 
 const kDefaultOptions : FilledOptions = {
@@ -205,7 +207,8 @@ const kDefaultOptions : FilledOptions = {
   taskQueue: new ArrayTaskQueue(),
   niceIncrement: 0,
   trackUnmanagedFds: true,
-  closeTimeout: 30000
+  closeTimeout: 30000,
+  recordTiming: true
 };
 
 interface FilledRunOptions extends RunOptions {
@@ -487,8 +490,8 @@ class ThreadPool {
   taskQueue : TaskQueue;
   skipQueue : TaskInfo[] = [];
   completed : number = 0;
-  runTime : RecordableHistogram;
-  waitTime : RecordableHistogram;
+  runTime? : RecordableHistogram;
+  waitTime? : RecordableHistogram;
   needsDrain : boolean;
   start : number = performance.now();
   inProcessPendingMessages : boolean = false;
@@ -500,12 +503,16 @@ class ThreadPool {
   constructor (publicInterface : Piscina, options : Options) {
     this.publicInterface = publicInterface;
     this.taskQueue = options.taskQueue || new ArrayTaskQueue();
-    this.runTime = createHistogram();
-    this.waitTime = createHistogram();
 
     const filename =
       options.filename ? maybeFileURLToPath(options.filename) : null;
     this.options = { ...kDefaultOptions, ...options, filename, maxQueue: 0 };
+
+    if (this.options.recordTiming) {
+      this.runTime = createHistogram();
+      this.waitTime = createHistogram();
+    }
+
     // The >= and <= could be > and < but this way we get 100 % coverage 🙃
     if (options.maxThreads !== undefined &&
         this.options.minThreads >= options.maxThreads) {
@@ -709,7 +716,7 @@ class ThreadPool {
         break;
       }
       const now = performance.now();
-      this.waitTime.record(toHistogramIntegerNano(now - taskInfo.created));
+      this.waitTime?.record(toHistogramIntegerNano(now - taskInfo.created));
       taskInfo.started = now;
       // Not meant to be exposed
       // @ts-expect-error
@@ -773,7 +780,7 @@ class ThreadPool {
       (err : Error | null, result : any) => {
         this.completed++;
         if (taskInfo.started) {
-          this.runTime.record(toHistogramIntegerNano(performance.now() - taskInfo.started));
+          this.runTime?.record(toHistogramIntegerNano(performance.now() - taskInfo.started));
         }
         if (err !== null) {
           reject(err);
@@ -857,7 +864,7 @@ class ThreadPool {
 
     // TODO(addaleax): Clean up the waitTime/runTime recording.
     const now = performance.now();
-    this.waitTime.record(toHistogramIntegerNano(now - taskInfo.created));
+    this.waitTime?.record(toHistogramIntegerNano(now - taskInfo.created));
     taskInfo.started = now;
     // Not meant to be exposed
     // @ts-expect-error
@@ -979,7 +986,7 @@ class ThreadPool {
   }
 }
 
-class Piscina extends EventEmitterAsyncResource {
+export default class Piscina extends EventEmitterAsyncResource {
   #pool : ThreadPool;
 
   constructor (options : Options = {}) {
@@ -1177,14 +1184,26 @@ class Piscina extends EventEmitterAsyncResource {
   }
 
   get waitTime () : any {
+    if (!this.#pool.waitTime) {
+      return null;
+    }
+
     return createHistogramSummary(this.#pool.waitTime);
   }
 
   get runTime () : any {
+    if (!this.#pool.runTime) {
+      return null;
+    }
+
     return createHistogramSummary(this.#pool.runTime);
   }
 
   get utilization () : number {
+    if (!this.#pool.runTime) {
+      return 0;
+    }
+
     // count is available as of Node.js v16.14.0 but not present in the types
     const count = (this.#pool.runTime as RecordableHistogram & { count: number}).count;
     if (count === 0) {
@@ -1256,13 +1275,14 @@ class Piscina extends EventEmitterAsyncResource {
   static get queueOptionsSymbol () { return kQueueOptions; }
 }
 
-namespace Piscina { // eslint-disable-line no-redeclare
-  export interface PiscinaWorker extends ThreadWorker {}
-  export interface PiscinaTask extends Task {}
-  export class PiscinaDefaultTaskScheduler extends DefaultTaskScheduler {}
-  export class PiscinaBaseTaskScheduler extends TaskScheduler {}
-  export type RunTaskOptions = RunOptions;
-  export interface PiscinaTaskQueue extends TaskQueue {};
-}
+export const move = Piscina.move;
+export const isWorkerThread = Piscina.isWorkerThread;
+export const workerData = Piscina.workerData;
 
-export = Piscina;
+export {
+  Piscina,
+  kTransferable as transferableSymbol,
+  kValue as valueSymbol,
+  kQueueOptions as queueOptionsSymbol,
+  version
+};

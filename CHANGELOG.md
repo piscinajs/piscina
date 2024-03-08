@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [4.4.0](https://github.com/piscinajs/piscina/compare/v4.3.2...v4.4.0) (2024-02-28)
+
+
+### Features
+
+* add option to disable run/wait time recording ([#518](https://github.com/piscinajs/piscina/issues/518)) ([4a94cee](https://github.com/piscinajs/piscina/commit/4a94cee847395a0395cce68743332009214243f2))
+* allow named import usage ([#517](https://github.com/piscinajs/piscina/issues/517)) ([6a7c6e1](https://github.com/piscinajs/piscina/commit/6a7c6e170b19d1c6285c0230ad02f1a259fc69a3))
+
 ### [4.3.2](https://github.com/piscinajs/piscina/compare/v4.3.1...v4.3.2) (2024-02-16)
 
 
