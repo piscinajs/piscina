@@ -394,33 +394,6 @@ an error, the returned `Promise` will be rejected with that error.
 If the task is aborted, the returned `Promise` is rejected with an error
 as well.
 
-### Method: `runTask(task[, transferList][, filename][, abortSignal])`
-
-**Deprecated** -- Use `run(task, options)` instead.
-
-Schedules a task to be run on a Worker thread.
-
-* `task`: Any value. This will be passed to the function that is exported from
-  `filename`.
-* `transferList`: An optional lists of objects that is passed to
-  [`postMessage()`] when posting `task` to the Worker, which are transferred
-  rather than cloned.
-* `filename`: Optionally overrides the `filename` option passed to the
-  constructor for this task. If no `filename` was specified to the constructor,
-  this is mandatory.
-* `abortSignal`: An [`AbortSignal`][] instance. If passed, this can be used to
-  cancel a task. If the task is already running, the corresponding `Worker`
-  thread will be stopped.
-  (More generally, any `EventEmitter` or `EventTarget` that emits `'abort'`
-  events can be passed here.) Abortable tasks cannot share threads regardless
-  of the `concurrentTasksPerWorker` options.
-
-This returns a `Promise` for the return value of the (async) function call
-made to the function exported from `filename`. If the (async) function throws
-an error, the returned `Promise` will be rejected with that error.
-If the task is aborted, the returned `Promise` is rejected with an error
-as well.
-
 ### Method: `destroy()`
 
 Stops all Workers and rejects all `Promise`s for pending tasks.
@@ -456,7 +429,11 @@ itself.
 
 ### Event: `'drain'`
 
-A `'drain'` event is emitted whenever the `queueSize` reaches `0`.
+A `'drain'` event is emitted when the current usage of the
+pool is below the maximum capacity of the same.
+The intended goal is to provide backpressure to the task source
+so creating tasks that can not be executed at immediately can be avoided.
+
 
 ### Event: `'needsDrain'`
 
@@ -719,7 +696,7 @@ An example of a custom task queue that uses a shuffled priority queue
 is available in [`examples/task-queue`](./examples/task-queue/index.js);
 
 The special symbol `Piscina.queueOptionsSymbol` may be set as a property
-on tasks submitted to `run()` or `runTask()` as a way of passing additional
+on tasks submitted to `run()` as a way of passing additional
 options on to the custom `TaskQueue` implementation. (Note that because the
 queue options are set as a property on the task, tasks with queue
 options cannot be submitted as JavaScript primitives).

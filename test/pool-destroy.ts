@@ -7,5 +7,5 @@ test('can destroy pool while tasks are running', async ({ rejects }) => {
     filename: resolve(__dirname, 'fixtures/eval.js')
   });
   setImmediate(() => pool.destroy());
-  await rejects(pool.runTask('while(1){}'), /Terminating worker thread/);
+  await rejects(pool.run('while(1){}'), /Terminating worker thread/);
 });

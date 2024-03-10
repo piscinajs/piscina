@@ -108,11 +108,31 @@ function createHistogramSummary (histogram: Histogram): HistogramSummary {
   };
 }
 
-// For histogram
 function toHistogramIntegerNano (milliseconds: number): number {
   return Math.max(1, Math.trunc(milliseconds * 1000));
 }
 
+interface AbortSignalEventTargetAddOptions {
+  once : boolean;
+};
+
+interface AbortSignalEventTarget {
+  addEventListener : (
+    name : 'abort',
+    listener : () => void,
+    options? : AbortSignalEventTargetAddOptions) => void;
+  removeEventListener : (
+    name : 'abort',
+    listener : () => void) => void;
+  aborted? : boolean;
+  reason?: unknown;
+}
+interface AbortSignalEventEmitter {
+  off : (name : 'abort', listener : () => void) => void;
+  once : (name : 'abort', listener : () => void) => void;
+}
+
+type AbortSignalAny = globalThis.AbortSignal | AbortSignalEventEmitter;
 function onabort (abortSignal : AbortSignalAny, listener : () => void) {
   if ('addEventListener' in abortSignal) {
     abortSignal.addEventListener('abort', listener, { once: true });
@@ -210,6 +230,13 @@ const kDefaultOptions : FilledOptions = {
   closeTimeout: 30000,
   recordTiming: true
 };
+
+interface RunOptions {
+  transferList? : TransferList,
+  filename? : string | null,
+  signal? : AbortSignalAny | null,
+  name? : string | null
+}
 
 interface FilledRunOptions extends RunOptions {
   transferList : TransferList | never,
@@ -492,13 +519,14 @@ class ThreadPool {
   completed : number = 0;
   runTime? : RecordableHistogram;
   waitTime? : RecordableHistogram;
-  needsDrain : boolean;
+  _needsDrain : boolean;
   start : number = performance.now();
   inProcessPendingMessages : boolean = false;
   startingUp : boolean = false;
   closingUp : boolean = false;
   workerFailsDuringBootstrap : boolean = false;
   destroying : boolean = false;
+  maxCapacity: number;
 
   constructor (publicInterface : Piscina, options : Options) {
     this.publicInterface = publicInterface;
@@ -530,12 +558,13 @@ class ThreadPool {
 
     this.workers = options.scheduler ?? new DefaultTaskScheduler(
       this.options.concurrentTasksPerWorker);
-    this.workers.onAvailable((w : ThreadWorker) => this._onWorkerAvailable(w));
+    this.workers.onAvailable((w : WorkerInfo) => this._onWorkerAvailable(w));
+    this.maxCapacity = this.options.maxThreads * this.options.concurrentTasksPerWorker;
 
     this.startingUp = true;
     this._ensureMinimumWorkers();
     this.startingUp = false;
-    this.needsDrain = false;
+    this._needsDrain = false;
   }
 
   _ensureMinimumWorkers () : void {
@@ -796,7 +825,7 @@ class ThreadPool {
     if (signal !== null) {
       // If the AbortSignal has an aborted property and it's truthy,
       // reject immediately.
-      if ((signal as AbortSignalEventTarget).aborted) {
+      if ((<globalThis.AbortSignal>signal).aborted) {
         return Promise.reject(new AbortError((signal as AbortSignalEventTarget).reason));
       }
       taskInfo.abortListener = () => {
@@ -878,17 +907,21 @@ class ThreadPool {
   }
 
   _maybeDrain () {
-    const totalCapacity = this.options.maxQueue + this.pendingCapacity();
-    const totalQueueSize = this.taskQueue.size + this.skipQueue.length;
+    /**
+     * Our goal is to make it possible for user space to use the pool
+     * in a way where always waiting === 0,
+     * since we want to avoid creating tasks that can't execute
+     * immediately in order to provide back pressure to the task source.
+     */
+    const { maxCapacity } = this;
+    const currentUsage = this.workers.getCurrentUsage();
 
-    if (totalQueueSize === 0) {
-      this.needsDrain = false;
-      this.publicInterface.emit('drain');
-    }
-
-    if (totalQueueSize >= totalCapacity) {
-      this.needsDrain = true;
+    if (maxCapacity === currentUsage) {
+      this._needsDrain = true;
       this.publicInterface.emit('needsDrain');
+    } else if (maxCapacity > currentUsage && this._needsDrain) {
+      this._needsDrain = false;
+      this.publicInterface.emit('drain');
     }
   }
 
@@ -1055,54 +1088,6 @@ export default class Piscina extends EventEmitterAsyncResource {
     this.#pool = new ThreadPool(this, options);
   }
 
-  /** @deprecated Use run(task, options) instead **/
-  runTask (task : any, transferList? : TransferList, filename? : string, abortSignal? : AbortSignalAny) : Promise<any>;
-
-  /** @deprecated Use run(task, options) instead **/
-  runTask (task : any, transferList? : TransferList, filename? : AbortSignalAny, abortSignal? : undefined) : Promise<any>;
-
-  /** @deprecated Use run(task, options) instead **/
-  runTask (task : any, transferList? : string, filename? : AbortSignalAny, abortSignal? : undefined) : Promise<any>;
-
-  /** @deprecated Use run(task, options) instead **/
-  runTask (task : any, transferList? : AbortSignalAny, filename? : undefined, abortSignal? : undefined) : Promise<any>;
-
-  /** @deprecated Use run(task, options) instead **/
-  runTask (task : any, transferList? : any, filename? : any, signal? : any) {
-    // If transferList is a string or AbortSignal, shift it.
-    if ((typeof transferList === 'object' && !Array.isArray(transferList)) ||
-        typeof transferList === 'string') {
-      signal = filename as (AbortSignalAny | undefined);
-      filename = transferList;
-      transferList = undefined;
-    }
-    // If filename is an AbortSignal, shift it.
-    if (typeof filename === 'object' && !Array.isArray(filename)) {
-      signal = filename;
-      filename = undefined;
-    }
-
-    if (transferList !== undefined && !Array.isArray(transferList)) {
-      return Promise.reject(
-        new TypeError('transferList argument must be an Array'));
-    }
-    if (filename !== undefined && typeof filename !== 'string') {
-      return Promise.reject(
-        new TypeError('filename argument must be a string'));
-    }
-    if (signal !== undefined && typeof signal !== 'object') {
-      return Promise.reject(
-        new TypeError('signal argument must be an object'));
-    }
-    return this.#pool.runTask(
-      task, {
-        transferList,
-        filename: filename || null,
-        name: 'default',
-        signal: signal || null
-      });
-  }
-
   run (task : any, options : RunOptions = kDefaultRunOptions) {
     if (options === null || typeof options !== 'object') {
       return Promise.reject(
@@ -1183,7 +1168,7 @@ export default class Piscina extends EventEmitterAsyncResource {
     return this.#pool.completed;
   }
 
-  get waitTime () : any {
+  get waitTime () : HistogramSummary | null {
     if (!this.#pool.waitTime) {
       return null;
     }
@@ -1191,7 +1176,7 @@ export default class Piscina extends EventEmitterAsyncResource {
     return createHistogramSummary(this.#pool.waitTime);
   }
 
-  get runTime () : any {
+  get runTime () : HistogramSummary | null {
     if (!this.#pool.runTime) {
       return null;
     }
@@ -1235,7 +1220,7 @@ export default class Piscina extends EventEmitterAsyncResource {
   }
 
   get needsDrain () : boolean {
-    return this.#pool.needsDrain;
+    return this.#pool._needsDrain;
   }
 
   static get isWorkerThread () : boolean {
