@@ -10,7 +10,7 @@ function isTaskSchedulerLike (obj: {}): obj is TaskScheduler {
     'delete',
     'size',
     'getAvailableCapacity',
-    'getCurrentUsage',
+    'getCurrentUsage'
   ];
 
   for (const key of keys) {
@@ -148,7 +148,7 @@ class DefaultTaskScheduler extends TaskScheduler {
   getAvailableCapacity (): number {
     return this.#pendingItems.size * this.#maximumUsage;
   }
-  
+
   getCurrentUsage (): number {
     let inFlight = 0;
     for (const worker of this.#readyItems) {

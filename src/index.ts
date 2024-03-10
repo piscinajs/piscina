@@ -799,7 +799,7 @@ class ThreadPool {
       if ((<globalThis.AbortSignal>signal).aborted) {
         return Promise.reject(new AbortError((signal as AbortSignalEventTarget).reason));
       }
-      taskInfo.abortListener = () => { 
+      taskInfo.abortListener = () => {
         // Call reject() first to make sure we always reject with the AbortError
         // if the task is aborted, not with an Error from the possible
         // thread termination below.
@@ -1214,8 +1214,8 @@ export default class Piscina extends EventEmitterAsyncResource {
     return PiscinaDefaultTaskScheduler;
   }
 
-  static get PiscinaBaseTaskScheduler() {
-    return PiscinaBaseTaskScheduler
+  static get PiscinaBaseTaskScheduler () {
+    return PiscinaBaseTaskScheduler;
   }
 
   static move (val : Transferable | TransferListItem | ArrayBufferView | ArrayBuffer | MessagePort) {
@@ -1260,5 +1260,5 @@ export {
   kTransferable as transferableSymbol,
   kValue as valueSymbol,
   kQueueOptions as queueOptionsSymbol,
-  version,
+  version
 };

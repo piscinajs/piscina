@@ -96,10 +96,10 @@ test('It allows usage of custom scheduler', async ({ plan, strictSame }) => {
       let inFlight = 0;
       for (const worker of this.#readyWorkers) {
         const currentUsage = worker.currentUsage();
-  
+
         if (Number.isFinite(currentUsage)) inFlight += currentUsage;
       }
-  
+
       return inFlight;
     }
   }
@@ -219,10 +219,10 @@ test('On ready should pass down the error thrown by the worker on initialization
       let inFlight = 0;
       for (const worker of this.#readyWorkers) {
         const currentUsage = worker.currentUsage();
-  
+
         if (Number.isFinite(currentUsage)) inFlight += currentUsage;
       }
-  
+
       return inFlight;
     }
   }
@@ -356,10 +356,10 @@ test('Should accept CustomTaskSchedulers that does not inherit from base', async
       let inFlight = 0;
       for (const worker of this.#readyWorkers) {
         const currentUsage = worker.currentUsage();
-  
+
         if (Number.isFinite(currentUsage)) inFlight += currentUsage;
       }
-  
+
       return inFlight;
     }
   }
