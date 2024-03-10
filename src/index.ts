@@ -112,27 +112,6 @@ function toHistogramIntegerNano (milliseconds: number): number {
   return Math.max(1, Math.trunc(milliseconds * 1000));
 }
 
-interface AbortSignalEventTargetAddOptions {
-  once : boolean;
-};
-
-interface AbortSignalEventTarget {
-  addEventListener : (
-    name : 'abort',
-    listener : () => void,
-    options? : AbortSignalEventTargetAddOptions) => void;
-  removeEventListener : (
-    name : 'abort',
-    listener : () => void) => void;
-  aborted? : boolean;
-  reason?: unknown;
-}
-interface AbortSignalEventEmitter {
-  off : (name : 'abort', listener : () => void) => void;
-  once : (name : 'abort', listener : () => void) => void;
-}
-
-type AbortSignalAny = globalThis.AbortSignal | AbortSignalEventEmitter;
 function onabort (abortSignal : AbortSignalAny, listener : () => void) {
   if ('addEventListener' in abortSignal) {
     abortSignal.addEventListener('abort', listener, { once: true });
@@ -230,14 +209,6 @@ const kDefaultOptions : FilledOptions = {
   closeTimeout: 30000,
   recordTiming: true
 };
-
-interface RunOptions {
-  transferList? : TransferList,
-  filename? : string | null,
-  signal? : AbortSignalAny | null,
-  name? : string | null
-}
-
 interface FilledRunOptions extends RunOptions {
   transferList : TransferList | never,
   filename : string | null,
@@ -558,7 +529,7 @@ class ThreadPool {
 
     this.workers = options.scheduler ?? new DefaultTaskScheduler(
       this.options.concurrentTasksPerWorker);
-    this.workers.onAvailable((w : WorkerInfo) => this._onWorkerAvailable(w));
+    this.workers.onAvailable((w : ThreadWorker) => this._onWorkerAvailable(w));
     this.maxCapacity = this.options.maxThreads * this.options.concurrentTasksPerWorker;
 
     this.startingUp = true;
@@ -828,7 +799,7 @@ class ThreadPool {
       if ((<globalThis.AbortSignal>signal).aborted) {
         return Promise.reject(new AbortError((signal as AbortSignalEventTarget).reason));
       }
-      taskInfo.abortListener = () => {
+      taskInfo.abortListener = () => { 
         // Call reject() first to make sure we always reject with the AbortError
         // if the task is aborted, not with an Error from the possible
         // thread termination below.
@@ -1239,6 +1210,14 @@ export default class Piscina extends EventEmitterAsyncResource {
     return Piscina;
   }
 
+  static get PiscinaDefaultTaskScheduler () {
+    return PiscinaDefaultTaskScheduler;
+  }
+
+  static get PiscinaBaseTaskScheduler() {
+    return PiscinaBaseTaskScheduler
+  }
+
   static move (val : Transferable | TransferListItem | ArrayBufferView | ArrayBuffer | MessagePort) {
     if (val != null && typeof val === 'object' && typeof val !== 'function') {
       if (!isTransferable(val)) {
@@ -1263,11 +1242,23 @@ export default class Piscina extends EventEmitterAsyncResource {
 export const move = Piscina.move;
 export const isWorkerThread = Piscina.isWorkerThread;
 export const workerData = Piscina.workerData;
+interface PiscinaWorker extends ThreadWorker {}
+interface PiscinaTask extends Task {}
+class PiscinaDefaultTaskScheduler extends DefaultTaskScheduler {}
+class PiscinaBaseTaskScheduler extends TaskScheduler {}
+type RunTaskOptions = RunOptions;
+interface PiscinaTaskQueue extends TaskQueue {};
 
 export {
   Piscina,
+  PiscinaWorker,
+  PiscinaTask,
+  PiscinaBaseTaskScheduler,
+  PiscinaTaskQueue,
+  RunTaskOptions,
+  PiscinaDefaultTaskScheduler,
   kTransferable as transferableSymbol,
   kValue as valueSymbol,
   kQueueOptions as queueOptionsSymbol,
-  version
+  version,
 };

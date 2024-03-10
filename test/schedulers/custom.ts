@@ -91,6 +91,17 @@ test('It allows usage of custom scheduler', async ({ plan, strictSame }) => {
     getAvailableCapacity (): number {
       return this.#pendingWorkers.size * this.#maxConcurrent;
     }
+
+    getCurrentUsage (): number {
+      let inFlight = 0;
+      for (const worker of this.#readyWorkers) {
+        const currentUsage = worker.currentUsage();
+  
+        if (Number.isFinite(currentUsage)) inFlight += currentUsage;
+      }
+  
+      return inFlight;
+    }
   }
 
   const maxConcurrent = 1;
@@ -202,6 +213,17 @@ test('On ready should pass down the error thrown by the worker on initialization
 
     getAvailableCapacity (): number {
       return this.#pendingWorkers.size * this.#maxConcurrent;
+    }
+
+    getCurrentUsage (): number {
+      let inFlight = 0;
+      for (const worker of this.#readyWorkers) {
+        const currentUsage = worker.currentUsage();
+  
+        if (Number.isFinite(currentUsage)) inFlight += currentUsage;
+      }
+  
+      return inFlight;
     }
   }
 
@@ -328,6 +350,17 @@ test('Should accept CustomTaskSchedulers that does not inherit from base', async
 
     getAvailableCapacity (): number {
       return this.#pendingWorkers.size * this.#maxConcurrent;
+    }
+
+    getCurrentUsage (): number {
+      let inFlight = 0;
+      for (const worker of this.#readyWorkers) {
+        const currentUsage = worker.currentUsage();
+  
+        if (Number.isFinite(currentUsage)) inFlight += currentUsage;
+      }
+  
+      return inFlight;
     }
   }
 

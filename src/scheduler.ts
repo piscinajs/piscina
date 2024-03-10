@@ -8,7 +8,9 @@ function isTaskSchedulerLike (obj: {}): obj is TaskScheduler {
     'onAvailable',
     'pick',
     'delete',
-    'size'
+    'size',
+    'getAvailableCapacity',
+    'getCurrentUsage',
   ];
 
   for (const key of keys) {
@@ -57,6 +59,10 @@ class TaskScheduler {
 
   getAvailableCapacity (): number {
     throw new Error('getAvailableCapacity Method not implemented.');
+  }
+
+  getCurrentUsage (): number {
+    throw new Error('getCurrentUsage Method not implemented.');
   }
 }
 
@@ -141,6 +147,17 @@ class DefaultTaskScheduler extends TaskScheduler {
 
   getAvailableCapacity (): number {
     return this.#pendingItems.size * this.#maximumUsage;
+  }
+  
+  getCurrentUsage (): number {
+    let inFlight = 0;
+    for (const worker of this.#readyItems) {
+      const currentUsage = worker.currentUsage();
+
+      if (Number.isFinite(currentUsage)) inFlight += currentUsage;
+    }
+
+    return inFlight;
   }
 }
 

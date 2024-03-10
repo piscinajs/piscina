@@ -1,4 +1,3 @@
-import assert from 'assert';
 import type { MessagePort } from 'worker_threads';
 
 export const READY = '_WORKER_READY';
