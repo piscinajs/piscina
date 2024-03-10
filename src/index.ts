@@ -605,8 +605,8 @@ class ThreadPool {
   taskQueue : TaskQueue;
   skipQueue : TaskInfo[] = [];
   completed : number = 0;
-  runTime? : Histogram;
-  waitTime? : Histogram;
+  runTime? : RecordableHistogram;
+  waitTime? : RecordableHistogram;
   _needsDrain : boolean;
   start : number = performance.now();
   inProcessPendingMessages : boolean = false;
@@ -1243,7 +1243,7 @@ export default class Piscina extends EventEmitterAsyncResource {
     return this.#pool.completed;
   }
 
-  get waitTime () : any {
+  get waitTime () : HistogramSummary | null {
     if (!this.#pool.waitTime) {
       return null;
     }
@@ -1251,7 +1251,7 @@ export default class Piscina extends EventEmitterAsyncResource {
     return createHistogramSummary(this.#pool.waitTime);
   }
 
-  get runTime () : any {
+  get runTime () : HistogramSummary | null {
     if (!this.#pool.runTime) {
       return null;
     }
