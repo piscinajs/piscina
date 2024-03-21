@@ -7,6 +7,7 @@ import { resolve } from 'path';
 import { inspect, types } from 'util';
 import assert from 'assert';
 import { Histogram, RecordableHistogram, createHistogram, performance } from 'perf_hooks';
+
 import {
   READY,
   RequestMessage,
@@ -25,8 +26,12 @@ import {
   markMovable,
   isMovable,
   kTransferable,
-  kValue
+  kValue,
+  PiscinaWorker,
+  PiscinaTask,
+  kWorker
 } from './common';
+import { PiscinaBalancer, PiscinaBalancerContext, defaultBalancer } from './balancer';
 import { version } from '../package.json';
 import { setTimeout as sleep } from 'timers/promises';
 
@@ -179,6 +184,7 @@ interface Options {
   trackUnmanagedFds? : boolean,
   closeTimeout?: number,
   recordTiming?: boolean
+  balancer?: PiscinaBalancer
 }
 
 interface FilledOptions extends Options {
@@ -186,9 +192,9 @@ interface FilledOptions extends Options {
   name: string,
   minThreads : number,
   maxThreads : number,
-  idleTimeout : number,
-  maxQueue : number,
   concurrentTasksPerWorker : number,
+  maxQueue : number,
+  idleTimeout : number,
   useAtomics: boolean,
   taskQueue : TaskQueue,
   niceIncrement : number,
@@ -351,7 +357,19 @@ class TaskInfo extends AsyncResource implements Task {
   }
 
   get [kQueueOptions] () : object | null {
-    return kQueueOptions in this.task ? this.task[kQueueOptions] : null;
+    // return kQueueOptions in this.task ? this.task[kQueueOptions] : null;
+    return this.task[kQueueOptions] ?? null;
+  }
+
+  get publicTask () : PiscinaTask {
+    return {
+      filename: this.filename,
+      name: this.name,
+      taskId: this.taskId,
+      created: this.created,
+      isAbortable: this.abortSignal !== null,
+      [kQueueOptions]: this[kQueueOptions]
+    };
   }
 }
 
@@ -386,12 +404,14 @@ class AsynchronouslyCreatedResourcePool<
   T extends AsynchronouslyCreatedResource> {
   pendingItems = new Set<T>();
   readyItems = new Set<T>();
-  maximumUsage : number;
   onAvailableListeners : ((item : T) => void)[];
+  context: Omit<PiscinaBalancerContext, 'workers'>;
+  balancer: PiscinaBalancer;
 
-  constructor (maximumUsage : number) {
-    this.maximumUsage = maximumUsage;
+  constructor (context : Omit<PiscinaBalancerContext, 'workers'>, balancer: PiscinaBalancer) {
+    this.context = context;
     this.onAvailableListeners = [];
+    this.balancer = balancer;
   }
 
   add (item : T) {
@@ -411,18 +431,26 @@ class AsynchronouslyCreatedResourcePool<
     this.readyItems.delete(item);
   }
 
-  findAvailable () : T | null {
-    let minUsage = this.maximumUsage;
-    let candidate = null;
-    for (const item of this.readyItems) {
-      const usage = item.currentUsage();
-      if (usage === 0) return item;
-      if (usage < minUsage) {
-        candidate = item;
-        minUsage = usage;
-      }
-    }
-    return candidate;
+  findAvailable (task: PiscinaTask) : T | null {
+    // let minUsage = this.context.concurrentTasksPerWorker;
+    // let candidate = null;
+    // for (const item of this.readyItems) {
+    //   const usage = item.currentUsage();
+    //   if (usage === 0) return item;
+    //   if (usage < minUsage) {
+    //     candidate = item;
+    //     minUsage = usage;
+    //   }
+    // }
+    // return candidate;
+
+    // TODO: adjust types
+    // @ts-expect-error - fix interface
+    return this.balancer(task, {
+      ...this.context,
+      // @ts-expect-error - fix interface
+      workers: [...this.readyItems].map((item) => (<PiscinaWorker>item.publicWorker))
+    });
   }
 
   * [Symbol.iterator] () {
@@ -434,9 +462,13 @@ class AsynchronouslyCreatedResourcePool<
     return this.pendingItems.size + this.readyItems.size;
   }
 
+  get workers () {
+    return [...this.readyItems];
+  }
+
   maybeAvailable (item : T) {
     /* istanbul ignore else */
-    if (item.currentUsage() < this.maximumUsage) {
+    if (item.currentUsage() < this.context.concurrentTasksPerWorker) {
       for (const listener of this.onAvailableListeners) {
         listener(item);
       }
@@ -471,6 +503,7 @@ class WorkerInfo extends AsynchronouslyCreatedResource {
   sharedBuffer : Int32Array;
   lastSeenResponseCount : number = 0;
   onMessage : ResponseCallback;
+  workerRunTime: RecordableHistogram;
 
   constructor (
     worker : Worker,
@@ -485,6 +518,8 @@ class WorkerInfo extends AsynchronouslyCreatedResource {
     this.taskInfos = new Map();
     this.sharedBuffer = new Int32Array(
       new SharedArrayBuffer(kFieldCount * Int32Array.BYTES_PER_ELEMENT));
+    // TODO: Add flag for disabling
+    this.workerRunTime = createHistogram();
   }
 
   destroy () : void {
@@ -573,6 +608,26 @@ class WorkerInfo extends AsynchronouslyCreatedResource {
     }
   }
 
+  // TODO: optimize to generate this after available
+  get publicWorker () : PiscinaWorker {
+    const worker = this;
+    return {
+      id: this.worker.threadId,
+      isRunningAbortableTask: this.isRunningAbortableTask(),
+      usage: this.currentUsage(),
+      runTime: {
+        average: this.workerRunTime.mean / 1000,
+        mean: this.workerRunTime.mean / 1000,
+        stddev: this.workerRunTime.stddev,
+        min: this.workerRunTime.min / 1000,
+        max: this.workerRunTime.max / 1000,
+        count: this.lastSeenResponseCount
+      },
+      // @ts-expect-error - meant to be hidden
+      [kWorker]: worker
+    };
+  }
+
   isRunningAbortableTask () : boolean {
     // If there are abortable tasks, we are running one at most per Worker.
     if (this.taskInfos.size !== 1) return false;
@@ -602,6 +657,7 @@ class ThreadPool {
   closingUp : boolean = false;
   workerFailsDuringBootstrap : boolean = false;
   destroying : boolean = false;
+  balancer : PiscinaBalancer;
 
   constructor (publicInterface : Piscina, options : Options) {
     this.publicInterface = publicInterface;
@@ -631,8 +687,13 @@ class ThreadPool {
       this.options.maxQueue = options.maxQueue ?? kDefaultOptions.maxQueue;
     }
 
-    this.workers = new AsynchronouslyCreatedResourcePool<WorkerInfo>(
-      this.options.concurrentTasksPerWorker);
+    this.balancer = options.balancer ?? defaultBalancer;
+    this.workers = new AsynchronouslyCreatedResourcePool<WorkerInfo>({
+      minThreads: this.options.minThreads,
+      maxThreads: this.options.maxThreads,
+      concurrentTasksPerWorker: this.options.concurrentTasksPerWorker,
+      maxQueue: this.options.maxQueue
+    }, this.balancer);
     this.workers.onAvailable((w : WorkerInfo) => this._onWorkerAvailable(w));
 
     this.startingUp = true;
@@ -797,27 +858,63 @@ class ThreadPool {
     this.workers.delete(workerInfo);
   }
 
+  // TODO: rename to `onTaskDone` or similar
+  // this is the only place that requires calling the
+  // scheduler as well, as it processes the finished messages from the worker
+  // as well when a new worker is available.
+  // Although it seems intuitive to assign the worker to the taskInfo
+  // truth is that its up to the scheduler to do so
   _onWorkerAvailable (workerInfo : WorkerInfo) : void {
-    while ((this.taskQueue.size > 0 || this.skipQueue.length > 0) &&
-      workerInfo.currentUsage() < this.options.concurrentTasksPerWorker) {
+    const workers = [...this.workers.workers].map((item) => item.publicWorker);
+    const context = {
+      maxQueue: this.options.maxQueue,
+      minThreads: this.options.minThreads,
+      maxThreads: this.options.maxThreads,
+      concurrentTasksPerWorker: this.options.concurrentTasksPerWorker,
+      workers: workers
+    };
+
+    while (this.taskQueue.size > 0 || this.skipQueue.length > 0) {
       // The skipQueue will have tasks that we previously shifted off
       // the task queue but had to skip over... we have to make sure
       // we drain that before we drain the taskQueue.
-      const taskInfo = this.skipQueue.shift() ||
+      const taskInfo = this.skipQueue.shift() ??
                        this.taskQueue.shift() as TaskInfo;
-      // If the task has an abortSignal and the worker has any other
-      // tasks, we cannot distribute the task to it. Skip for now.
-      if (taskInfo.abortSignal && workerInfo.taskInfos.size > 0) {
-        this.skipQueue.push(taskInfo);
+
+      const candidate = this.balancer(taskInfo.publicTask, context);
+
+      if (candidate === null) {
+        (taskInfo.abortSignal == null && this.taskQueue.push(taskInfo)) || this.skipQueue.push(taskInfo);
         break;
       }
+
       const now = performance.now();
       this.waitTime?.record(toHistogramIntegerNano(now - taskInfo.created));
       taskInfo.started = now;
-      workerInfo.postTask(taskInfo);
+      // @ts-expect-error
+      candidate[kWorker].postTask(taskInfo);
       this._maybeDrain();
-      return;
     }
+    // while ((this.taskQueue.size > 0 || this.skipQueue.length > 0) &&
+    //   workerInfo.currentUsage() < this.options.concurrentTasksPerWorker) {
+    //   // The skipQueue will have tasks that we previously shifted off
+    //   // the task queue but had to skip over... we have to make sure
+    //   // we drain that before we drain the taskQueue.
+    //   const taskInfo = this.skipQueue.shift() ||
+    //                    this.taskQueue.shift() as TaskInfo;
+    //   // If the task has an abortSignal and the worker has any other
+    //   // tasks, we cannot distribute the task to it. Skip for now.
+    //   if (taskInfo.abortSignal && workerInfo.taskInfos.size > 0) {
+    //     this.skipQueue.push(taskInfo);
+    //     break;
+    //   }
+    //   const now = performance.now();
+    //   this.waitTime?.record(toHistogramIntegerNano(now - taskInfo.created));
+    //   taskInfo.started = now;
+    //   workerInfo.postTask(taskInfo);
+    //   this._maybeDrain();
+    //   return;
+    // }
 
     if (workerInfo.taskInfos.size === 0 &&
         this.workers.size > this.options.minThreads) {
@@ -873,7 +970,9 @@ class ThreadPool {
       (err : Error | null, result : any) => {
         this.completed++;
         if (taskInfo.started) {
-          this.runTime?.record(toHistogramIntegerNano(performance.now() - taskInfo.started));
+          const mark = toHistogramIntegerNano(performance.now() - taskInfo.started);
+          this.runTime?.record(mark);
+          taskInfo.workerInfo?.workerRunTime.record(mark);
         }
         if (err !== null) {
           reject(err);
@@ -931,29 +1030,43 @@ class ThreadPool {
       return ret;
     }
 
-    // Look for a Worker with a minimum number of tasks it is currently running.
-    let workerInfo : WorkerInfo | null = this.workers.findAvailable();
+    // We need to pass the current task queue size at a given time
+    const workerInfo : WorkerInfo | null = this.workers.findAvailable(taskInfo.publicTask);
 
-    // If we want the ability to abort this task, use only workers that have
-    // no running tasks.
-    if (workerInfo !== null && workerInfo.currentUsage() > 0 && signal) {
-      workerInfo = null;
-    }
+    // // If we want the ability to abort this task, use only workers that have
+    // // no running tasks.
+    // if (workerInfo !== null && workerInfo.currentUsage() > 0 && signal) {
+    //   workerInfo = null;
+    // }
 
     // If no Worker was found, or that Worker was handling another task in some
     // way, and we still have the ability to spawn new threads, do so.
-    let waitingForNewWorker = false;
-    if ((workerInfo === null || workerInfo.currentUsage() > 0) &&
-        this.workers.size < this.options.maxThreads) {
-      this._addNewWorker();
-      waitingForNewWorker = true;
-    }
+    // let waitingForNewWorker = false;
+    // if ((workerInfo === null || workerInfo.currentUsage() > 0) &&
+    //     this.workers.size < this.options.maxThreads) {
+    //   this._addNewWorker();
+    //   waitingForNewWorker = true;
+    // }
 
     // If no Worker is found, try to put the task into the queue.
+    // if (workerInfo === null) {
+    //   if (this.options.maxQueue <= 0 && !waitingForNewWorker) {
+    //     return Promise.reject(Errors.NoTaskQueueAvailable());
+    //   } else {
+    //     this.taskQueue.push(taskInfo);
+    //   }
+
+    //   this._maybeDrain();
+    //   return ret;
+    // }
     if (workerInfo === null) {
-      if (this.options.maxQueue <= 0 && !waitingForNewWorker) {
+      if (this.options.maxQueue <= 0 && this.workers.size === this.options.maxThreads) {
         return Promise.reject(Errors.NoTaskQueueAvailable());
       } else {
+        if (this.workers.size < this.options.maxThreads) {
+          this._addNewWorker();
+        }
+
         this.taskQueue.push(taskInfo);
       }
 
@@ -961,11 +1074,13 @@ class ThreadPool {
       return ret;
     }
 
+    // @ts-expect-error - meant to be hidden
+    const worker = workerInfo[kWorker];
     // TODO(addaleax): Clean up the waitTime/runTime recording.
     const now = performance.now();
     this.waitTime?.record(toHistogramIntegerNano(now - taskInfo.created));
     taskInfo.started = now;
-    workerInfo.postTask(taskInfo);
+    worker.postTask(taskInfo);
     this._maybeDrain();
     return ret;
   }
@@ -973,6 +1088,10 @@ class ThreadPool {
   pendingCapacity () : number {
     return this.workers.pendingItems.size *
       this.options.concurrentTasksPerWorker;
+  }
+
+  get queueSize (): number {
+    return this.taskQueue.size + this.skipQueue.length;
   }
 
   _maybeDrain () {
@@ -1143,6 +1262,9 @@ export default class Piscina extends EventEmitterAsyncResource {
     if (options.closeTimeout !== undefined && (typeof options.closeTimeout !== 'number' || options.closeTimeout < 0)) {
       throw new TypeError('options.closeTimeout must be a non-negative integer');
     }
+    if (options.balancer != null && (typeof options.balancer !== 'function' || options.balancer.length === 0)) {
+      throw new TypeError('options.balancer must be a function with at least one argument');
+    }
 
     this.#pool = new ThreadPool(this, options);
   }
@@ -1264,9 +1386,11 @@ export default class Piscina extends EventEmitterAsyncResource {
     return ret;
   }
 
+  // TODO: this might be
   get queueSize () : number {
     const pool = this.#pool;
-    return Math.max(pool.taskQueue.size - pool.pendingCapacity(), 0);
+    // return Math.max(pool.taskQueue.size - pool.pendingCapacity(), 0);
+    return pool.queueSize;
   }
 
   get completed () : number {
@@ -1344,6 +1468,10 @@ export default class Piscina extends EventEmitterAsyncResource {
     return Piscina;
   }
 
+  static get PiscinaDefaultBalancer () {
+    return defaultBalancer;
+  }
+
   static move (val : Transferable | TransferListItem | ArrayBufferView | ArrayBuffer | MessagePort) {
     if (val != null && typeof val === 'object' && typeof val !== 'function') {
       if (!isTransferable(val)) {
@@ -1371,6 +1499,9 @@ export const workerData = Piscina.workerData;
 
 export {
   Piscina,
+  PiscinaBalancer,
+  PiscinaBalancerContext,
+  PiscinaTask,
   kTransferable as transferableSymbol,
   kValue as valueSymbol,
   kQueueOptions as queueOptionsSymbol,
