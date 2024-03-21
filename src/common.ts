@@ -11,6 +11,32 @@ export interface StartupMessage {
   niceIncrement : number;
 }
 
+/* eslint-disable camelcase */
+export interface ThreadWorkerHistogramSummary {
+  average: number;
+  mean: number;
+  stddev: number;
+  min: number;
+  max: number;
+  count: number;
+}
+/* eslint-enable camelcase */
+
+export interface PiscinaWorker {
+  id: number;
+  isRunningAbortableTask: boolean;
+  usage: number; // current tasks being processed
+  runTime: ThreadWorkerHistogramSummary; // lag over the last task processed (in ms)
+}
+
+export interface PiscinaTask extends Task {
+  taskId: number;
+  filename: string;
+  name: string;
+  created: number;
+  isAbortable: boolean;
+}
+
 export interface RequestMessage {
   taskId : number;
   task : any;
@@ -38,6 +64,7 @@ const kMovable = Symbol('Piscina.kMovable');
 export const kTransferable = Symbol.for('Piscina.transferable');
 export const kValue = Symbol.for('Piscina.valueOf');
 export const kQueueOptions = Symbol.for('Piscina.queueOptions');
+export const kWorker = Symbol('Piscina.worker');
 
 // True if the object implements the Transferable interface
 export function isTransferable (value : any) : boolean {

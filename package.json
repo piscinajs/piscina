@@ -14,7 +14,7 @@
     "lint": "standardx \"**/*.{ts,mjs,js,cjs}\" | snazzy",
     "test": "tap --ts",
     "test:ci": "npm run lint && npm run build && npm run test:coverage",
-    "test:coverage": "tap --ts --cov --coverage-report=html --no-browser --no-check-coverage",
+    "test:coverage": "tap --ts --cov --no-check-coverage",
     "prepack": "npm run build"
   },
   "repository": {
@@ -35,6 +35,7 @@
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^20.8.0",
+    "@types/tap": "^15.0.11",
     "@typescript-eslint/eslint-plugin": "^6.9.0",
     "@typescript-eslint/parser": "^6.9.0",
     "abort-controller": "^3.0.0",
@@ -46,7 +47,6 @@
     "ts-node": "^10.9.2",
     "typescript": "5.4.2"
   },
-  "dependencies": {},
   "optionalDependencies": {
     "nice-napi": "^1.0.2"
   },
