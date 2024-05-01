@@ -1,12 +1,12 @@
-import { Worker, MessageChannel, MessagePort, receiveMessageOnPort } from 'worker_threads';
-import { once, EventEmitterAsyncResource } from 'events';
-import { AsyncResource } from 'async_hooks';
-import { cpus } from 'os';
-import { fileURLToPath, URL } from 'url';
-import { resolve } from 'path';
-import { inspect, types } from 'util';
-import assert from 'assert';
-import { Histogram, RecordableHistogram, createHistogram, performance } from 'perf_hooks';
+import { Worker, MessageChannel, MessagePort, receiveMessageOnPort } from 'node:worker_threads';
+import { once, EventEmitterAsyncResource } from 'node:events';
+import { AsyncResource } from 'node:async_hooks';
+import { availableParallelism } from 'node:os';
+import { fileURLToPath, URL } from 'node:url';
+import { resolve } from 'node:path';
+import { inspect, types } from 'node:util';
+import assert from 'node:assert';
+import { Histogram, RecordableHistogram, createHistogram, performance } from 'node:perf_hooks';
 import {
   READY,
   RequestMessage,
