@@ -30,14 +30,7 @@ import {
 import { version } from '../package.json';
 import { setTimeout as sleep } from 'timers/promises';
 
-const cpuCount : number = (() => {
-  try {
-    return cpus().length;
-  } catch {
-    /* istanbul ignore next */
-    return 1;
-  }
-})();
+const cpuParallelism : number = availableParallelism();
 
 /* eslint-disable camelcase */
 interface HistogramSummary {
@@ -199,8 +192,8 @@ interface FilledOptions extends Options {
 const kDefaultOptions : FilledOptions = {
   filename: null,
   name: 'default',
-  minThreads: Math.max(Math.floor(cpuCount / 2), 1),
-  maxThreads: cpuCount * 1.5,
+  minThreads: Math.max(Math.floor(cpuParallelism / 2), 1),
+  maxThreads: cpuParallelism * 1.5,
   idleTimeout: 0,
   maxQueue: Infinity,
   concurrentTasksPerWorker: 1,
