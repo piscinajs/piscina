@@ -1,3 +1,4 @@
+import { TaskQueue, Task } from './common';
 // Currently optimal queue size, tested on V8 6.0 - 6.6. Must be power of two.
 const kSize = 2048;
 const kMask = kSize - 1;
@@ -53,7 +54,7 @@ const kMask = kSize - 1;
 class FixedCircularBuffer {
   bottom: number
   top: number
-  list: Array<unknown>
+  list: Array<Task | undefined>
   next: FixedCircularBuffer | null
 
   constructor () {
@@ -71,7 +72,7 @@ class FixedCircularBuffer {
     return ((this.top + 1) & kMask) === this.bottom;
   }
 
-  push (data:unknown) {
+  push (data:Task) {
     this.list[this.top] = data;
     this.top = (this.top + 1) & kMask;
   }
@@ -85,7 +86,7 @@ class FixedCircularBuffer {
   }
 }
 
-export default class FixedQueue {
+export default class FixedQueue implements TaskQueue {
   head: FixedCircularBuffer
   tail: FixedCircularBuffer
   constructor () {
@@ -96,7 +97,7 @@ export default class FixedQueue {
     return this.head.isEmpty();
   }
 
-  push (data:unknown) {
+  push (data:Task) {
     if (this.head.isFull()) {
       // Head is full: Creates a new queue, sets the old queue's `.next` to it,
       // and sets it as the new main queue.
@@ -105,7 +106,7 @@ export default class FixedQueue {
     this.head.push(data);
   }
 
-  shift () {
+  shift (): Task | null {
     const tail = this.tail;
     const next = tail.shift();
     if (tail.isEmpty() && tail.next !== null) {
