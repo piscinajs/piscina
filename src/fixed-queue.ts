@@ -84,11 +84,39 @@ class FixedCircularBuffer {
     this.bottom = (this.bottom + 1) & kMask;
     return nextItem;
   }
+
+  remove (task: Task) {
+    // TODO: implement CircularBuffer task removal
+    const indexToRemove = this.list.indexOf(task);
+
+    if (indexToRemove === -1) return;
+    let curr = indexToRemove;
+    while (true) {
+      const next = (curr + 1) & kMask;
+      this.list[curr] = this.list[next];
+      if (this.list[curr] === undefined) break;
+      if (curr === indexToRemove) break;
+      curr = next;
+    }
+  }
+
+  get size () {
+    let count = 0;
+    for (let i = 0; i < this.list.length; i++) {
+      if (this.list[i] !== undefined) count++;
+    }
+    return count;
+  }
+
+  get capacity () {
+    return this.list.length;
+  }
 }
 
 export default class FixedQueue implements TaskQueue {
   head: FixedCircularBuffer
   tail: FixedCircularBuffer
+
   constructor () {
     this.head = this.tail = new FixedCircularBuffer();
   }
@@ -115,5 +143,28 @@ export default class FixedQueue implements TaskQueue {
       tail.next = null;
     }
     return next;
+  }
+
+  remove (task: Task) {
+    let buffer = this.head;
+    while (true) {
+      if (buffer.list.includes(task)) {
+        buffer.remove(task);
+        break;
+      }
+      if (buffer.next === null) break;
+      buffer = buffer.next;
+    }
+  }
+
+  get size () {
+    let total = 0;
+    let buffer = this.head;
+    while (true) {
+      total += buffer.size;
+      if (buffer.next === null) break;
+      buffer = buffer.next;
+    }
+    return total;
   }
 };
