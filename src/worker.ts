@@ -1,5 +1,6 @@
-import { parentPort, MessagePort, receiveMessageOnPort, workerData } from 'worker_threads';
-import { pathToFileURL } from 'url';
+import { parentPort, MessagePort, receiveMessageOnPort, workerData } from 'node:worker_threads';
+import { pathToFileURL } from 'node:url';
+
 import {
   READY,
   commonState,

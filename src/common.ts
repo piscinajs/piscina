@@ -1,4 +1,4 @@
-import type { MessagePort } from 'worker_threads';
+import type { MessagePort } from 'node:worker_threads';
 
 export const READY = '_WORKER_READY';
 
