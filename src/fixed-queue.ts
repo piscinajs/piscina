@@ -57,6 +57,7 @@ class FixedCircularBuffer {
   top: number
   list: Array<Task | undefined>
   next: FixedCircularBuffer | null
+  #size: number = 0
 
   constructor () {
     this.bottom = 0;
@@ -76,6 +77,7 @@ class FixedCircularBuffer {
   push (data:Task) {
     this.list[this.top] = data;
     this.top = (this.top + 1) & kMask;
+    this.#size++;
   }
 
   shift () {
@@ -83,11 +85,11 @@ class FixedCircularBuffer {
     if (nextItem === undefined) { return null; }
     this.list[this.bottom] = undefined;
     this.bottom = (this.bottom + 1) & kMask;
+    this.#size--;
     return nextItem;
   }
 
   remove (task: Task) {
-    // TODO: implement CircularBuffer task removal
     const indexToRemove = this.list.indexOf(task);
 
     assert.notStrictEqual(indexToRemove, -1);
@@ -99,14 +101,11 @@ class FixedCircularBuffer {
       if (curr === indexToRemove) break;
       curr = next;
     }
+    this.#size--;
   }
 
   get size () {
-    let count = 0;
-    for (let i = 0; i < this.list.length; i++) {
-      if (this.list[i] !== undefined) count++;
-    }
-    return count;
+    return this.#size;
   }
 
   get capacity () {
