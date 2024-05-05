@@ -1,3 +1,4 @@
+import assert from 'node:assert';
 import { TaskQueue, Task } from './common';
 // Currently optimal queue size, tested on V8 6.0 - 6.6. Must be power of two.
 const kSize = 2048;
@@ -89,7 +90,7 @@ class FixedCircularBuffer {
     // TODO: implement CircularBuffer task removal
     const indexToRemove = this.list.indexOf(task);
 
-    if (indexToRemove === -1) return;
+    assert.notStrictEqual(indexToRemove, -1);
     let curr = indexToRemove;
     while (true) {
       const next = (curr + 1) & kMask;
