@@ -2,158 +2,66 @@ import { Worker, MessageChannel, MessagePort, receiveMessageOnPort } from 'node:
 import { once, EventEmitterAsyncResource } from 'node:events';
 import { AsyncResource } from 'node:async_hooks';
 import { availableParallelism } from 'node:os';
-import { fileURLToPath, URL } from 'node:url';
 import { resolve } from 'node:path';
 import { inspect, types } from 'node:util';
-import { Histogram, RecordableHistogram, createHistogram, performance } from 'node:perf_hooks';
+import { RecordableHistogram, createHistogram, performance } from 'node:perf_hooks';
 import { setTimeout as sleep } from 'node:timers/promises';
+import { readFileSync } from 'node:fs';
 import assert from 'node:assert';
 
-import {
-  READY,
+import type {
   RequestMessage,
   ResponseMessage,
   StartupMessage,
-  commonState,
+  Transferable,
+  Task,
+  ResourceLimits,
+  EnvSpecifier,
+  TaskCallback,
+  TransferList,
+  TransferListItem
+} from './types';
+import {
   kResponseCountField,
   kRequestCountField,
   kFieldCount,
-  Transferable,
-  Task,
-  TaskQueue,
   kQueueOptions,
+  kTransferable,
+  kValue
+} from './symbols';
+import {
+  TaskQueue,
   isTaskQueue,
+  ArrayTaskQueue
+} from './task_queue';
+import {
+  AbortSignalAny,
+  AbortSignalEventTarget,
+  AbortError,
+  AbortSignalEventEmitter,
+  onabort
+} from './abort';
+import {
+  READY,
+  commonState,
   isTransferable,
   markMovable,
   isMovable,
-  kTransferable,
-  kValue
+  createHistogramSummary,
+  toHistogramIntegerNano,
+  maybeFileURLToPath
 } from './common';
 import FixedQueue from './fixed-queue';
-import { version } from '../package.json';
+
+const { version } = JSON.parse(
+  readFileSync(
+    resolve(__dirname, '..', 'package.json'),
+    {
+      encoding: 'utf-8'
+    }
+  ));
 
 const cpuParallelism : number = availableParallelism();
-
-/* eslint-disable camelcase */
-interface HistogramSummary {
-  average: number;
-  mean: number;
-  stddev: number;
-  min: number;
-  max: number;
-  p0_001: number;
-  p0_01: number;
-  p0_1: number;
-  p1: number;
-  p2_5: number;
-  p10: number;
-  p25: number;
-  p50: number;
-  p75: number;
-  p90: number;
-  p97_5: number;
-  p99: number;
-  p99_9: number;
-  p99_99: number;
-  p99_999: number;
-}
-/* eslint-enable camelcase */
-
-function createHistogramSummary (histogram: Histogram): HistogramSummary {
-  const { mean, stddev, min, max } = histogram;
-
-  return {
-    average: mean / 1000,
-    mean: mean / 1000,
-    stddev,
-    min: min / 1000,
-    max: max / 1000,
-    p0_001: histogram.percentile(0.001) / 1000,
-    p0_01: histogram.percentile(0.01) / 1000,
-    p0_1: histogram.percentile(0.1) / 1000,
-    p1: histogram.percentile(1) / 1000,
-    p2_5: histogram.percentile(2.5) / 1000,
-    p10: histogram.percentile(10) / 1000,
-    p25: histogram.percentile(25) / 1000,
-    p50: histogram.percentile(50) / 1000,
-    p75: histogram.percentile(75) / 1000,
-    p90: histogram.percentile(90) / 1000,
-    p97_5: histogram.percentile(97.5) / 1000,
-    p99: histogram.percentile(99) / 1000,
-    p99_9: histogram.percentile(99.9) / 1000,
-    p99_99: histogram.percentile(99.99) / 1000,
-    p99_999: histogram.percentile(99.999) / 1000
-  };
-}
-
-function toHistogramIntegerNano (milliseconds: number): number {
-  return Math.max(1, Math.trunc(milliseconds * 1000));
-}
-
-interface AbortSignalEventTargetAddOptions {
-  once : boolean;
-};
-
-interface AbortSignalEventTarget {
-  addEventListener : (
-    name : 'abort',
-    listener : () => void,
-    options? : AbortSignalEventTargetAddOptions) => void;
-  removeEventListener : (
-    name : 'abort',
-    listener : () => void) => void;
-  aborted? : boolean;
-  reason?: unknown;
-}
-interface AbortSignalEventEmitter {
-  off : (name : 'abort', listener : () => void) => void;
-  once : (name : 'abort', listener : () => void) => void;
-}
-type AbortSignalAny = AbortSignalEventTarget | AbortSignalEventEmitter;
-function onabort (abortSignal : AbortSignalAny, listener : () => void) {
-  if ('addEventListener' in abortSignal) {
-    abortSignal.addEventListener('abort', listener, { once: true });
-  } else {
-    abortSignal.once('abort', listener);
-  }
-}
-
-class AbortError extends Error {
-  constructor (reason?: AbortSignalEventTarget['reason']) {
-    // TS does not recognizes the cause clause
-    // @ts-expect-error
-    super('The task has been aborted', { cause: reason });
-  }
-
-  get name () { return 'AbortError'; }
-}
-
-type ResourceLimits = Worker extends {
-  resourceLimits? : infer T;
-} ? T : {};
-type EnvSpecifier = typeof Worker extends {
-  new (filename : never, options?: { env: infer T }) : Worker;
-} ? T : never;
-
-export class ArrayTaskQueue implements TaskQueue {
-  tasks : Task[] = [];
-
-  get size () { return this.tasks.length; }
-
-  shift () : Task | null {
-    return this.tasks.shift() as Task;
-  }
-
-  push (task : Task) : void {
-    this.tasks.push(task);
-  }
-
-  remove (task : Task) : void {
-    const index = this.tasks.indexOf(task);
-    assert.notStrictEqual(index, -1);
-    this.tasks.splice(index, 1);
-  }
-}
 
 interface Options {
   filename? : string | null,
@@ -191,6 +99,28 @@ interface FilledOptions extends Options {
   recordTiming : boolean
 }
 
+interface RunOptions {
+  transferList? : TransferList,
+  filename? : string | null,
+  signal? : AbortSignalAny | null,
+  name? : string | null
+}
+
+interface FilledRunOptions extends RunOptions {
+  transferList : TransferList | never,
+  filename : string | null,
+  signal : AbortSignalAny | null,
+  name : string | null
+}
+
+interface CloseOptions {
+  force?: boolean,
+}
+
+type ResponseCallback = (response : ResponseMessage) => void;
+
+let taskIdCounter = 0;
+
 const kDefaultOptions : FilledOptions = {
   filename: null,
   name: 'default',
@@ -207,20 +137,6 @@ const kDefaultOptions : FilledOptions = {
   recordTiming: true
 };
 
-interface RunOptions {
-  transferList? : TransferList,
-  filename? : string | null,
-  signal? : AbortSignalAny | null,
-  name? : string | null
-}
-
-interface FilledRunOptions extends RunOptions {
-  transferList : TransferList | never,
-  filename : string | null,
-  signal : AbortSignalAny | null,
-  name : string | null
-}
-
 const kDefaultRunOptions : FilledRunOptions = {
   transferList: undefined,
   filename: null,
@@ -228,12 +144,21 @@ const kDefaultRunOptions : FilledRunOptions = {
   name: null
 };
 
-interface CloseOptions {
-  force?: boolean,
-}
-
 const kDefaultCloseOptions : Required<CloseOptions> = {
   force: false
+};
+
+const Errors = {
+  ThreadTermination:
+    () => new Error('Terminating worker thread'),
+  FilenameNotProvided:
+    () => new Error('filename must be provided to run() or in options object'),
+  TaskQueueAtLimit:
+    () => new Error('Task queue is at limit'),
+  NoTaskQueueAvailable:
+    () => new Error('No task queue available and all Workers are busy'),
+  CloseTimeout:
+    () => new Error('Close operation timed out')
 };
 
 class DirectlyTransferable implements Transferable {
@@ -256,21 +181,6 @@ class ArrayBufferViewTransferable implements Transferable {
   get [kTransferable] () : object { return this.#view.buffer; }
 
   get [kValue] () : object { return this.#view; }
-}
-
-let taskIdCounter = 0;
-
-type TaskCallback = (err : Error, result: any) => void;
-// Grab the type of `transferList` off `MessagePort`. At the time of writing,
-// only ArrayBuffer and MessagePort are valid, but let's avoid having to update
-// our types here every time Node.js adds support for more objects.
-type TransferList = MessagePort extends { postMessage(value : any, transferList : infer T) : any; } ? T : never;
-type TransferListItem = TransferList extends (infer T)[] ? T : never;
-
-function maybeFileURLToPath (filename : string) : string {
-  return filename.startsWith('file:')
-    ? fileURLToPath(new URL(filename))
-    : filename;
 }
 
 // Extend AsyncResource so that async relations between posting a task and
@@ -442,21 +352,6 @@ class AsynchronouslyCreatedResourcePool<
     this.onAvailableListeners.push(fn);
   }
 }
-
-type ResponseCallback = (response : ResponseMessage) => void;
-
-const Errors = {
-  ThreadTermination:
-    () => new Error('Terminating worker thread'),
-  FilenameNotProvided:
-    () => new Error('filename must be provided to run() or in options object'),
-  TaskQueueAtLimit:
-    () => new Error('Task queue is at limit'),
-  NoTaskQueueAvailable:
-    () => new Error('No task queue available and all Workers are busy'),
-  CloseTimeout:
-    () => new Error('Close operation timed out')
-};
 
 class WorkerInfo extends AsynchronouslyCreatedResource {
   worker : Worker;
