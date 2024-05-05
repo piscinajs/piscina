@@ -1,7 +1,7 @@
 import { Worker, MessageChannel, MessagePort, receiveMessageOnPort } from 'worker_threads';
 import { once, EventEmitterAsyncResource } from 'events';
 import { AsyncResource } from 'async_hooks';
-import { cpus } from 'os';
+import { availableParallelism } from 'os';
 import { fileURLToPath, URL } from 'url';
 import { resolve } from 'path';
 import { inspect, types } from 'util';

@@ -291,8 +291,7 @@ This class extends [`EventEmitter`][] from Node.js.
     running for this thread pool. The default is based on the number of
     available CPUs.
   * `maxThreads`: (`number`) Sets the maximum number of threads that are
-    running for this thread pool. The default is based on the number of
-    available CPUs.
+    running for this thread pool. The default is the number provided by [`os.availableParallelism`](https://nodejs.org/api/os.html#osavailableparallelism) * 1.5.
   * `idleTimeout`: (`number`) A timeout in milliseconds that specifies how long
     a `Worker` is allowed to be idle, i.e. not handling any tasks, before it is
     shut down. By default, this is immediate. **Tip**: *The default `idleTimeout`
