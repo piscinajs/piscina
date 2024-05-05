@@ -1,3 +1,8 @@
+/*
+ * Modified Fixed Queue Implementation based on the one from Node.js Project
+ * License: MIT License
+ * Source: https://github.com/nodejs/node/blob/de7b37880f5a541d5f874c1c2362a65a4be76cd0/lib/internal/fixed_queue.js
+ */
 import assert from 'node:assert';
 import { TaskQueue, Task } from './common';
 // Currently optimal queue size, tested on V8 6.0 - 6.6. Must be power of two.
