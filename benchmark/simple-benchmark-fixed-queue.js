@@ -30,5 +30,5 @@ async function simpleBenchmark ({ duration = 10000 } = {}) {
 }
 
 simpleBenchmark().then((opsPerSecond) => {
-  console.log(`opsPerSecond: ${opsPerSecond}`);
+  console.log(`opsPerSecond: ${opsPerSecond} (with FixedQueue as taskQueue)`);
 });
