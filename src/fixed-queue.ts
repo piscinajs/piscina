@@ -62,7 +62,7 @@ class FixedCircularBuffer {
   top: number
   list: Array<Task | undefined>
   next: FixedCircularBuffer | null
-  #size: number = 0
+  _size: number = 0
 
   constructor () {
     this.bottom = 0;
@@ -82,7 +82,7 @@ class FixedCircularBuffer {
   push (data:Task) {
     this.list[this.top] = data;
     this.top = (this.top + 1) & kMask;
-    this.#size++;
+    this._size++;
   }
 
   shift () {
@@ -90,7 +90,7 @@ class FixedCircularBuffer {
     if (nextItem === undefined) { return null; }
     this.list[this.bottom] = undefined;
     this.bottom = (this.bottom + 1) & kMask;
-    this.#size--;
+    this._size--;
     return nextItem;
   }
 
@@ -106,11 +106,11 @@ class FixedCircularBuffer {
       if (curr === indexToRemove) break;
       curr = next;
     }
-    this.#size--;
+    this._size--;
   }
 
   get size () {
-    return this.#size;
+    return this._size;
   }
 
   get capacity () {
