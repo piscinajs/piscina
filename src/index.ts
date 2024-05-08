@@ -140,7 +140,7 @@ type EnvSpecifier = typeof Worker extends {
   new (filename : never, options?: { env: infer T }) : Worker;
 } ? T : never;
 
-class ArrayTaskQueue implements TaskQueue {
+export class ArrayTaskQueue implements TaskQueue {
   tasks : Task[] = [];
 
   get size () { return this.tasks.length; }
