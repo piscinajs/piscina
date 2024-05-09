@@ -1,7 +1,5 @@
 const { Bench } = require('tinybench');
-const FixedQeueue = require('../dist/src/fixed-queue').default;
-const { ArrayTaskQueue } = require('../dist/src/index');
-const { Piscina } = require('../dist/src');
+const { Piscina, FixedQueue, ArrayTaskQueue } = require('..');
 const { resolve } = require('node:path');
 
 const QUEUE_SIZE = 100_000;
@@ -23,7 +21,7 @@ bench
     await pool.destroy();
   })
   .add('Piscina with FixedQueue', async () => {
-    const queue = new FixedQeueue();
+    const queue = new FixedQueue();
     const pool = new Piscina({
       filename: resolve(__dirname, 'fixtures/add.js'),
       taskQueue: queue
