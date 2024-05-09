@@ -1,6 +1,5 @@
 'use strict';
-const { Piscina } = require('../dist/src');
-const FixedQueue = require('../dist/src/fixed-queue').default;
+const { Piscina, FixedQueue } = require('..');
 
 const { resolve } = require('path');
 
