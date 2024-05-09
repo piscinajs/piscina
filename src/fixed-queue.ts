@@ -62,7 +62,6 @@ class FixedCircularBuffer {
   top: number
   list: Array<Task | undefined>
   next: FixedCircularBuffer | null
-  _size: number = 0
 
   constructor () {
     this.bottom = 0;
@@ -82,7 +81,6 @@ class FixedCircularBuffer {
   push (data:Task) {
     this.list[this.top] = data;
     this.top = (this.top + 1) & kMask;
-    this._size++;
   }
 
   shift () {
@@ -90,7 +88,6 @@ class FixedCircularBuffer {
     if (nextItem === undefined) { return null; }
     this.list[this.bottom] = undefined;
     this.bottom = (this.bottom + 1) & kMask;
-    this._size--;
     return nextItem;
   }
 
@@ -106,11 +103,6 @@ class FixedCircularBuffer {
       if (curr === indexToRemove) break;
       curr = next;
     }
-    this._size--;
-  }
-
-  get size () {
-    return this._size;
   }
 
   get capacity () {
@@ -121,6 +113,7 @@ class FixedCircularBuffer {
 export default class FixedQueue implements TaskQueue {
   head: FixedCircularBuffer
   tail: FixedCircularBuffer
+  _size: number = 0
 
   constructor () {
     this.head = this.tail = new FixedCircularBuffer();
@@ -137,11 +130,13 @@ export default class FixedQueue implements TaskQueue {
       this.head = this.head.next = new FixedCircularBuffer();
     }
     this.head.push(data);
+    this._size++;
   }
 
   shift (): Task | null {
     const tail = this.tail;
     const next = tail.shift();
+    if (next !== null) this._size--;
     if (tail.isEmpty() && tail.next !== null) {
       // If there is another queue, it forms the new tail.
       this.tail = tail.next;
@@ -155,6 +150,7 @@ export default class FixedQueue implements TaskQueue {
     while (true) {
       if (buffer.list.includes(task)) {
         buffer.remove(task);
+        this._size--;
         break;
       }
       if (buffer.next === null) break;
@@ -163,13 +159,6 @@ export default class FixedQueue implements TaskQueue {
   }
 
   get size () {
-    let total = 0;
-    let buffer = this.head;
-    while (true) {
-      total += buffer.size;
-      if (buffer.next === null) break;
-      buffer = buffer.next;
-    }
-    return total;
+    return this._size;
   }
 };
