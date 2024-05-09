@@ -702,6 +702,56 @@ options on to the custom `TaskQueue` implementation. (Note that because the
 queue options are set as a property on the task, tasks with queue
 options cannot be submitted as JavaScript primitives).
 
+**New:** As of the next major release, Piscina introduces the `FixedQueue`, a more performant task queue implementation based on [`FixedQueue`](https://github.com/nodejs/node/blob/de7b37880f5a541d5f874c1c2362a65a4be76cd0/lib/internal/fixed_queue.js) from Node.Js project.  
+
+Here are some benchmarks to compare new `FixedQueue` with `ArrayTaskQueue` (current default). The benchmarks demonstrate substantial improvements in push and shift operations, especially with larger queue sizes.
+```
+Queue size = 1000
+┌─────────┬─────────────────────────────────────────┬───────────┬────────────────────┬──────────┬─────────┐
+│ (index) │ Task Name                               │ ops/sec   │ Average Time (ns)  │ Margin   │ Samples │
+├─────────┼─────────────────────────────────────────┼───────────┼────────────────────┼──────────┼─────────┤
+│ 0       │ 'ArrayTaskQueue full push + full shift' │ '9 692'   │ 103175.15463917515 │ '±0.80%' │ 970     │
+│ 1       │ 'FixedQueue  full push + full shift'    │ '131 879' │ 7582.696390658352  │ '±1.81%' │ 13188   │
+└─────────┴─────────────────────────────────────────┴───────────┴────────────────────┴──────────┴─────────┘
+
+Queue size = 100_000
+┌─────────┬─────────────────────────────────────────┬─────────┬────────────────────┬──────────┬─────────┐
+│ (index) │ Task Name                               │ ops/sec │ Average Time (ns)  │ Margin   │ Samples │
+├─────────┼─────────────────────────────────────────┼─────────┼────────────────────┼──────────┼─────────┤
+│ 0       │ 'ArrayTaskQueue full push + full shift' │ '0'     │ 1162376920.0000002 │ '±1.77%' │ 10      │
+│ 1       │ 'FixedQueue full push + full shift'     │ '1 026' │ 974328.1553396407  │ '±2.51%' │ 103     │
+└─────────┴─────────────────────────────────────────┴─────────┴────────────────────┴──────────┴─────────┘
+```
+In terms of Piscina performance itself, using `FixedQueue` with a queue size of 100,000 queued tasks can result in up to 6 times faster execution times.
+
+Users can import `FixedQueue` from the `Piscina` package and pass it as the `taskQueue` option to leverage its benefits.
+
+
+### Using FixedQueue Example
+
+Here's an example of how to use the `FixedQueue`:
+
+```js
+const { Piscina, FixedQueue } = require('piscina');
+const { resolve } = require('path');
+
+// Create a Piscina pool with FixedQueue
+const piscina = new Piscina({
+  filename: resolve(__dirname, 'worker.js'),
+  taskQueue: new FixedQueue()
+});
+
+// Submit tasks to the pool
+for (let i = 0; i < 10; i++) {
+  piscina.runTask({ data: i }).then((result) => {
+    console.log(result);
+  }).catch((error) => {
+    console.error(error);
+  });
+}
+```
+In this example, we import `FixedQueue` from the `piscina` package and use it as the `taskQueue` option when creating a new Piscina pool. This allows users to take advantage of the performance improvements offered by `FixedQueue` before it becomes the default task queue implementation.
+
 ## Current Limitations (Things we're working on / would love help with)
 
 * Improved Documentation
