@@ -1,4 +1,4 @@
-import Piscina = require('..');
+import Piscina from '..';
 import { resolve } from 'path';
 import { test } from 'tap';
 

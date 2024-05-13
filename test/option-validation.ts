@@ -1,4 +1,4 @@
-import Piscina = require('..');
+import Piscina from '..';
 import { test } from 'tap';
 
 test('filename cannot be non-null/non-string', async ({ throws }) => {

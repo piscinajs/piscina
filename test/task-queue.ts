@@ -1,4 +1,4 @@
-import Piscina = require('..');
+import Piscina from '..';
 import { test } from 'tap';
 import { resolve } from 'path';
 import { Task, TaskQueue } from '../dist/src/common';

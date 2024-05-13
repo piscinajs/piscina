@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import Piscina = require('..');
+import Piscina from '..';
 import { test } from 'tap';
 import { resolve } from 'path';
 

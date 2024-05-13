@@ -1,4 +1,4 @@
-import Piscina = require('../..');
+import Piscina from '../..';
 import assert from 'assert';
 import { types } from 'util';
 

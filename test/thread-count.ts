@@ -1,4 +1,4 @@
-import Piscina = require('..');
+import Piscina from '..';
 import { cpus } from 'os';
 import { test } from 'tap';
 import { resolve } from 'path';
