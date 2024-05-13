@@ -5,7 +5,7 @@ import { availableParallelism } from 'os';
 import { fileURLToPath, URL } from 'url';
 import { resolve } from 'path';
 import { inspect, types } from 'util';
-import assert = require('assert');
+import { strict as assert } from 'assert';
 import { Histogram, RecordableHistogram, createHistogram, performance } from 'perf_hooks';
 import {
   READY,
