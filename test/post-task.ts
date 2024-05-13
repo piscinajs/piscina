@@ -1,5 +1,5 @@
 import { MessageChannel } from 'worker_threads';
-import { cpus } from 'os';
+import { availableParallelism } from 'os';
 import Piscina from '..';
 import { test } from 'tap';
 import { resolve } from 'path';
@@ -168,7 +168,7 @@ test('Piscina.maxThreads should return the max number of threads to be used (def
     filename: resolve(__dirname, 'fixtures/eval.js')
   });
 
-  const maxThreads = (cpus().length || 1) * 1.5;
+  const maxThreads = (availableParallelism() ?? 1) * 1.5;
 
   equal(pool.maxThreads, maxThreads);
 });
@@ -189,7 +189,7 @@ test('Piscina.minThreads should return the max number of threads to be used (def
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js')
   });
-  const minThreads = Math.max((cpus().length || 1) / 2, 1);
+  const minThreads = Math.max(Math.floor(availableParallelism() / 2), 1);
 
   plan(1);
   equal(pool.minThreads, minThreads);
