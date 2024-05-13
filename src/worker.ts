@@ -172,7 +172,7 @@ function onMessage (
         result: null,
         // It may be worth taking a look at the error cloning algorithm we
         // use in Node.js core here, it's quite a bit more flexible
-        error
+        error: <Error>error
       };
     }
     currentTasks--;

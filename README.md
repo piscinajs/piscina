@@ -129,7 +129,6 @@ an `EventEmitter`:
 'use strict';
 
 const Piscina = require('piscina');
-const { AbortController } = require('abort-controller');
 const { resolve } = require('path');
 
 const piscina = new Piscina({
@@ -148,12 +147,6 @@ const piscina = new Piscina({
   }
 })();
 ```
-
-To use `AbortController`, you will need to `npm i abort-controller`
-(or `yarn add abort-controller`).
-
-(In Node.js 15.0.0 or higher, there is a new built-in `AbortController`
-implementation that can be used here as well.)
 
 Alternatively, any `EventEmitter` that emits an `'abort'` event
 may be used as an abort controller:
@@ -295,11 +288,9 @@ This class extends [`EventEmitter`][] from Node.js.
     function. The default is `'default'`, indicating the default export of the
     worker module.
   * `minThreads`: (`number`) Sets the minimum number of threads that are always
-    running for this thread pool. The default is based on the number of
-    available CPUs.
+    running for this thread pool. The default is the number provided by [`os.availableParallelism`](https://nodejs.org/api/os.html#osavailableparallelism).
   * `maxThreads`: (`number`) Sets the maximum number of threads that are
-    running for this thread pool. The default is based on the number of
-    available CPUs.
+    running for this thread pool. The default is the number provided by [`os.availableParallelism`](https://nodejs.org/api/os.html#osavailableparallelism) * 1.5.
   * `idleTimeout`: (`number`) A timeout in milliseconds that specifies how long
     a `Worker` is allowed to be idle, i.e. not handling any tasks, before it is
     shut down. By default, this is immediate. **Tip**: *The default `idleTimeout`
@@ -356,6 +347,10 @@ This class extends [`EventEmitter`][] from Node.js.
     `fs.close()`, and will close them automatically when the Worker exits.
     Defaults to `true`. (This option is only supported on Node.js 12.19+ and
     all Node.js versions higher than 14.6.0).
+  * `closeTimeout`: (`number`) An optional time (in milliseconds) to wait for the pool to 
+  complete all in-flight tasks when `close()` is called. The default is `30000`
+  * `recordTiming`: (`boolean`) By default, run and wait time will be recorded
+    for the pool. To disable, set to `false`.
 
 Use caution when setting resource limits. Setting limits that are too low may
 result in the `Piscina` worker threads being unusable.
@@ -420,6 +415,21 @@ Stops all Workers and rejects all `Promise`s for pending tasks.
 
 This returns a `Promise` that is fulfilled once all threads have stopped.
 
+### Method: `close([options])`
+
+* `options`:
+  * `force`: A `boolean` value that indicates whether to abort all tasks that 
+  are enqueued but not started yet. The default is `false`.
+
+Stops all Workers gracefully.
+
+This returns a `Promise` that is fulfilled once all tasks that were started 
+have completed and all threads have stopped.
+
+This method is similar to `destroy()`, but with the difference that `close()` 
+will wait for the worker tasks to finish, while `destroy()` 
+will abort them immediately.
+
 ### Event: `'error'`
 
 An `'error'` event is emitted by instances of this class when:
@@ -440,7 +450,7 @@ A `'drain'` event is emitted whenever the `queueSize` reaches `0`.
 
 Similar to [`Piscina#needsDrain`](#property-needsdrain-readonly);
 this event is triggered once the total capacity of the pool is exceeded
-by number of tasks enequeued that are pending of execution.
+by number of tasks enqueued that are pending of execution.
 
 ### Event: `'message'`
 

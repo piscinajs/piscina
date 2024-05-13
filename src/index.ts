@@ -1,15 +1,12 @@
 import { Worker, MessageChannel, MessagePort, receiveMessageOnPort } from 'worker_threads';
-import { once } from 'events';
-import EventEmitterAsyncResource = require('eventemitter-asyncresource');
+import { once, EventEmitterAsyncResource } from 'events';
 import { AsyncResource } from 'async_hooks';
-import { cpus } from 'os';
+import { availableParallelism } from 'os';
 import { fileURLToPath, URL } from 'url';
 import { resolve } from 'path';
 import { inspect, types } from 'util';
 import assert = require('assert');
-import { Histogram, build } from 'hdr-histogram-js';
-import { performance } from 'perf_hooks';
-import hdrobj from 'hdr-histogram-percentiles-obj';
+import { Histogram, RecordableHistogram, createHistogram, performance } from 'perf_hooks';
 import {
   READY,
   RequestMessage,
@@ -31,15 +28,65 @@ import {
   kValue
 } from './common';
 import { version } from '../package.json';
+import { setTimeout as sleep } from 'timers/promises';
 
-const cpuCount : number = (() => {
-  try {
-    return cpus().length;
-  } catch {
-    /* istanbul ignore next */
-    return 1;
-  }
-})();
+const cpuParallelism : number = availableParallelism();
+
+/* eslint-disable camelcase */
+interface HistogramSummary {
+  average: number;
+  mean: number;
+  stddev: number;
+  min: number;
+  max: number;
+  p0_001: number;
+  p0_01: number;
+  p0_1: number;
+  p1: number;
+  p2_5: number;
+  p10: number;
+  p25: number;
+  p50: number;
+  p75: number;
+  p90: number;
+  p97_5: number;
+  p99: number;
+  p99_9: number;
+  p99_99: number;
+  p99_999: number;
+}
+/* eslint-enable camelcase */
+
+function createHistogramSummary (histogram: Histogram): HistogramSummary {
+  const { mean, stddev, min, max } = histogram;
+
+  return {
+    average: mean / 1000,
+    mean: mean / 1000,
+    stddev,
+    min: min / 1000,
+    max: max / 1000,
+    p0_001: histogram.percentile(0.001) / 1000,
+    p0_01: histogram.percentile(0.01) / 1000,
+    p0_1: histogram.percentile(0.1) / 1000,
+    p1: histogram.percentile(1) / 1000,
+    p2_5: histogram.percentile(2.5) / 1000,
+    p10: histogram.percentile(10) / 1000,
+    p25: histogram.percentile(25) / 1000,
+    p50: histogram.percentile(50) / 1000,
+    p75: histogram.percentile(75) / 1000,
+    p90: histogram.percentile(90) / 1000,
+    p97_5: histogram.percentile(97.5) / 1000,
+    p99: histogram.percentile(99) / 1000,
+    p99_9: histogram.percentile(99.9) / 1000,
+    p99_99: histogram.percentile(99.99) / 1000,
+    p99_999: histogram.percentile(99.999) / 1000
+  };
+}
+
+function toHistogramIntegerNano (milliseconds: number): number {
+  return Math.max(1, Math.trunc(milliseconds * 1000));
+}
 
 interface AbortSignalEventTargetAddOptions {
   once : boolean;
@@ -54,6 +101,7 @@ interface AbortSignalEventTarget {
     name : 'abort',
     listener : () => void) => void;
   aborted? : boolean;
+  reason?: unknown;
 }
 interface AbortSignalEventEmitter {
   off : (name : 'abort', listener : () => void) => void;
@@ -67,9 +115,12 @@ function onabort (abortSignal : AbortSignalAny, listener : () => void) {
     abortSignal.once('abort', listener);
   }
 }
+
 class AbortError extends Error {
-  constructor () {
-    super('The task has been aborted');
+  constructor (reason?: AbortSignalEventTarget['reason']) {
+    // TS does not recognizes the cause clause
+    // @ts-expect-error
+    super('The task has been aborted', { cause: reason });
   }
 
   get name () { return 'AbortError'; }
@@ -119,6 +170,8 @@ interface Options {
   taskQueue? : TaskQueue,
   niceIncrement? : number,
   trackUnmanagedFds? : boolean,
+  closeTimeout?: number,
+  recordTiming?: boolean
 }
 
 interface FilledOptions extends Options {
@@ -131,21 +184,25 @@ interface FilledOptions extends Options {
   concurrentTasksPerWorker : number,
   useAtomics: boolean,
   taskQueue : TaskQueue,
-  niceIncrement : number
+  niceIncrement : number,
+  closeTimeout : number,
+  recordTiming : boolean
 }
 
 const kDefaultOptions : FilledOptions = {
   filename: null,
   name: 'default',
-  minThreads: Math.max(cpuCount / 2, 1),
-  maxThreads: cpuCount * 1.5,
+  minThreads: Math.max(Math.floor(cpuParallelism / 2), 1),
+  maxThreads: cpuParallelism * 1.5,
   idleTimeout: 0,
   maxQueue: Infinity,
   concurrentTasksPerWorker: 1,
   useAtomics: true,
   taskQueue: new ArrayTaskQueue(),
   niceIncrement: 0,
-  trackUnmanagedFds: true
+  trackUnmanagedFds: true,
+  closeTimeout: 30000,
+  recordTiming: true
 };
 
 interface RunOptions {
@@ -167,6 +224,14 @@ const kDefaultRunOptions : FilledRunOptions = {
   filename: null,
   signal: null,
   name: null
+};
+
+interface CloseOptions {
+  force?: boolean,
+}
+
+const kDefaultCloseOptions : Required<CloseOptions> = {
+  force: false
 };
 
 class DirectlyTransferable implements Transferable {
@@ -386,7 +451,9 @@ const Errors = {
   TaskQueueAtLimit:
     () => new Error('Task queue is at limit'),
   NoTaskQueueAvailable:
-    () => new Error('No task queue available and all Workers are busy')
+    () => new Error('No task queue available and all Workers are busy'),
+  CloseTimeout:
+    () => new Error('Close operation timed out')
 };
 
 class WorkerInfo extends AsynchronouslyCreatedResource {
@@ -519,23 +586,29 @@ class ThreadPool {
   taskQueue : TaskQueue;
   skipQueue : TaskInfo[] = [];
   completed : number = 0;
-  runTime : Histogram;
-  waitTime : Histogram;
+  runTime? : RecordableHistogram;
+  waitTime? : RecordableHistogram;
   needsDrain : boolean;
   start : number = performance.now();
   inProcessPendingMessages : boolean = false;
   startingUp : boolean = false;
+  closingUp : boolean = false;
   workerFailsDuringBootstrap : boolean = false;
+  destroying : boolean = false;
 
   constructor (publicInterface : Piscina, options : Options) {
     this.publicInterface = publicInterface;
     this.taskQueue = options.taskQueue || new ArrayTaskQueue();
-    this.runTime = build({ lowestDiscernibleValue: 1 });
-    this.waitTime = build({ lowestDiscernibleValue: 1 });
 
     const filename =
       options.filename ? maybeFileURLToPath(options.filename) : null;
     this.options = { ...kDefaultOptions, ...options, filename, maxQueue: 0 };
+
+    if (this.options.recordTiming) {
+      this.runTime = createHistogram();
+      this.waitTime = createHistogram();
+    }
+
     // The >= and <= could be > and < but this way we get 100 % coverage 🙃
     if (options.maxThreads !== undefined &&
         this.options.minThreads >= options.maxThreads) {
@@ -562,6 +635,9 @@ class ThreadPool {
   }
 
   _ensureMinimumWorkers () : void {
+    if (this.closingUp || this.destroying) {
+      return;
+    }
     while (this.workers.size < this.options.minThreads) {
       this._addNewWorker();
     }
@@ -641,6 +717,10 @@ class ThreadPool {
     });
 
     worker.on('exit', (exitCode : number) => {
+      if (this.destroying) {
+        return;
+      }
+
       const err = new Error(`worker exited with code: ${exitCode}`);
       // Only error unfinished tasks on process exit, since there are legitimate
       // reasons to exit workers and we want to handle that gracefully when possible.
@@ -725,7 +805,7 @@ class ThreadPool {
         break;
       }
       const now = performance.now();
-      this.waitTime.recordValue(now - taskInfo.created);
+      this.waitTime?.record(toHistogramIntegerNano(now - taskInfo.created));
       taskInfo.started = now;
       workerInfo.postTask(taskInfo);
       this._maybeDrain();
@@ -751,8 +831,7 @@ class ThreadPool {
       name
     } = options;
     const {
-      transferList = [],
-      signal = null
+      transferList = []
     } = options;
     if (filename == null) {
       filename = this.options.filename;
@@ -764,6 +843,16 @@ class ThreadPool {
       return Promise.reject(Errors.FilenameNotProvided());
     }
     filename = maybeFileURLToPath(filename);
+
+    let signal: AbortSignalAny | null;
+    if (this.closingUp) {
+      const closingUpAbortController = new AbortController();
+      closingUpAbortController.abort('queue is closing up');
+
+      signal = closingUpAbortController.signal;
+    } else {
+      signal = options.signal ?? null;
+    }
 
     let resolve : (result : any) => void;
     let reject : (err : Error) => void;
@@ -777,7 +866,7 @@ class ThreadPool {
       (err : Error | null, result : any) => {
         this.completed++;
         if (taskInfo.started) {
-          this.runTime.recordValue(performance.now() - taskInfo.started);
+          this.runTime?.record(toHistogramIntegerNano(performance.now() - taskInfo.started));
         }
         if (err !== null) {
           reject(err);
@@ -794,13 +883,13 @@ class ThreadPool {
       // If the AbortSignal has an aborted property and it's truthy,
       // reject immediately.
       if ((signal as AbortSignalEventTarget).aborted) {
-        return Promise.reject(new AbortError());
+        return Promise.reject(new AbortError((signal as AbortSignalEventTarget).reason));
       }
       taskInfo.abortListener = () => {
         // Call reject() first to make sure we always reject with the AbortError
         // if the task is aborted, not with an Error from the possible
         // thread termination below.
-        reject(new AbortError());
+        reject(new AbortError((signal as AbortSignalEventTarget).reason));
 
         if (taskInfo.workerInfo !== null) {
           // Already running: We cancel the Worker this is running on.
@@ -867,7 +956,7 @@ class ThreadPool {
 
     // TODO(addaleax): Clean up the waitTime/runTime recording.
     const now = performance.now();
-    this.waitTime.recordValue(now - taskInfo.created);
+    this.waitTime?.record(toHistogramIntegerNano(now - taskInfo.created));
     taskInfo.started = now;
     workerInfo.postTask(taskInfo);
     this._maybeDrain();
@@ -895,6 +984,7 @@ class ThreadPool {
   }
 
   async destroy () {
+    this.destroying = true;
     while (this.skipQueue.length > 0) {
       const taskInfo : TaskInfo = this.skipQueue.shift() as TaskInfo;
       taskInfo.done(new Error('Terminating worker thread'));
@@ -911,11 +1001,80 @@ class ThreadPool {
       this._removeWorker(workerInfo);
     }
 
-    await Promise.all(exitEvents);
+    try {
+      await Promise.all(exitEvents);
+    } finally {
+      this.destroying = false;
+    }
+  }
+
+  async close (options : Required<CloseOptions>) {
+    this.closingUp = true;
+
+    if (options.force) {
+      const skipQueueLength = this.skipQueue.length;
+      for (let i = 0; i < skipQueueLength; i++) {
+        const taskInfo : TaskInfo = this.skipQueue.shift() as TaskInfo;
+        if (taskInfo.workerInfo === null) {
+          taskInfo.done(new AbortError('pool is closed'));
+        } else {
+          this.skipQueue.push(taskInfo);
+        }
+      }
+
+      const taskQueueLength = this.taskQueue.size;
+      for (let i = 0; i < taskQueueLength; i++) {
+        const taskInfo : TaskInfo = this.taskQueue.shift() as TaskInfo;
+        if (taskInfo.workerInfo === null) {
+          taskInfo.done(new AbortError('pool is closed'));
+        } else {
+          this.taskQueue.push(taskInfo);
+        }
+      }
+    }
+
+    const onPoolFlushed = () => new Promise<void>((resolve) => {
+      const numberOfWorkers = this.workers.size;
+      let numberOfWorkersDone = 0;
+
+      const checkIfWorkerIsDone = (workerInfo: WorkerInfo) => {
+        if (workerInfo.taskInfos.size === 0) {
+          numberOfWorkersDone++;
+        }
+
+        if (numberOfWorkers === numberOfWorkersDone) {
+          resolve();
+        }
+      };
+
+      for (const workerInfo of this.workers) {
+        checkIfWorkerIsDone(workerInfo);
+
+        workerInfo.port.on('message', () => checkIfWorkerIsDone(workerInfo));
+      }
+    });
+
+    const throwOnTimeOut = async (timeout: number) => {
+      await sleep(timeout);
+      throw Errors.CloseTimeout();
+    };
+
+    try {
+      await Promise.race([
+        onPoolFlushed(),
+        throwOnTimeOut(this.options.closeTimeout)
+      ]);
+    } catch (error) {
+      this.publicInterface.emit('error', error);
+    } finally {
+      await this.destroy();
+      this.publicInterface.emit('close');
+      this.closingUp = false;
+    }
   }
 }
 
-class Piscina extends EventEmitterAsyncResource {
+export default class Piscina extends EventEmitterAsyncResource {
   #pool : ThreadPool;
 
   constructor (options : Options = {}) {
@@ -945,7 +1104,7 @@ class Piscina extends EventEmitterAsyncResource {
     }
     if (options.maxQueue !== undefined &&
         options.maxQueue !== 'auto' &&
-        (typeof options.maxQueue !== 'number' || options.maxQueue < 0)) {
+          (typeof options.maxQueue !== 'number' || options.maxQueue < 0)) {
       throw new TypeError('options.maxQueue must be a non-negative integer');
     }
     if (options.concurrentTasksPerWorker !== undefined &&
@@ -973,6 +1132,9 @@ class Piscina extends EventEmitterAsyncResource {
     if (options.trackUnmanagedFds !== undefined &&
         typeof options.trackUnmanagedFds !== 'boolean') {
       throw new TypeError('options.trackUnmanagedFds must be a boolean value');
+    }
+    if (options.closeTimeout !== undefined && (typeof options.closeTimeout !== 'number' || options.closeTimeout < 0)) {
+      throw new TypeError('options.closeTimeout must be a non-negative integer');
     }
 
     this.#pool = new ThreadPool(this, options);
@@ -1055,6 +1217,24 @@ class Piscina extends EventEmitterAsyncResource {
     return this.#pool.runTask(task, { transferList, filename, name, signal });
   }
 
+  async close (options : CloseOptions = kDefaultCloseOptions) {
+    if (options === null || typeof options !== 'object') {
+      throw TypeError('options must be an object');
+    }
+
+    let { force } = options;
+
+    if (force !== undefined && typeof force !== 'boolean') {
+      return Promise.reject(
+        new TypeError('force argument must be a boolean'));
+    }
+    force ??= kDefaultCloseOptions.force;
+
+    return this.#pool.close({
+      force
+    });
+  }
+
   destroy () {
     return this.#pool.destroy();
   }
@@ -1087,23 +1267,38 @@ class Piscina extends EventEmitterAsyncResource {
   }
 
   get waitTime () : any {
-    const result = hdrobj.histAsObj(this.#pool.waitTime);
-    return hdrobj.addPercentiles(this.#pool.waitTime, result);
+    if (!this.#pool.waitTime) {
+      return null;
+    }
+
+    return createHistogramSummary(this.#pool.waitTime);
   }
 
   get runTime () : any {
-    const result = hdrobj.histAsObj(this.#pool.runTime);
-    return hdrobj.addPercentiles(this.#pool.runTime, result);
+    if (!this.#pool.runTime) {
+      return null;
+    }
+
+    return createHistogramSummary(this.#pool.runTime);
   }
 
   get utilization () : number {
+    if (!this.#pool.runTime) {
+      return 0;
+    }
+
+    // count is available as of Node.js v16.14.0 but not present in the types
+    const count = (this.#pool.runTime as RecordableHistogram & { count: number}).count;
+    if (count === 0) {
+      return 0;
+    }
+
     // The capacity is the max compute time capacity of the
     // pool to this point in time as determined by the length
     // of time the pool has been running multiplied by the
     // maximum number of threads.
     const capacity = this.duration * this.#pool.options.maxThreads;
-    const totalMeanRuntime = this.#pool.runTime.mean *
-      this.#pool.runTime.totalCount;
+    const totalMeanRuntime = (this.#pool.runTime.mean / 1000) * count;
 
     // We calculate the appoximate pool utilization by multiplying
     // the mean run time of all tasks by the number of runtime
@@ -1163,4 +1358,14 @@ class Piscina extends EventEmitterAsyncResource {
   static get queueOptionsSymbol () { return kQueueOptions; }
 }
 
-export = Piscina;
+export const move = Piscina.move;
+export const isWorkerThread = Piscina.isWorkerThread;
+export const workerData = Piscina.workerData;
+
+export {
+  Piscina,
+  kTransferable as transferableSymbol,
+  kValue as valueSymbol,
+  kQueueOptions as queueOptionsSymbol,
+  version
+};
