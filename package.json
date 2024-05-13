@@ -12,9 +12,9 @@
   "scripts": {
     "build": "tsc && gen-esm-wrapper . dist/esm-wrapper.mjs",
     "lint": "standardx \"**/*.{ts,mjs,js,cjs}\" | snazzy",
-    "test": "tap --ts",
+    "test": "c8 tap",
     "test:ci": "npm run lint && npm run build && npm run test:coverage",
-    "test:coverage": "tap --ts --cov --coverage-report=html --no-browser --no-check-coverage",
+    "test:coverage": "c8 --reporter=lcov tap --cov",
     "prepack": "npm run build"
   },
   "repository": {
@@ -38,6 +38,7 @@
     "@typescript-eslint/eslint-plugin": "^6.9.0",
     "@typescript-eslint/parser": "^6.9.0",
     "abort-controller": "^3.0.0",
+    "c8": "^9.1.0",
     "concat-stream": "^2.0.0",
     "gen-esm-wrapper": "^1.1.1",
     "snazzy": "^9.0.0",
@@ -46,7 +47,6 @@
     "ts-node": "^10.9.2",
     "typescript": "5.4.5"
   },
-  "dependencies": {},
   "optionalDependencies": {
     "nice-napi": "^1.0.2"
   },
