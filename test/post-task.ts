@@ -189,7 +189,7 @@ test('Piscina.minThreads should return the max number of threads to be used (def
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js')
   });
-  const minThreads = Math.max((availableParallelism() ?? 1) / 2, 1);
+  const minThreads = Math.max(Math.floor(availableParallelism() / 2), 1);
 
   plan(1);
   equal(pool.minThreads, minThreads);
