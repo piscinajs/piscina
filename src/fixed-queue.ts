@@ -115,10 +115,6 @@ class FixedCircularBuffer {
     this.top = (this.top - 1) & kMask;
     this._size--;
   }
-
-  get capacity () {
-    return this.list.length;
-  }
 }
 
 export default class FixedQueue implements TaskQueue {
