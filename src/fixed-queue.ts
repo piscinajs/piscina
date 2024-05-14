@@ -153,7 +153,7 @@ export default class FixedQueue implements TaskQueue {
   }
 
   remove (task: Task) {
-    let prev = null;
+    let prev: FixedCircularBuffer | null = null;
     let buffer = this.tail;
     while (true) {
       if (buffer.list.includes(task)) {
@@ -166,11 +166,17 @@ export default class FixedQueue implements TaskQueue {
       buffer = buffer.next;
     }
     if (buffer.isEmpty()) {
-      if (prev !== null) {
-        prev.next = buffer.next;
+      // removing tail
+      if (prev === null) {
+        // if tail is not the last buffer
+        if (buffer.next !== null) this.tail = buffer.next;
       } else {
-        if (buffer.next) {
-          this.tail = buffer.next;
+        // removing head
+        if (buffer.next === null) {
+          this.head = prev;
+        } else {
+          // removing buffer from middle
+          prev.next = buffer.next;
         }
       }
     }
