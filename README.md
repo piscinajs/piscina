@@ -751,7 +751,7 @@ for (let i = 0; i < 10; i++) {
   });
 }
 ```
-In this example, we import `FixedQueue` from the `piscina` package and use it as the `taskQueue` option when creating a new Piscina pool. This allows users to take advantage of the performance improvements offered by `FixedQueue` before it becomes the default task queue implementation.
+**Note** The `FixedQueue` will become the default task queue implementation in a next major version.
 
 ## Current Limitations (Things we're working on / would love help with)
 
