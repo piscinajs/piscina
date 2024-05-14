@@ -22,6 +22,16 @@ test('queue length', async ({ equal }) => {
   equal(queue.size, 0);
 });
 
+test('queue length should not become negative', async ({ equal }) => {
+  const queue = new FixedQueue();
+
+  equal(queue.size, 0);
+
+  queue.shift();
+
+  equal(queue.size, 0);
+});
+
 test('queue remove', async ({ equal }) => {
   const queue = new FixedQueue();
 
@@ -38,28 +48,107 @@ test('queue remove', async ({ equal }) => {
   equal(queue.size, 0, 'should be empty after task removal');
 });
 
+test('remove not queued task should not lead to errors', async ({ equal }) => {
+  const queue = new FixedQueue();
+
+  const task = new QueueTask();
+
+  equal(queue.size, 0, 'should be empty on start');
+
+  queue.remove(task);
+
+  equal(queue.size, 0, 'should be empty after task removal');
+});
+
 test('removing elements from intermediate CircularBuffer should not lead to issues', async ({ equal, same }) => {
   const queue = new FixedQueue();
 
-  const firstBatch = Array.from({ length: 2048 }, () => new QueueTask());
-  const secondBatch = Array.from({ length: 2048 }, () => new QueueTask());
-  const thirdBatch = Array.from({ length: 2048 }, () => new QueueTask());
+  const batchSize = 2048;
+
+  const firstBatch = Array.from({ length: batchSize }, () => new QueueTask());
+  const secondBatch = Array.from({ length: batchSize }, () => new QueueTask());
+  const thirdBatch = Array.from({ length: batchSize }, () => new QueueTask());
 
   const tasks = firstBatch.concat(secondBatch, thirdBatch);
 
   for (const task of tasks) {
     queue.push(task);
   }
-  equal(queue.size, tasks.length, 'should contain 2048 * 3 items');
+  equal(queue.size, tasks.length, `should contain ${batchSize} * 3 items`);
 
+  let size = queue.size;
   for (const task of secondBatch) {
     queue.remove(task);
+    equal(queue.size, --size, `should contain ${size} items`);
   }
 
   const expected = firstBatch.concat(thirdBatch);
   const actual = [];
   while (!queue.isEmpty()) {
-    actual.push(queue.shift());
+    const task = queue.shift();
+    actual.push(task);
+  }
+  same(actual, expected);
+});
+
+test('removing elements from first CircularBuffer should not lead to issues', async ({ equal, same }) => {
+  const queue = new FixedQueue();
+
+  const batchSize = 2048;
+
+  const firstBatch = Array.from({ length: batchSize }, () => new QueueTask());
+  const secondBatch = Array.from({ length: batchSize }, () => new QueueTask());
+  const thirdBatch = Array.from({ length: batchSize }, () => new QueueTask());
+
+  const tasks = firstBatch.concat(secondBatch, thirdBatch);
+
+  for (const task of tasks) {
+    queue.push(task);
+  }
+  equal(queue.size, tasks.length, `should contain ${batchSize} * 3 items`);
+
+  let size = queue.size;
+  for (const task of firstBatch) {
+    queue.remove(task);
+    equal(queue.size, --size, `should contain ${size} items`);
+  }
+
+  const expected = secondBatch.concat(thirdBatch);
+  const actual = [];
+  while (!queue.isEmpty()) {
+    const task = queue.shift();
+    actual.push(task);
+  }
+  same(actual, expected);
+});
+
+test('removing elements from last CircularBuffer should not lead to issues', async ({ equal, same }) => {
+  const queue = new FixedQueue();
+
+  const batchSize = 2048;
+
+  const firstBatch = Array.from({ length: batchSize }, () => new QueueTask());
+  const secondBatch = Array.from({ length: batchSize }, () => new QueueTask());
+  const thirdBatch = Array.from({ length: batchSize }, () => new QueueTask());
+
+  const tasks = firstBatch.concat(secondBatch, thirdBatch);
+
+  for (const task of tasks) {
+    queue.push(task);
+  }
+  equal(queue.size, tasks.length, `should contain ${batchSize} * 3 items`);
+
+  let size = queue.size;
+  for (const task of thirdBatch) {
+    queue.remove(task);
+    equal(queue.size, --size, `should contain ${size} items`);
+  }
+
+  const expected = firstBatch.concat(secondBatch);
+  const actual = [];
+  while (!queue.isEmpty()) {
+    const task = queue.shift();
+    actual.push(task);
   }
   same(actual, expected);
 });
