@@ -16,11 +16,13 @@
     "test:ci": "npm run lint && npm run build && npm run test:coverage",
     "test:coverage": "c8 --reporter=lcov tap --cov",
     "prepack": "npm run build",
-    "bench": "npm run benchmark:piscina-default && npm run benchmark:piscina-fixed-queue && npm run benchmark:queue-comparison && npm run benchmark:piscina-comparison",
+    "bench": "npm run bench:taskqueue && npm run bench:piscina",
+    "bench:piscina": "npm run benchmark:piscina-default &&npm run benchmark:piscina-fixed-queue && npm run benchmark:piscina-comparison",
+    "bench:taskqueue": "npm run benchmark:queue-comparison",
     "benchmark:piscina-default": "node benchmark/simple-benchmark.js",
     "benchmark:piscina-fixed-queue": "node benchmark/simple-benchmark-fixed-queue.js",
-    "benchmark:queue-comparison": "node benchmark/queue-comparison.js",
-    "benchmark:piscina-comparison": "node benchmark/piscina-queue-comparison.js"
+    "benchmark:piscina-comparison": "node benchmark/piscina-queue-comparison.js",
+    "benchmark:queue-comparison": "node benchmark/queue-comparison.js"
   },
   "repository": {
     "type": "git",
