@@ -1,6 +1,7 @@
 import { test } from 'tap';
 import { Task, kQueueOptions } from '../dist/src/common';
-import { FixedQueue } from '..';
+import { Piscina, FixedQueue } from '..';
+import { resolve } from 'node:path';
 
 class QueueTask implements Task {
   get [kQueueOptions] () {
@@ -151,4 +152,30 @@ test('removing elements from last CircularBuffer should not lead to issues', asy
     actual.push(task);
   }
   same(actual, expected);
+});
+
+test('simple integraion with Piscina', async ({ equal }) => {
+  const queue = new FixedQueue();
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/simple-isworkerthread-named-import.ts'),
+    taskQueue: queue
+  });
+
+  const result = await pool.runTask(null);
+  equal(result, 'done');
+});
+
+test('concurrent calls with Piscina', async ({ same }) => {
+  const queue = new FixedQueue();
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval-async.js'),
+    taskQueue: queue
+  });
+
+  const tasks = ['1+1', '2+2', '3+3'];
+  const results = await Promise.all(tasks.map((task) => pool.runTask(task)));
+  // eslint-disable-next-line
+  const expected = tasks.map(eval);
+
+  same(results, expected);
 });
