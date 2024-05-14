@@ -62,25 +62,28 @@ class FixedCircularBuffer {
   top: number
   list: Array<Task | undefined>
   next: FixedCircularBuffer | null
+  _size: number
 
   constructor () {
     this.bottom = 0;
     this.top = 0;
     this.list = new Array(kSize);
     this.next = null;
+    this._size = 0;
   }
 
   isEmpty () {
-    return this.top === this.bottom;
+    return this.top === this.bottom && this._size === 0;
   }
 
   isFull () {
-    return ((this.top + 1) & kMask) === this.bottom;
+    return this.top === this.bottom && this._size === kSize;
   }
 
   push (data:Task) {
     this.list[this.top] = data;
     this.top = (this.top + 1) & kMask;
+    this._size++;
   }
 
   shift () {
@@ -88,6 +91,7 @@ class FixedCircularBuffer {
     if (nextItem === undefined) { return null; }
     this.list[this.bottom] = undefined;
     this.bottom = (this.bottom + 1) & kMask;
+    this._size--;
     return nextItem;
   }
 
@@ -99,10 +103,17 @@ class FixedCircularBuffer {
     while (true) {
       const next = (curr + 1) & kMask;
       this.list[curr] = this.list[next];
-      if (this.list[curr] === undefined) break;
-      if (curr === indexToRemove) break;
+      if (this.list[curr] === undefined) {
+        break;
+      }
+      if (next === indexToRemove) {
+        this.list[curr] = undefined;
+        break;
+      }
       curr = next;
     }
+    this.top = (this.top - 1) & kMask;
+    this._size--;
   }
 
   get capacity () {
@@ -146,7 +157,8 @@ export default class FixedQueue implements TaskQueue {
   }
 
   remove (task: Task) {
-    let buffer = this.head;
+    let prev = null;
+    let buffer = this.tail;
     while (true) {
       if (buffer.list.includes(task)) {
         buffer.remove(task);
@@ -154,7 +166,17 @@ export default class FixedQueue implements TaskQueue {
         break;
       }
       if (buffer.next === null) break;
+      prev = buffer;
       buffer = buffer.next;
+    }
+    if (buffer.isEmpty()) {
+      if (prev !== null) {
+        prev.next = buffer.next;
+      } else {
+        if (buffer.next) {
+          this.tail = buffer.next;
+        }
+      }
     }
   }
 
