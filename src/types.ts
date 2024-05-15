@@ -38,10 +38,6 @@ export interface Transferable {
   readonly [kValue]: object;
 }
 
-export interface Task {
-  readonly [kQueueOptions]: object | null;
-}
-
 /* eslint-disable camelcase */
 export interface HistogramSummary {
   average: number;
@@ -77,14 +73,3 @@ export type EnvSpecifier = typeof Worker extends {
 }
   ? T
   : never;
-
-export type TaskCallback = (err: Error, result: any) => void;
-// Grab the type of `transferList` off `MessagePort`. At the time of writing,
-// only ArrayBuffer and MessagePort are valid, but let's avoid having to update
-// our types here every time Node.js adds support for more objects.
-export type TransferList = MessagePort extends {
-  postMessage(value: any, transferList: infer T): any;
-}
-  ? T
-  : never;
-export type TransferListItem = TransferList extends (infer T)[] ? T : never;
