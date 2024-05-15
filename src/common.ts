@@ -1,10 +1,7 @@
 import type { Histogram } from 'node:perf_hooks';
 import { fileURLToPath, URL } from 'node:url';
 
-import type {
-  PiscinaMovable,
-  HistogramSummary
-} from './types';
+import type { HistogramSummary } from './types';
 import { kMovable, kTransferable, kValue } from './symbols';
 
 // States wether the worker is ready to receive tasks
@@ -30,11 +27,12 @@ export function isTransferable (value: unknown): boolean {
  * True if object implements Transferable and has been returned
  * by the Piscina.move() function
  *
+ * TODO: narrow down the type of value
  * @export
  * @param {(unknown & PiscinaMovable)} value
  * @return {*}  {boolean}
  */
-export function isMovable (value: unknown & PiscinaMovable): boolean {
+export function isMovable (value: any): boolean {
   return isTransferable(value) && value[kMovable] === true;
 }
 
