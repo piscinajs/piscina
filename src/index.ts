@@ -13,9 +13,7 @@ import type {
   StartupMessage,
   Transferable,
   ResourceLimits,
-  EnvSpecifier,
-  TransferList,
-  TransferListItem
+  EnvSpecifier
 } from './types';
 import {
   kQueueOptions,
@@ -27,7 +25,9 @@ import {
   isTaskQueue,
   ArrayTaskQueue,
   TaskInfo,
-  PiscinaTask
+  PiscinaTask,
+  TransferList,
+  TransferListItem
 } from './task_queue';
 import {
   WorkerInfo,
