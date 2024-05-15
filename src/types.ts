@@ -1,32 +1,32 @@
 import type { MessagePort, Worker } from 'node:worker_threads';
 
 import type { READY } from './common';
-import type { kTransferable, kValue, kQueueOptions } from './symbols';
+import type { kTransferable, kValue } from './symbols';
 
 export interface StartupMessage {
-  filename: string | null;
-  name: string;
-  port: MessagePort;
-  sharedBuffer: Int32Array;
-  useAtomics: boolean;
-  niceIncrement: number;
+  filename: string | null
+  name: string
+  port: MessagePort
+  sharedBuffer: Int32Array
+  useAtomics: boolean
+  niceIncrement: number
 }
 
 export interface RequestMessage {
-  taskId: number;
-  task: any;
-  filename: string;
-  name: string;
+  taskId: number
+  task: any
+  filename: string
+  name: string
 }
 
 export interface ReadyMessage {
-  [READY]: true;
+  [READY]: true
 }
 
 export interface ResponseMessage {
-  taskId: number;
-  result: any;
-  error: Error | null;
+  taskId: number
+  result: any
+  error: Error | null
 }
 export const commonState = {
   isWorkerThread: false,

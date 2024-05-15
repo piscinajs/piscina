@@ -79,14 +79,13 @@ async function getHandler (filename : string, name : string) : Promise<Function 
 // us the MessagePort used for receiving tasks, a SharedArrayBuffer for fast
 // communication using Atomics, and the name of the default filename for tasks
 // (so we can pre-load and cache the handler).
-parentPort!.on('message', (message : StartupMessage) => {
+parentPort!.on('message', (message: StartupMessage) => {
   useAtomics = process.env.PISCINA_DISABLE_ATOMICS === '1' ? false : message.useAtomics;
   const { port, sharedBuffer, filename, name, niceIncrement } = message;
   (async function () {
     try {
       if (niceIncrement !== 0 && process.platform === 'linux') {
         // ts-ignore because the dependency is not installed on Windows.
-        // @ts-ignore
         (await import('nice-napi')).default(niceIncrement);
       }
     } catch {}

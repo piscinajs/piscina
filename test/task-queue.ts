@@ -1,8 +1,7 @@
 import Piscina from '..';
 import { test } from 'tap';
 import { resolve } from 'path';
-import { TaskQueue } from '../dist/task_queue';
-import { Task } from '../dist/types';
+import { TaskQueue, Task } from '../dist/task_queue/index';
 
 test('will put items into a task queue until they can run', async ({ equal }) => {
   const pool = new Piscina({
