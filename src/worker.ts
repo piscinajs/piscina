@@ -86,6 +86,7 @@ parentPort!.on('message', (message: StartupMessage) => {
     try {
       if (niceIncrement !== 0 && process.platform === 'linux') {
         // ts-ignore because the dependency is not installed on Windows.
+        // @ts-ignore
         (await import('nice-napi')).default(niceIncrement);
       }
     } catch {}
