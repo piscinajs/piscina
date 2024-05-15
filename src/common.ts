@@ -2,10 +2,7 @@ import type { Histogram } from 'node:perf_hooks';
 import { fileURLToPath, URL } from 'node:url';
 import { availableParallelism, cpus } from 'node:os';
 
-import type {
-  PiscinaMovable,
-  HistogramSummary
-} from './types';
+import type { HistogramSummary } from './types';
 import { kMovable, kTransferable, kValue } from './symbols';
 
 // States wether the worker is ready to receive tasks

@@ -1,7 +1,7 @@
 import type { MessagePort, Worker } from 'node:worker_threads';
 
 import type { READY } from './common';
-import type { kTransferable, kValue, kQueueOptions, kMovable } from './symbols';
+import type { kTransferable, kValue, kQueueOptions } from './symbols';
 
 export interface StartupMessage {
   filename: string | null;
@@ -11,10 +11,6 @@ export interface StartupMessage {
   useAtomics: boolean;
   niceIncrement: number;
 }
-
-export type PiscinaMovable = {
-  [kMovable]: boolean;
-};
 
 export interface RequestMessage {
   taskId: number;
