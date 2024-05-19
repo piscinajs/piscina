@@ -27,6 +27,7 @@ import {
   kTransferable,
   kValue
 } from './common';
+import FixedQueue from './fixed-queue';
 import { version } from '../package.json';
 import { setTimeout as sleep } from 'timers/promises';
 
@@ -133,7 +134,7 @@ type EnvSpecifier = typeof Worker extends {
   new (filename : never, options?: { env: infer T }) : Worker;
 } ? T : never;
 
-class ArrayTaskQueue implements TaskQueue {
+export class ArrayTaskQueue implements TaskQueue {
   tasks : Task[] = [];
 
   get size () { return this.tasks.length; }
@@ -1361,11 +1362,17 @@ export default class Piscina extends EventEmitterAsyncResource {
 export const move = Piscina.move;
 export const isWorkerThread = Piscina.isWorkerThread;
 export const workerData = Piscina.workerData;
+// Mutate Piscina class to allow named import in commonjs
+// @ts-expect-error
+Piscina.FixedQueue = FixedQueue;
+// @ts-expect-error
+Piscina.ArrayTaskQueue = ArrayTaskQueue;
 
 export {
   Piscina,
   kTransferable as transferableSymbol,
   kValue as valueSymbol,
   kQueueOptions as queueOptionsSymbol,
-  version
+  version,
+  FixedQueue
 };
