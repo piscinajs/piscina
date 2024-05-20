@@ -1,5 +1,6 @@
 import { test } from 'tap';
-import { Task, kQueueOptions } from '../dist/src/common';
+import { Task } from '../dist/types';
+import { kQueueOptions } from '../dist/symbols';
 import { Piscina, FixedQueue } from '..';
 import { resolve } from 'node:path';
 
