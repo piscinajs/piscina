@@ -3,12 +3,12 @@
   "version": "4.5.0",
   "description": "A fast, efficient Node.js Worker Thread Pool implementation",
   "main": "./dist/main.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     "types": "./dist/index.d.ts",
     "import": "./dist/esm-wrapper.mjs",
     "require": "./dist/main.js"
   },
-  "types": "./dist/src/index.d.ts",
   "scripts": {
     "build": "tsc && gen-esm-wrapper . dist/esm-wrapper.mjs",
     "lint": "standardx \"**/*.{ts,mjs,js,cjs}\" | snazzy",
