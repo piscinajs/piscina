@@ -1075,7 +1075,7 @@ class ThreadPool {
   }
 }
 
-export default class Piscina extends EventEmitterAsyncResource {
+export default class Piscina<T = any, R = any> extends EventEmitterAsyncResource {
   #pool : ThreadPool;
 
   constructor (options : Options = {}) {
@@ -1142,19 +1142,19 @@ export default class Piscina extends EventEmitterAsyncResource {
   }
 
   /** @deprecated Use run(task, options) instead **/
-  runTask (task : any, transferList? : TransferList, filename? : string, abortSignal? : AbortSignalAny) : Promise<any>;
+  runTask (task : T, transferList? : TransferList, filename? : string, abortSignal? : AbortSignalAny) : Promise<R>;
 
   /** @deprecated Use run(task, options) instead **/
-  runTask (task : any, transferList? : TransferList, filename? : AbortSignalAny, abortSignal? : undefined) : Promise<any>;
+  runTask (task : T, transferList? : TransferList, filename? : AbortSignalAny, abortSignal? : undefined) : Promise<R>;
 
   /** @deprecated Use run(task, options) instead **/
-  runTask (task : any, transferList? : string, filename? : AbortSignalAny, abortSignal? : undefined) : Promise<any>;
+  runTask (task : T, transferList? : string, filename? : AbortSignalAny, abortSignal? : undefined) : Promise<R>;
 
   /** @deprecated Use run(task, options) instead **/
-  runTask (task : any, transferList? : AbortSignalAny, filename? : undefined, abortSignal? : undefined) : Promise<any>;
+  runTask (task : T, transferList? : AbortSignalAny, filename? : undefined, abortSignal? : undefined) : Promise<R>;
 
   /** @deprecated Use run(task, options) instead **/
-  runTask (task : any, transferList? : any, filename? : any, signal? : any) {
+  runTask (task : T, transferList? : any, filename? : any, signal? : any): Promise<R> {
     // If transferList is a string or AbortSignal, shift it.
     if ((typeof transferList === 'object' && !Array.isArray(transferList)) ||
         typeof transferList === 'string') {
@@ -1189,7 +1189,7 @@ export default class Piscina extends EventEmitterAsyncResource {
       });
   }
 
-  run (task : any, options : RunOptions = kDefaultRunOptions) {
+  run (task : T, options : RunOptions = kDefaultRunOptions): Promise<R> {
     if (options === null || typeof options !== 'object') {
       return Promise.reject(
         new TypeError('options must be an object'));
