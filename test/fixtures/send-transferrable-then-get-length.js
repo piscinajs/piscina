@@ -1,6 +1,6 @@
 'use strict';
 
-const Piscina = require('../../dist/src');
+const Piscina = require('../../dist');
 
 class Shared {
   constructor (data) {

@@ -1,17 +1,22 @@
-import { parentPort, MessagePort, receiveMessageOnPort, workerData } from 'worker_threads';
-import { pathToFileURL } from 'url';
-import {
-  READY,
-  commonState,
+import { parentPort, MessagePort, receiveMessageOnPort, workerData } from 'node:worker_threads';
+import { pathToFileURL } from 'node:url';
+
+import type {
   ReadyMessage,
   RequestMessage,
   ResponseMessage,
-  StartupMessage,
+  StartupMessage
+} from './types';
+import {
   kResponseCountField,
   kRequestCountField,
-  isMovable,
   kTransferable,
   kValue
+} from './symbols';
+import {
+  READY,
+  commonState,
+  isMovable
 } from './common';
 
 commonState.isWorkerThread = true;

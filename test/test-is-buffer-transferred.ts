@@ -1,4 +1,4 @@
-import Piscina from '../dist/src';
+import Piscina from '..';
 import { test } from 'tap';
 import { resolve } from 'path';
 
