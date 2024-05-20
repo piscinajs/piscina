@@ -10,6 +10,7 @@ import { kTransferable, kValue, kQueueOptions } from '../symbols';
 import type { Task, TaskQueue, PiscinaTask } from './common';
 
 export { ArrayTaskQueue } from './array_queue';
+export { FixedQueue } from './fixed_queue';
 
 export type TaskCallback = (err: Error, result: any) => void
 // Grab the type of `transferList` off `MessagePort`. At the time of writing,

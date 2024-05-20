@@ -24,6 +24,7 @@ import {
   TaskQueue,
   isTaskQueue,
   ArrayTaskQueue,
+  FixedQueue,
   TaskInfo,
   PiscinaTask,
   TransferList,
@@ -50,7 +51,6 @@ import {
   getAvailableParallelism,
   maybeFileURLToPath
 } from './common';
-import FixedQueue from './fixed-queue';
 
 const { version } = JSON.parse(
   readFileSync(
@@ -923,6 +923,14 @@ export default class Piscina<T = any, R = any> extends EventEmitterAsyncResource
     return Piscina;
   }
 
+  static get FixedQueue () {
+    return FixedQueue;
+  }
+
+  static get ArrayTaskQueue () {
+    return ArrayTaskQueue;
+  }
+
   static move (val : Transferable | TransferListItem | ArrayBufferView | ArrayBuffer | MessagePort) {
     if (val != null && typeof val === 'object' && typeof val !== 'function') {
       if (!isTransferable(val)) {
@@ -947,11 +955,6 @@ export default class Piscina<T = any, R = any> extends EventEmitterAsyncResource
 export const move = Piscina.move;
 export const isWorkerThread = Piscina.isWorkerThread;
 export const workerData = Piscina.workerData;
-// Mutate Piscina class to allow named import in commonjs
-// @ts-expect-error
-Piscina.FixedQueue = FixedQueue;
-// @ts-expect-error
-Piscina.ArrayTaskQueue = ArrayTaskQueue;
 
 export {
   Piscina,

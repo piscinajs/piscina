@@ -1,9 +1,9 @@
 import { test } from 'tap';
-import { Task } from '../dist/types';
 import { kQueueOptions } from '../dist/symbols';
-import { Piscina, FixedQueue } from '..';
+import { Piscina, FixedQueue, PiscinaTask as Task } from '..';
 import { resolve } from 'node:path';
 
+// @ts-expect-error
 class QueueTask implements Task {
   get [kQueueOptions] () {
     return null;
