@@ -89,6 +89,7 @@ export function maybeFileURLToPath (filename : string) : string {
     : filename;
 }
 
+// TODO: drop on v5
 export function getAvailableParallelism () : number {
   if (typeof availableParallelism === 'function') {
     return availableParallelism();
