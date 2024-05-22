@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [4.6.0](https://github.com/piscinajs/piscina/compare/v4.5.0...v4.6.0) (2024-05-22)
+
+
+### Features
+
+* add missing errors ([9cf5f1c](https://github.com/piscinajs/piscina/commit/9cf5f1c585770ed3b59fb5bcd2e8dcbc41a990e2))
+
+
+### Bug Fixes
+
+* add missed file ([c4a08c6](https://github.com/piscinajs/piscina/commit/c4a08c6d7258e0a97f0758f93d6cb6a092afb429))
+* restore ignore ([83027aa](https://github.com/piscinajs/piscina/commit/83027aad70abe16dc701cbc012b433756633d5dc))
+* revert type ([e04f449](https://github.com/piscinajs/piscina/commit/e04f44994f010ff13db603454c6506662d7af85c))
+
 ### [4.5.2](https://github.com/piscinajs/piscina/compare/v4.5.1...v4.5.2) (2024-05-22)
 
 ### [4.5.1](https://github.com/piscinajs/piscina/compare/v4.5.0...v4.5.1) (2024-05-22)
