@@ -1,5 +1,6 @@
 import type { Histogram } from 'node:perf_hooks';
 import { fileURLToPath, URL } from 'node:url';
+import { availableParallelism, cpus } from 'node:os';
 
 import type { HistogramSummary } from './types';
 import { kMovable, kTransferable, kValue } from './symbols';
@@ -86,4 +87,17 @@ export function maybeFileURLToPath (filename : string) : string {
   return filename.startsWith('file:')
     ? fileURLToPath(new URL(filename))
     : filename;
+}
+
+// TODO: drop on v5
+export function getAvailableParallelism () : number {
+  if (typeof availableParallelism === 'function') {
+    return availableParallelism();
+  }
+
+  try {
+    return cpus().length;
+  } catch {
+    return 1;
+  }
 }
