@@ -1,7 +1,7 @@
 import { Worker, MessageChannel, MessagePort, receiveMessageOnPort } from 'node:worker_threads';
 import { once, EventEmitterAsyncResource } from 'node:events';
 import { AsyncResource } from 'node:async_hooks';
-import { availableParallelism } from 'node:os';
+import { availableParallelism, cpus } from 'node:os';
 import { resolve } from 'node:path';
 import { inspect, types } from 'node:util';
 import { RecordableHistogram, createHistogram, performance } from 'node:perf_hooks';
@@ -61,7 +61,7 @@ const { version } = JSON.parse(
     }
   ));
 
-const cpuParallelism : number = availableParallelism();
+const cpuParallelism: number =  availableParallelism ? availableParallelism() : cpus().length
 
 interface Options {
   filename? : string | null,

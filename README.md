@@ -288,9 +288,9 @@ This class extends [`EventEmitter`][] from Node.js.
     function. The default is `'default'`, indicating the default export of the
     worker module.
   * `minThreads`: (`number`) Sets the minimum number of threads that are always
-    running for this thread pool. The default is the number provided by [`os.availableParallelism`](https://nodejs.org/api/os.html#osavailableparallelism).
+    running for this thread pool. The default is the number provided by [`os.availableParallelism`](https://nodejs.org/api/os.html#osavailableparallelism) if it's available. Otherwise, use [os.cpus](https://nodejs.org/api/os.html#oscpus).
   * `maxThreads`: (`number`) Sets the maximum number of threads that are
-    running for this thread pool. The default is the number provided by [`os.availableParallelism`](https://nodejs.org/api/os.html#osavailableparallelism) * 1.5.
+    running for this thread pool. The default is the number provided by [`os.availableParallelism`](https://nodejs.org/api/os.html#osavailableparallelism) * 1.5 if it's available. Otherwise, use [os.cpus](https://nodejs.org/api/os.html#oscpus).
   * `idleTimeout`: (`number`) A timeout in milliseconds that specifies how long
     a `Worker` is allowed to be idle, i.e. not handling any tasks, before it is
     shut down. By default, this is immediate. **Tip**: *The default `idleTimeout`
