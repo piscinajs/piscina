@@ -65,7 +65,7 @@ test('remove not queued task should not lead to errors', async ({ equal }) => {
 test('removing elements from intermediate CircularBuffer should not lead to issues', async ({ equal, same }) => {
   const queue = new FixedQueue();
 
-  const batchSize = 2048;
+  const batchSize = 2047;
 
   const firstBatch = Array.from({ length: batchSize }, () => new QueueTask());
   const secondBatch = Array.from({ length: batchSize }, () => new QueueTask());
@@ -96,7 +96,7 @@ test('removing elements from intermediate CircularBuffer should not lead to issu
 test('removing elements from first CircularBuffer should not lead to issues', async ({ equal, same }) => {
   const queue = new FixedQueue();
 
-  const batchSize = 2048;
+  const batchSize = 2047;
 
   const firstBatch = Array.from({ length: batchSize }, () => new QueueTask());
   const secondBatch = Array.from({ length: batchSize }, () => new QueueTask());
@@ -127,7 +127,7 @@ test('removing elements from first CircularBuffer should not lead to issues', as
 test('removing elements from last CircularBuffer should not lead to issues', async ({ equal, same }) => {
   const queue = new FixedQueue();
 
-  const batchSize = 2048;
+  const batchSize = 2047;
 
   const firstBatch = Array.from({ length: batchSize }, () => new QueueTask());
   const secondBatch = Array.from({ length: batchSize }, () => new QueueTask());
