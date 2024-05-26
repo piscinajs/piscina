@@ -1,6 +1,5 @@
 import { Worker, MessageChannel, MessagePort } from 'node:worker_threads';
 import { once, EventEmitterAsyncResource } from 'node:events';
-import { availableParallelism } from 'node:os';
 import { resolve } from 'node:path';
 import { inspect, types } from 'node:util';
 import { RecordableHistogram, createHistogram, performance } from 'node:perf_hooks';
