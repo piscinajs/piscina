@@ -37,7 +37,7 @@ test('Piscina.isWorkerThread has the correct value (worker) with named import', 
   const worker = new Piscina({
     filename: resolve(__dirname, 'fixtures/simple-isworkerthread-named-import.ts')
   });
-  const result = await worker.runTask(null);
+  const result = await worker.run(null);
   equal(result, 'done');
 });
 
@@ -153,7 +153,7 @@ test('passing valid workerData works with named import', async ({ equal }) => {
   });
   equal(Piscina.workerData, undefined);
 
-  await pool.runTask(null);
+  await pool.run(null);
 });
 
 test('passing invalid workerData does not work', async ({ throws }) => {

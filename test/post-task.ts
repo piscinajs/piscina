@@ -95,20 +95,20 @@ test('Piscina emits drain', async ({ ok, notOk }) => {
   notOk(needsDrain);
 });
 
-test('Piscina exposes/emits needsDrain to true when capacity is exceeded', async ({ ok }) => {
+test('Piscina exposes/emits needsDrain to true when capacity is exceeded', ({ ok, pass, plan }) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js'),
     maxQueue: 3,
     maxThreads: 1
   });
 
-  let triggered = false;
-  let drained = false;
+  plan(3);
+  
   pool.once('drain', () => {
-    drained = true;
+    pass();
   });
   pool.once('needsDrain', () => {
-    triggered = true;
+    pass();
   });
 
   pool.run('123');
@@ -117,22 +117,21 @@ test('Piscina exposes/emits needsDrain to true when capacity is exceeded', async
   pool.run('123');
 
   ok(pool.needsDrain);
-  ok(triggered);
-  ok(drained);
+  
 });
 
 test('Piscina can use async loaded workers', async ({ equal }) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval-async.js')
   });
-  equal(await pool.run('1'), { transferList: 1 });
+  equal(await pool.run('1'), 1);
 });
 
 test('Piscina can use async loaded esm workers', {}, async ({ equal }) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/esm-async.mjs')
   });
-  equal(await pool.run('1'), { tranferList: 1 });
+  equal(await pool.run('1'), 1);
 });
 
 test('Piscina.run options is correct type', async ({ rejects }) => {
