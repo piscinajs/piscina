@@ -103,7 +103,7 @@ test('Piscina exposes/emits needsDrain to true when capacity is exceeded', ({ ok
   });
 
   plan(3);
-  
+
   pool.once('drain', () => {
     pass();
   });
@@ -117,7 +117,6 @@ test('Piscina exposes/emits needsDrain to true when capacity is exceeded', ({ ok
   pool.run('123');
 
   ok(pool.needsDrain);
-  
 });
 
 test('Piscina can use async loaded workers', async ({ equal }) => {

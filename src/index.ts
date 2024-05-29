@@ -352,15 +352,16 @@ class AsynchronouslyCreatedResourcePool<
   onAvailable (fn : (item : T) => void) {
     this.onAvailableListeners.push(fn);
   }
+
   getCurrentUsage (): number {
-      let inFlight = 0;
-      for (const worker of this.readyItems) {
-        const currentUsage = worker.currentUsage();
+    let inFlight = 0;
+    for (const worker of this.readyItems) {
+      const currentUsage = worker.currentUsage();
 
-        if (Number.isFinite(currentUsage)) inFlight += currentUsage;
-      }
+      if (Number.isFinite(currentUsage)) inFlight += currentUsage;
+    }
 
-      return inFlight;
+    return inFlight;
   }
 }
 
