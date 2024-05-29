@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [4.5.2](https://github.com/piscinajs/piscina/compare/v4.5.1...v4.5.2) (2024-05-22)
+
+### [4.5.1](https://github.com/piscinajs/piscina/compare/v4.5.0...v4.5.1) (2024-05-22)
+
+
+### Bug Fixes
+
+* support nodejs v16.x again ([#572](https://github.com/piscinajs/piscina/issues/572)) ([d50391f](https://github.com/piscinajs/piscina/commit/d50391fe93a6319c2a554f34d39cce0c946564ec))
+
+## [4.5.0](https://github.com/piscinajs/piscina/compare/v4.4.0...v4.5.0) (2024-05-20)
+
+
+### Features
+
+* allow generic when creating Piscina ([#569](https://github.com/piscinajs/piscina/issues/569)) ([108440c](https://github.com/piscinajs/piscina/commit/108440c5586bad0be376c65a56836875fce5bef9))
+* Use fixed queue ([#555](https://github.com/piscinajs/piscina/issues/555)) ([8afa70f](https://github.com/piscinajs/piscina/commit/8afa70faaefeb7ed87516af06aad5924a4dbe7f0))
+* use os.availableConcurrency ([#556](https://github.com/piscinajs/piscina/issues/556)) ([d1fbba2](https://github.com/piscinajs/piscina/commit/d1fbba2cae4c189b822672bb63f50b7381cbb6ab))
+
 ## [4.4.0](https://github.com/piscinajs/piscina/compare/v4.3.2...v4.4.0) (2024-02-28)
 
 

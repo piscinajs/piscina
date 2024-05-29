@@ -129,7 +129,6 @@ an `EventEmitter`:
 'use strict';
 
 const Piscina = require('piscina');
-const { AbortController } = require('abort-controller');
 const { resolve } = require('path');
 
 const piscina = new Piscina({
@@ -148,12 +147,6 @@ const piscina = new Piscina({
   }
 })();
 ```
-
-To use `AbortController`, you will need to `npm i abort-controller`
-(or `yarn add abort-controller`).
-
-(In Node.js 15.0.0 or higher, there is a new built-in `AbortController`
-implementation that can be used here as well.)
 
 Alternatively, any `EventEmitter` that emits an `'abort'` event
 may be used as an abort controller:
@@ -295,11 +288,9 @@ This class extends [`EventEmitter`][] from Node.js.
     function. The default is `'default'`, indicating the default export of the
     worker module.
   * `minThreads`: (`number`) Sets the minimum number of threads that are always
-    running for this thread pool. The default is based on the number of
-    available CPUs.
+    running for this thread pool. The default is the number provided by [`os.availableParallelism`](https://nodejs.org/api/os.html#osavailableparallelism).
   * `maxThreads`: (`number`) Sets the maximum number of threads that are
-    running for this thread pool. The default is based on the number of
-    available CPUs.
+    running for this thread pool. The default is the number provided by [`os.availableParallelism`](https://nodejs.org/api/os.html#osavailableparallelism) * 1.5.
   * `idleTimeout`: (`number`) A timeout in milliseconds that specifies how long
     a `Worker` is allowed to be idle, i.e. not handling any tasks, before it is
     shut down. By default, this is immediate. **Tip**: *The default `idleTimeout`
@@ -687,6 +678,57 @@ on tasks submitted to `run()` as a way of passing additional
 options on to the custom `TaskQueue` implementation. (Note that because the
 queue options are set as a property on the task, tasks with queue
 options cannot be submitted as JavaScript primitives).
+
+### Built-In Queues
+Piscina also provides the `FixedQueue`, a more performant task queue implementation based on [`FixedQueue`](https://github.com/nodejs/node/blob/de7b37880f5a541d5f874c1c2362a65a4be76cd0/lib/internal/fixed_queue.js) from Node.js project.  
+
+Here are some benchmarks to compare new `FixedQueue` with `ArrayTaskQueue` (current default). The benchmarks demonstrate substantial improvements in push and shift operations, especially with larger queue sizes.
+```
+Queue size = 1000
+┌─────────┬─────────────────────────────────────────┬───────────┬────────────────────┬──────────┬─────────┐
+│ (index) │ Task Name                               │ ops/sec   │ Average Time (ns)  │ Margin   │ Samples │
+├─────────┼─────────────────────────────────────────┼───────────┼────────────────────┼──────────┼─────────┤
+│ 0       │ 'ArrayTaskQueue full push + full shift' │ '9 692'   │ 103175.15463917515 │ '±0.80%' │ 970     │
+│ 1       │ 'FixedQueue  full push + full shift'    │ '131 879' │ 7582.696390658352  │ '±1.81%' │ 13188   │
+└─────────┴─────────────────────────────────────────┴───────────┴────────────────────┴──────────┴─────────┘
+
+Queue size = 100_000
+┌─────────┬─────────────────────────────────────────┬─────────┬────────────────────┬──────────┬─────────┐
+│ (index) │ Task Name                               │ ops/sec │ Average Time (ns)  │ Margin   │ Samples │
+├─────────┼─────────────────────────────────────────┼─────────┼────────────────────┼──────────┼─────────┤
+│ 0       │ 'ArrayTaskQueue full push + full shift' │ '0'     │ 1162376920.0000002 │ '±1.77%' │ 10      │
+│ 1       │ 'FixedQueue full push + full shift'     │ '1 026' │ 974328.1553396407  │ '±2.51%' │ 103     │
+└─────────┴─────────────────────────────────────────┴─────────┴────────────────────┴──────────┴─────────┘
+```
+In terms of Piscina performance itself, using `FixedQueue` with a queue size of 100,000 queued tasks can result in up to 6 times faster execution times.
+
+Users can import `FixedQueue` from the `Piscina` package and pass it as the `taskQueue` option to leverage its benefits.
+
+
+#### Using FixedQueue Example
+
+Here's an example of how to use the `FixedQueue`:
+
+```js
+const { Piscina, FixedQueue } = require('piscina');
+const { resolve } = require('path');
+
+// Create a Piscina pool with FixedQueue
+const piscina = new Piscina({
+  filename: resolve(__dirname, 'worker.js'),
+  taskQueue: new FixedQueue()
+});
+
+// Submit tasks to the pool
+for (let i = 0; i < 10; i++) {
+  piscina.runTask({ data: i }).then((result) => {
+    console.log(result);
+  }).catch((error) => {
+    console.error(error);
+  });
+}
+```
+**Note** The `FixedQueue` will become the default task queue implementation in a next major version.
 
 ## Current Limitations (Things we're working on / would love help with)
 

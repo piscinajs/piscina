@@ -10,6 +10,8 @@ name: CI
 
 jobs:
   lint:
+    permissions:
+      contents: read
     name: Lint
     runs-on: ubuntu-latest
     steps:
@@ -27,14 +29,15 @@ jobs:
         run: npm run lint
 
   tests:
+    permissions:
+      contents: read
     needs: [lint]
     name: Tests
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        node-version: [18.x, 20.x, 21.x]
-
+        node-version: [16.x, 18.x, 20.x, 22.x]
     runs-on: ${{matrix.os}}
     steps:
       - uses: actions/checkout@v4

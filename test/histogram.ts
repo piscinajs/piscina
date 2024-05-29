@@ -38,7 +38,7 @@ test('pool will maintain run and wait time histograms when recordTiming is true'
 
   const tasks = [];
   for (let n = 0; n < 10; n++) {
-    tasks.push(pool.run('42'));
+    tasks.push(pool.runTask('42'));
   }
   await Promise.all(tasks);
 
@@ -57,7 +57,7 @@ test('pool does not maintain run and wait time histograms when recordTiming is f
 
   const tasks = [];
   for (let n = 0; n < 10; n++) {
-    tasks.push(pool.run('42'));
+    tasks.push(pool.runTask('42'));
   }
   await Promise.all(tasks);
 

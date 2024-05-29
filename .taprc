@@ -1,13 +1,14 @@
+# Coverage done by c8
 check-coverage: false
-color: true
-coverage: true
+coverage: false
 coverage-report:
-  - html
-  - text
+  - lcovonly
+color: true
 jobs: 2
-no-browser: true
 test-env: TS_NODE_PROJECT=test/tsconfig.json
 test-ignore: $.
-test-regex: ((\/|^)(tests?|__tests?__)\/.*|\.(tests?|spec)|^\/?tests?)\.([mc]js|ts)$
+test-regex: ((\/|^)(test?|__test?__)\/.*|\.(tests?|spec)|^\/?tests?)\.([mc]js|ts)$
 timeout: 60
 ts: true
+jsx: false
+flow: false

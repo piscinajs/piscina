@@ -33,6 +33,14 @@ test('Piscina.isWorkerThread has the correct value (worker) with named import', 
   equal(result, 'done');
 });
 
+test('Piscina.isWorkerThread has the correct value (worker) with named import', async ({ equal }) => {
+  const worker = new Piscina({
+    filename: resolve(__dirname, 'fixtures/simple-isworkerthread-named-import.ts')
+  });
+  const result = await worker.runTask(null);
+  equal(result, 'done');
+});
+
 test('Piscina instance is an EventEmitter', async ({ ok }) => {
   const piscina = new Piscina();
   ok(piscina instanceof EventEmitter);
@@ -136,6 +144,16 @@ test('passing valid workerData works with named import', async ({ equal }) => {
   equal(Piscina.workerData, undefined);
 
   await pool.run(null);
+});
+
+test('passing valid workerData works with named import', async ({ equal }) => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/simple-workerdata-named-import.ts'),
+    workerData: 'ABC'
+  });
+  equal(Piscina.workerData, undefined);
+
+  await pool.runTask(null);
 });
 
 test('passing invalid workerData does not work', async ({ throws }) => {

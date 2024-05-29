@@ -4,7 +4,7 @@ import { resolve } from 'path';
 
 test('coverage test for Atomics optimization', async ({ equal }) => {
   const pool = new Piscina({
-    filename: resolve(__dirname, 'fixtures/notify-then-sleep-or.ts'),
+    filename: resolve(__dirname, 'fixtures/notify-then-sleep-or.js'),
     minThreads: 2,
     maxThreads: 2,
     concurrentTasksPerWorker: 2

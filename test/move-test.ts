@@ -3,7 +3,7 @@ import {
   isMovable,
   markMovable,
   isTransferable
-} from '../dist/src/common';
+} from '../dist/common';
 import { test } from 'tap';
 import { types } from 'util';
 import { MessageChannel, MessagePort } from 'worker_threads';

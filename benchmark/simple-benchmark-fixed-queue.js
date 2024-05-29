@@ -1,9 +1,13 @@
 'use strict';
-const { Piscina } = require('..');
+const { Piscina, FixedQueue } = require('..');
+
 const { resolve } = require('path');
 
 async function simpleBenchmark ({ duration = 10000 } = {}) {
-  const pool = new Piscina({ filename: resolve(__dirname, 'fixtures/add.js') });
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/add.js'),
+    taskQueue: new FixedQueue()
+  });
   let done = 0;
 
   const results = [];
@@ -14,7 +18,7 @@ async function simpleBenchmark ({ duration = 10000 } = {}) {
 
   async function scheduleTasks () {
     while ((process.hrtime.bigint() - start) / 1_000_000n < duration) {
-      await pool.run({ a: 4, b: 6 });
+      await pool.runTask({ a: 4, b: 6 });
       done++;
     }
   }
@@ -25,5 +29,5 @@ async function simpleBenchmark ({ duration = 10000 } = {}) {
 }
 
 simpleBenchmark().then((opsPerSecond) => {
-  console.log(`opsPerSecond: ${opsPerSecond} (with default taskQueue)`);
+  console.log(`opsPerSecond: ${opsPerSecond} (with FixedQueue as taskQueue)`);
 });
