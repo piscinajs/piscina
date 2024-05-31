@@ -13,9 +13,6 @@ import type {
   Transferable,
   ResourceLimits,
   EnvSpecifier,
-  TaskCallback,
-  TransferList,
-  TransferListItem,
   HistogramSummary
 } from './types';
 import {
