@@ -1,6 +1,5 @@
-import { Worker, MessageChannel, MessagePort, receiveMessageOnPort } from 'node:worker_threads';
+import { Worker, MessageChannel, MessagePort } from 'node:worker_threads';
 import { once, EventEmitterAsyncResource } from 'node:events';
-import { AsyncResource } from 'node:async_hooks';
 import { resolve } from 'node:path';
 import { inspect, types } from 'node:util';
 import { RecordableHistogram, createHistogram, performance } from 'node:perf_hooks';
@@ -9,11 +8,9 @@ import { readFileSync } from 'node:fs';
 import assert from 'node:assert';
 
 import type {
-  RequestMessage,
   ResponseMessage,
   StartupMessage,
   Transferable,
-  Task,
   ResourceLimits,
   EnvSpecifier,
   TaskCallback,
@@ -22,9 +19,6 @@ import type {
   HistogramSummary
 } from './types';
 import {
-  kResponseCountField,
-  kRequestCountField,
-  kFieldCount,
   kQueueOptions,
   kTransferable,
   kValue
@@ -32,27 +26,34 @@ import {
 import {
   TaskQueue,
   isTaskQueue,
-  ArrayTaskQueue
+  ArrayTaskQueue,
+  FixedQueue,
+  TaskInfo,
+  PiscinaTask,
+  TransferList,
+  TransferListItem
 } from './task_queue';
+import {
+  WorkerInfo,
+  AsynchronouslyCreatedResourcePool
+} from './worker_pool';
 import {
   AbortSignalAny,
   AbortSignalEventTarget,
   AbortError,
-  AbortSignalEventEmitter,
   onabort
 } from './abort';
+import { Errors } from './errors';
 import {
   READY,
   commonState,
   isTransferable,
   markMovable,
-  isMovable,
   createHistogramSummary,
   toHistogramIntegerNano,
   getAvailableParallelism,
   maybeFileURLToPath
 } from './common';
-import FixedQueue from './fixed-queue';
 
 const { version } = JSON.parse(
   readFileSync(
@@ -118,10 +119,6 @@ interface CloseOptions {
   force?: boolean,
 }
 
-type ResponseCallback = (response : ResponseMessage) => void;
-
-let taskIdCounter = 0;
-
 const kDefaultOptions : FilledOptions = {
   filename: null,
   name: 'default',
@@ -149,19 +146,6 @@ const kDefaultCloseOptions : Required<CloseOptions> = {
   force: false
 };
 
-const Errors = {
-  ThreadTermination:
-    () => new Error('Terminating worker thread'),
-  FilenameNotProvided:
-    () => new Error('filename must be provided to run() or in options object'),
-  TaskQueueAtLimit:
-    () => new Error('Task queue is at limit'),
-  NoTaskQueueAvailable:
-    () => new Error('No task queue available and all Workers are busy'),
-  CloseTimeout:
-    () => new Error('Close operation timed out')
-};
-
 class DirectlyTransferable implements Transferable {
   #value : object;
   constructor (value : object) {
@@ -182,310 +166,6 @@ class ArrayBufferViewTransferable implements Transferable {
   get [kTransferable] () : object { return this.#view.buffer; }
 
   get [kValue] () : object { return this.#view; }
-}
-
-// Extend AsyncResource so that async relations between posting a task and
-// receiving its result are visible to diagnostic tools.
-class TaskInfo extends AsyncResource implements Task {
-  callback : TaskCallback;
-  task : any;
-  transferList : TransferList;
-  filename : string;
-  name : string;
-  taskId : number;
-  abortSignal : AbortSignalAny | null;
-  abortListener : (() => void) | null = null;
-  workerInfo : WorkerInfo | null = null;
-  created : number;
-  started : number;
-
-  constructor (
-    task : any,
-    transferList : TransferList,
-    filename : string,
-    name : string,
-    callback : TaskCallback,
-    abortSignal : AbortSignalAny | null,
-    triggerAsyncId : number) {
-    super('Piscina.Task', { requireManualDestroy: true, triggerAsyncId });
-    this.callback = callback;
-    this.task = task;
-    this.transferList = transferList;
-
-    // If the task is a Transferable returned by
-    // Piscina.move(), then add it to the transferList
-    // automatically
-    if (isMovable(task)) {
-      // This condition should never be hit but typescript
-      // complains if we dont do the check.
-      /* istanbul ignore if */
-      if (this.transferList == null) {
-        this.transferList = [];
-      }
-      this.transferList =
-        this.transferList.concat(task[kTransferable]);
-      this.task = task[kValue];
-    }
-
-    this.filename = filename;
-    this.name = name;
-    this.taskId = taskIdCounter++;
-    this.abortSignal = abortSignal;
-    this.created = performance.now();
-    this.started = 0;
-  }
-
-  releaseTask () : any {
-    const ret = this.task;
-    this.task = null;
-    return ret;
-  }
-
-  done (err : Error | null, result? : any) : void {
-    this.runInAsyncScope(this.callback, null, err, result);
-    this.emitDestroy(); // `TaskInfo`s are used only once.
-    // If an abort signal was used, remove the listener from it when
-    // done to make sure we do not accidentally leak.
-    if (this.abortSignal && this.abortListener) {
-      if ('removeEventListener' in this.abortSignal && this.abortListener) {
-        this.abortSignal.removeEventListener('abort', this.abortListener);
-      } else {
-        (this.abortSignal as AbortSignalEventEmitter).off(
-          'abort', this.abortListener);
-      }
-    }
-  }
-
-  get [kQueueOptions] () : object | null {
-    return kQueueOptions in this.task ? this.task[kQueueOptions] : null;
-  }
-}
-
-abstract class AsynchronouslyCreatedResource {
-  onreadyListeners : (() => void)[] | null = [];
-
-  markAsReady () : void {
-    const listeners = this.onreadyListeners;
-    assert(listeners !== null);
-    this.onreadyListeners = null;
-    for (const listener of listeners) {
-      listener();
-    }
-  }
-
-  isReady () : boolean {
-    return this.onreadyListeners === null;
-  }
-
-  onReady (fn : () => void) {
-    if (this.onreadyListeners === null) {
-      fn(); // Zalgo is okay here.
-      return;
-    }
-    this.onreadyListeners.push(fn);
-  }
-
-  abstract currentUsage() : number;
-}
-
-class AsynchronouslyCreatedResourcePool<
-  T extends AsynchronouslyCreatedResource> {
-  pendingItems = new Set<T>();
-  readyItems = new Set<T>();
-  maximumUsage : number;
-  onAvailableListeners : ((item : T) => void)[];
-
-  constructor (maximumUsage : number) {
-    this.maximumUsage = maximumUsage;
-    this.onAvailableListeners = [];
-  }
-
-  add (item : T) {
-    this.pendingItems.add(item);
-    item.onReady(() => {
-      /* istanbul ignore else */
-      if (this.pendingItems.has(item)) {
-        this.pendingItems.delete(item);
-        this.readyItems.add(item);
-        this.maybeAvailable(item);
-      }
-    });
-  }
-
-  delete (item : T) {
-    this.pendingItems.delete(item);
-    this.readyItems.delete(item);
-  }
-
-  findAvailable () : T | null {
-    let minUsage = this.maximumUsage;
-    let candidate = null;
-    for (const item of this.readyItems) {
-      const usage = item.currentUsage();
-      if (usage === 0) return item;
-      if (usage < minUsage) {
-        candidate = item;
-        minUsage = usage;
-      }
-    }
-    return candidate;
-  }
-
-  * [Symbol.iterator] () {
-    yield * this.pendingItems;
-    yield * this.readyItems;
-  }
-
-  get size () {
-    return this.pendingItems.size + this.readyItems.size;
-  }
-
-  maybeAvailable (item : T) {
-    /* istanbul ignore else */
-    if (item.currentUsage() < this.maximumUsage) {
-      for (const listener of this.onAvailableListeners) {
-        listener(item);
-      }
-    }
-  }
-
-  onAvailable (fn : (item : T) => void) {
-    this.onAvailableListeners.push(fn);
-  }
-
-  getCurrentUsage (): number {
-    let inFlight = 0;
-    for (const worker of this.readyItems) {
-      const currentUsage = worker.currentUsage();
-
-      if (Number.isFinite(currentUsage)) inFlight += currentUsage;
-    }
-
-    return inFlight;
-  }
-}
-
-class WorkerInfo extends AsynchronouslyCreatedResource {
-  worker : Worker;
-  taskInfos : Map<number, TaskInfo>;
-  idleTimeout : NodeJS.Timeout | null = null; // eslint-disable-line no-undef
-  port : MessagePort;
-  sharedBuffer : Int32Array;
-  lastSeenResponseCount : number = 0;
-  onMessage : ResponseCallback;
-
-  constructor (
-    worker : Worker,
-    port : MessagePort,
-    onMessage : ResponseCallback) {
-    super();
-    this.worker = worker;
-    this.port = port;
-    this.port.on('message',
-      (message : ResponseMessage) => this._handleResponse(message));
-    this.onMessage = onMessage;
-    this.taskInfos = new Map();
-    this.sharedBuffer = new Int32Array(
-      new SharedArrayBuffer(kFieldCount * Int32Array.BYTES_PER_ELEMENT));
-  }
-
-  destroy () : void {
-    this.worker.terminate();
-    this.port.close();
-    this.clearIdleTimeout();
-    for (const taskInfo of this.taskInfos.values()) {
-      taskInfo.done(Errors.ThreadTermination());
-    }
-    this.taskInfos.clear();
-  }
-
-  clearIdleTimeout () : void {
-    if (this.idleTimeout !== null) {
-      clearTimeout(this.idleTimeout);
-      this.idleTimeout = null;
-    }
-  }
-
-  ref () : WorkerInfo {
-    this.port.ref();
-    return this;
-  }
-
-  unref () : WorkerInfo {
-    // Note: Do not call ref()/unref() on the Worker itself since that may cause
-    // a hard crash, see https://github.com/nodejs/node/pull/33394.
-    this.port.unref();
-    return this;
-  }
-
-  _handleResponse (message : ResponseMessage) : void {
-    this.onMessage(message);
-
-    if (this.taskInfos.size === 0) {
-      // No more tasks running on this Worker means it should not keep the
-      // process running.
-      this.unref();
-    }
-  }
-
-  postTask (taskInfo : TaskInfo) {
-    assert(!this.taskInfos.has(taskInfo.taskId));
-    const message : RequestMessage = {
-      task: taskInfo.releaseTask(),
-      taskId: taskInfo.taskId,
-      filename: taskInfo.filename,
-      name: taskInfo.name
-    };
-
-    try {
-      this.port.postMessage(message, taskInfo.transferList);
-    } catch (err) {
-      // This would mostly happen if e.g. message contains unserializable data
-      // or transferList is invalid.
-      taskInfo.done(<Error>err);
-      return;
-    }
-
-    taskInfo.workerInfo = this;
-    this.taskInfos.set(taskInfo.taskId, taskInfo);
-    this.ref();
-    this.clearIdleTimeout();
-
-    // Inform the worker that there are new messages posted, and wake it up
-    // if it is waiting for one.
-    Atomics.add(this.sharedBuffer, kRequestCountField, 1);
-    Atomics.notify(this.sharedBuffer, kRequestCountField, 1);
-  }
-
-  processPendingMessages () {
-    // If we *know* that there are more messages than we have received using
-    // 'message' events yet, then try to load and handle them synchronously,
-    // without the need to wait for more expensive events on the event loop.
-    // This would usually break async tracking, but in our case, we already have
-    // the extra TaskInfo/AsyncResource layer that rectifies that situation.
-    const actualResponseCount =
-      Atomics.load(this.sharedBuffer, kResponseCountField);
-    if (actualResponseCount !== this.lastSeenResponseCount) {
-      this.lastSeenResponseCount = actualResponseCount;
-
-      let entry;
-      while ((entry = receiveMessageOnPort(this.port)) !== undefined) {
-        this._handleResponse(entry.message);
-      }
-    }
-  }
-
-  isRunningAbortableTask () : boolean {
-    // If there are abortable tasks, we are running one at most per Worker.
-    if (this.taskInfos.size !== 1) return false;
-    const [[, task]] = this.taskInfos;
-    return task.abortSignal !== null;
-  }
-
-  currentUsage () : number {
-    if (this.isRunningAbortableTask()) return Infinity;
-    return this.taskInfos.size;
-  }
 }
 
 class ThreadPool {
@@ -1208,6 +888,14 @@ export default class Piscina<T = any, R = any> extends EventEmitterAsyncResource
     return Piscina;
   }
 
+  static get FixedQueue () {
+    return FixedQueue;
+  }
+
+  static get ArrayTaskQueue () {
+    return ArrayTaskQueue;
+  }
+
   static move (val : Transferable | TransferListItem | ArrayBufferView | ArrayBuffer | MessagePort) {
     if (val != null && typeof val === 'object' && typeof val !== 'function') {
       if (!isTransferable(val)) {
@@ -1232,14 +920,11 @@ export default class Piscina<T = any, R = any> extends EventEmitterAsyncResource
 export const move = Piscina.move;
 export const isWorkerThread = Piscina.isWorkerThread;
 export const workerData = Piscina.workerData;
-// Mutate Piscina class to allow named import in commonjs
-// @ts-expect-error
-Piscina.FixedQueue = FixedQueue;
-// @ts-expect-error
-Piscina.ArrayTaskQueue = ArrayTaskQueue;
 
 export {
   Piscina,
+  PiscinaTask,
+  TaskQueue,
   kTransferable as transferableSymbol,
   kValue as valueSymbol,
   kQueueOptions as queueOptionsSymbol,
