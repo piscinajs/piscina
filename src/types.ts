@@ -1,32 +1,32 @@
 import type { MessagePort, Worker } from 'node:worker_threads';
 
 import type { READY } from './common';
-import type { kTransferable, kValue, kQueueOptions } from './symbols';
+import type { kTransferable, kValue } from './symbols';
 
 export interface StartupMessage {
-  filename: string | null;
-  name: string;
-  port: MessagePort;
-  sharedBuffer: Int32Array;
-  useAtomics: boolean;
-  niceIncrement: number;
+  filename: string | null
+  name: string
+  port: MessagePort
+  sharedBuffer: Int32Array
+  useAtomics: boolean
+  niceIncrement: number
 }
 
 export interface RequestMessage {
-  taskId: number;
-  task: any;
-  filename: string;
-  name: string;
+  taskId: number
+  task: any
+  filename: string
+  name: string
 }
 
 export interface ReadyMessage {
-  [READY]: true;
+  [READY]: true
 }
 
 export interface ResponseMessage {
-  taskId: number;
-  result: any;
-  error: Error | null;
+  taskId: number
+  result: any
+  error: Error | null
 }
 export const commonState = {
   isWorkerThread: false,
@@ -36,10 +36,6 @@ export const commonState = {
 export interface Transferable {
   readonly [kTransferable]: object;
   readonly [kValue]: object;
-}
-
-export interface Task {
-  readonly [kQueueOptions]: object | null;
 }
 
 /* eslint-disable camelcase */
@@ -77,14 +73,3 @@ export type EnvSpecifier = typeof Worker extends {
 }
   ? T
   : never;
-
-export type TaskCallback = (err: Error, result: any) => void;
-// Grab the type of `transferList` off `MessagePort`. At the time of writing,
-// only ArrayBuffer and MessagePort are valid, but let's avoid having to update
-// our types here every time Node.js adds support for more objects.
-export type TransferList = MessagePort extends {
-  postMessage(value: any, transferList: infer T): any;
-}
-  ? T
-  : never;
-export type TransferListItem = TransferList extends (infer T)[] ? T : never;

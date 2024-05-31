@@ -1,8 +1,6 @@
-import Piscina from '..';
+import Piscina, { PiscinaTask, TaskQueue } from '..';
 import { test } from 'tap';
 import { resolve } from 'path';
-import { TaskQueue } from '../dist/task_queue';
-import { Task } from '../dist/types';
 
 test('will put items into a task queue until they can run', async ({ equal }) => {
   const pool = new Piscina({
@@ -222,19 +220,19 @@ test('custom task queue works', async ({ equal, ok }) => {
   let pushCalled : boolean = false;
 
   class CustomTaskPool implements TaskQueue {
-    tasks: Task[] = [];
+    tasks: PiscinaTask[] = [];
 
     get size () : number {
       sizeCalled = true;
       return this.tasks.length;
     }
 
-    shift () : Task | null {
+    shift () : PiscinaTask | null {
       shiftCalled = true;
-      return this.tasks.length > 0 ? this.tasks.shift() as Task : null;
+      return this.tasks.length > 0 ? this.tasks.shift() as PiscinaTask : null;
     }
 
-    push (task : Task) : void {
+    push (task : PiscinaTask) : void {
       pushCalled = true;
       this.tasks.push(task);
 
@@ -247,7 +245,7 @@ test('custom task queue works', async ({ equal, ok }) => {
       }
     }
 
-    remove (task : Task) : void {
+    remove (task : PiscinaTask) : void {
       const index = this.tasks.indexOf(task);
       this.tasks.splice(index, 1);
     }
