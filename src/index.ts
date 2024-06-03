@@ -620,6 +620,12 @@ class ThreadPool {
 
     const onPoolFlushed = () => new Promise<void>((resolve) => {
       const numberOfWorkers = this.workers.size;
+
+      if (numberOfWorkers === 0) {
+        resolve();
+        return;
+      }
+
       let numberOfWorkersDone = 0;
 
       const checkIfWorkerIsDone = (workerInfo: WorkerInfo) => {
