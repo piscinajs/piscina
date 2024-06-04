@@ -185,7 +185,7 @@ class ThreadPool {
 
   constructor (publicInterface : Piscina, options : Options) {
     this.publicInterface = publicInterface;
-    this.taskQueue = options.taskQueue || new ArrayTaskQueue();
+    this.taskQueue = options.taskQueue ?? new FixedQueue();
 
     const filename =
       options.filename ? maybeFileURLToPath(options.filename) : null;
