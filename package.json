@@ -50,7 +50,7 @@
     "gen-esm-wrapper": "^1.1.1",
     "snazzy": "^9.0.0",
     "standardx": "^7.0.0",
-    "tap": "^16.3.7",
+    "tap": "^19.2.3",
     "tinybench": "^2.8.0",
     "ts-node": "^10.9.2",
     "typescript": "5.4.5"
