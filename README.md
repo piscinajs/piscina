@@ -412,7 +412,7 @@ An `'error'` event is emitted by instances of this class when:
 - Unexpected messages are sent from from Worker threads.
 
 All other errors are reported by rejecting the `Promise` returned from
-`run()` or `runTask()`, including rejections reported by the handler function
+`run()`, including rejections reported by the handler function
 itself.
 
 ### Event: `'drain'`
@@ -721,14 +721,13 @@ const piscina = new Piscina({
 
 // Submit tasks to the pool
 for (let i = 0; i < 10; i++) {
-  piscina.runTask({ data: i }).then((result) => {
+  piscina.run({ data: i }).then((result) => {
     console.log(result);
   }).catch((error) => {
     console.error(error);
   });
 }
 ```
-**Note** The `FixedQueue` will become the default task queue implementation in a next major version.
 
 ## Current Limitations (Things we're working on / would love help with)
 
