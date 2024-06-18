@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [4.6.0](https://github.com/piscinajs/piscina/compare/v4.5.2...v4.6.0) (2024-06-18)
+
+
+### Features
+
+* expose task interface ([#565](https://github.com/piscinajs/piscina/issues/565)) ([285aa82](https://github.com/piscinajs/piscina/commit/285aa82b45cfb1f33210812c441c83a44c78ed34))
+
+
+### Bug Fixes
+
+* close pool with minThreads=0 ([#584](https://github.com/piscinajs/piscina/issues/584)) ([776bacb](https://github.com/piscinajs/piscina/commit/776bacbebbc7f3adcde767a7dfada574da58bfe6))
+
 ### [4.5.1](https://github.com/piscinajs/piscina/compare/v4.5.0...v4.5.1) (2024-05-22)
 
 
