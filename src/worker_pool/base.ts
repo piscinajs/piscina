@@ -67,6 +67,7 @@ export class AsynchronouslyCreatedResourcePool<
         minUsage = usage;
       }
     }
+
     return candidate;
   }
 

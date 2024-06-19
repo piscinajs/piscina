@@ -52,10 +52,12 @@ export class TaskInfo extends AsyncResource implements Task {
     name : string;
     taskId : number;
     abortSignal : AbortSignalAny | null;
-    abortListener : (() => void) | null = null;
+    // abortListener : (() => void) | null = null;
     workerInfo : WorkerInfo | null = null;
     created : number;
     started : number;
+    aborted = false;
+    _abortListener: (() => void) | null = null;
 
     constructor (
       task : any,
@@ -93,6 +95,18 @@ export class TaskInfo extends AsyncResource implements Task {
       this.started = 0;
     }
 
+    // TODO: improve this handling - ideally should be extended
+    set abortListener (value: (() => void)) {
+      this._abortListener = () => {
+        this.aborted = true;
+        value();
+      };
+    }
+
+    get abortListener (): (() => void) | null {
+      return this._abortListener;
+    }
+
     releaseTask () : any {
       const ret = this.task;
       this.task = null;
@@ -114,8 +128,8 @@ export class TaskInfo extends AsyncResource implements Task {
       }
     }
 
-    get [kQueueOptions] () : object | null {
-      return kQueueOptions in this.task ? this.task[kQueueOptions] : null;
+    get [kQueueOptions] () : {} | null {
+      return this.task?.[kQueueOptions] ?? null;
     }
 
     get interface (): PiscinaTask {

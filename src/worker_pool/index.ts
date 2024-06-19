@@ -5,9 +5,10 @@ import { RequestMessage, ResponseMessage } from '../types';
 import { Errors } from '../errors';
 
 import { TaskInfo } from '../task_queue';
-import { kFieldCount, kRequestCountField, kResponseCountField } from '../symbols';
+import { kFieldCount, kRequestCountField, kResponseCountField, kWorkerData } from '../symbols';
 
 import { AsynchronouslyCreatedResource, AsynchronouslyCreatedResourcePool } from './base';
+export * from './balancer';
 
 type ResponseCallback = (response : ResponseMessage) => void;
 
@@ -15,6 +16,7 @@ export type PiscinaWorker = {
   id: string;
   currentUsage: number;
   isRunningAbortableTask: boolean;
+  [kWorkerData]: WorkerInfo;
   // TODO: maybe add histogram data here?
 }
 
@@ -138,6 +140,15 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
     currentUsage () : number {
       if (this.isRunningAbortableTask()) return Infinity;
       return this.taskInfos.size;
+    }
+
+    get interface (): PiscinaWorker {
+      return {
+        id: this.worker.threadId.toString(),
+        currentUsage: this.currentUsage(),
+        isRunningAbortableTask: this.isRunningAbortableTask(),
+        [kWorkerData]: this
+      };
     }
 }
 

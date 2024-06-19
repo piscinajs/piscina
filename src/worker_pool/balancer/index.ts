@@ -1,11 +1,11 @@
 import type { PiscinaTask } from '../../task_queue';
 import type { PiscinaWorker } from '..';
 
-type PiscinaLoadBalancerCommand = {
+export type PiscinaLoadBalancerCommand = {
   candidate?: PiscinaWorker | null; // If candidate is passed, it will be used as the result of the load balancer and ingore the command
-  command: 0 | 1 | -1; // 1 = add, 0 = busy
+  command?: 0 | 1; // 1 = add, 0 = busy
 };
-type PisicnaLoadBalancer = (
+export type PisicnaLoadBalancer = (
   task: PiscinaTask,
   workers: PiscinaWorker[]
 ) => PiscinaLoadBalancerCommand;
@@ -24,10 +24,15 @@ export function ResourceBasedBalancer (
     for (const worker of workers) {
       if (worker.currentUsage === 0) {
         command.candidate = worker;
-        return command;
-      };
+        break;
+      }
 
-      if (!task.isAbortable && (!command.candidate || worker.currentUsage < minUsage)) {
+      if (worker.isRunningAbortableTask) continue;
+
+      if (
+        !task.isAbortable &&
+        (!command.candidate || worker.currentUsage < minUsage)
+      ) {
         command.candidate = worker;
         minUsage = worker.currentUsage;
       }
