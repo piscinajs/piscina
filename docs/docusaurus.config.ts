@@ -1,6 +1,7 @@
 import { themes as prismThemes } from "prism-react-renderer";
 import type { Config } from "@docusaurus/types";
 import type * as Preset from "@docusaurus/preset-classic";
+import tabBlocks from "docusaurus-remark-plugin-tab-blocks";
 
 const config: Config = {
 
@@ -31,22 +32,36 @@ const config: Config = {
   },
 
   presets: [
-
     [
-      "classic",
+      "@docusaurus/preset-classic",
       {
         docs: {
           sidebarPath: "./sidebars.ts",
           routeBasePath: "/",
+          remarkPlugins: [
+            [
+              tabBlocks,
+              {
+                labels: [
+                  ["json", "JSON"],
+                  ["jsx", "JSX"],
+                  ["tsx", "TSX"],
+                ],
+              },
+            ],
+          ],
         },
         blog: false,
         theme: {
           customCss: "./src/css/custom.css",
-
         },
-      } satisfies Preset.Options,
+        pages: {
+          remarkPlugins: [tabBlocks],
+        },
+      },
     ],
   ],
+
   themes: [
     [
       require.resolve("@easyops-cn/docusaurus-search-local"),
