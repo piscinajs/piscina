@@ -240,6 +240,8 @@ class ThreadPool {
   }
 
   _addNewWorker () : void {
+    if (this.closingUp) return;
+
     const pool = this;
     const worker = new Worker(resolve(__dirname, 'worker.js'), {
       env: this.options.env,
@@ -752,7 +754,7 @@ class ThreadPool {
     });
 
     const throwOnTimeOut = async (timeout: number) => {
-      await sleep(timeout);
+      await sleep(timeout, null, { ref: false });
       throw Errors.CloseTimeout();
     };
 
