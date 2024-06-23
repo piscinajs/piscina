@@ -20,7 +20,7 @@ export function ResourceBasedBalancer (
 
   return (task, workers) => {
     const command: PiscinaLoadBalancerCommand = { candidate: null, command: 1 };
-    let minUsage = maximumUsage;
+    let checkpoint = maximumUsage;
     for (const worker of workers) {
       if (worker.currentUsage === 0) {
         command.candidate = worker;
@@ -31,10 +31,10 @@ export function ResourceBasedBalancer (
 
       if (
         !task.isAbortable &&
-        (!command.candidate || worker.currentUsage < minUsage)
+        (worker.currentUsage < checkpoint)
       ) {
         command.candidate = worker;
-        minUsage = worker.currentUsage;
+        checkpoint = worker.currentUsage;
       }
     }
 

@@ -134,8 +134,7 @@ const kDefaultOptions : FilledOptions = {
   niceIncrement: 0,
   trackUnmanagedFds: true,
   closeTimeout: 30000,
-  recordTiming: true,
-  loadBalancer: ResourceBasedBalancer({ maximumUsage: 1 })
+  recordTiming: true
 };
 
 const kDefaultRunOptions : FilledRunOptions = {
@@ -218,7 +217,7 @@ class ThreadPool {
       this.options.maxQueue = options.maxQueue ?? kDefaultOptions.maxQueue;
     }
 
-    this.balancer = this.options.loadBalancer!;
+    this.balancer = this.options.loadBalancer ?? ResourceBasedBalancer({ maximumUsage: this.options.concurrentTasksPerWorker });
     this.workers = new AsynchronouslyCreatedResourcePool<WorkerInfo>(
       this.options.concurrentTasksPerWorker);
     this.workers.onAvailable((w : WorkerInfo) => this._onWorkerAvailable(w));
@@ -554,7 +553,8 @@ class ThreadPool {
       // If the AbortSignal has an aborted property and it's truthy,
       // reject immediately.
       if ((signal as AbortSignalEventTarget).aborted) {
-        return Promise.reject(new AbortError((signal as AbortSignalEventTarget).reason));
+        reject!(new AbortError((signal as AbortSignalEventTarget).reason));
+        return ret;
       }
 
       taskInfo.abortListener = () => {
@@ -601,9 +601,9 @@ class ThreadPool {
       const totalCapacity = this.options.maxQueue + this.pendingCapacity();
       if (this.taskQueue.size >= totalCapacity) {
         if (this.options.maxQueue === 0) {
-          return Promise.reject(Errors.NoTaskQueueAvailable());
+          reject!(Errors.NoTaskQueueAvailable());
         } else {
-          return Promise.reject(Errors.TaskQueueAtLimit());
+          reject!(Errors.TaskQueueAtLimit());
         }
       } else {
         this.taskQueue.push(taskInfo);
@@ -649,8 +649,9 @@ class ThreadPool {
 
     // TODO: test out
     if (!distributed) {
-      if (this.options.maxQueue <= 0) {
-        return Promise.reject(Errors.NoTaskQueueAvailable());
+      // We reject if no task queue set and no more pending capacity.
+      if (this.options.maxQueue <= 0 && this.pendingCapacity() === 0) {
+        reject!(Errors.NoTaskQueueAvailable());
       }
     };
 
