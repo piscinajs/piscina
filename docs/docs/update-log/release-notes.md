@@ -1,6 +1,6 @@
 ---
 id: Release Notes
-sidebar_position: 6
+sidebar_position: 1
 ---
 
 ### 4.1.0

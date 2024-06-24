@@ -19,6 +19,8 @@ pnpm add piscina
 ```bash tab={"label":"Bun"}
 bun add piscina
 ```
-
+:::note
+While Bun can be used to install Piscina, its behavior while running within Bun is not assured.
+:::
 This will download and install the latest version of Piscina.js and its dependencies.
 Once you have Piscina.js installed, you can start using it in your code.
