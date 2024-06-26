@@ -3,13 +3,17 @@ id: Async Load
 sidebar_position: 2
 ---
 
-import {WorkerWrapperComponent} from '@site/src/components/WorkerWrapper.mdx';
+import { WorkerWrapperComponent } from "@site/src/components/WorkerWrapper.mdx";
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
 
 Piscina supports asynchronously loaded workers. This feature allows you to perform asynchronous operations during worker initialization, such as loading configurations or establishing database connections.
 
 For example, the main script below creates a Piscina pool and runs tasks from two worker files.
 
-```js title="main.js" tab={"label":"Javascript"}
+<Tabs>
+<TabItem  value="Javascript">
+```js title="main.js"
 "use strict";
 
 const Piscina = require("../..");
@@ -18,13 +22,17 @@ const pool = new Piscina();
 const { resolve } = require("path");
 
 (async () => {
-  await Promise.all([
-    pool.run({}, { filename: resolve(__dirname, "worker") }),
-    pool.run({}, { filename: resolve(__dirname, "worker.mjs") }),
-  ]);
+await Promise.all([
+pool.run({}, { filename: resolve(__dirname, "worker") }),
+pool.run({}, { filename: resolve(__dirname, "worker.mjs") }),
+]);
 })();
-```
-```javascript tab={"label":"Typescript","span":2} title="main.ts"
+
+````
+</TabItem>
+
+<TabItem  value="Typescript">
+```javascript title="main.ts"
 import Piscina from "piscina";
 import { resolve } from "path";
 import { filename } from "./worker";
@@ -49,31 +57,32 @@ const pool = new Piscina({
     console.log(error);
   }
 })();
-```
-```js title="workerWrapper.js"
-const { workerData } = require('worker_threads');
 
-if (workerData.fullpath.endsWith(".ts")) {
-require("ts-node").register();
-}
-module.exports = require(workerData.fullpath);
 ```
+<WorkerWrapperComponent/>
+
+</TabItem>
+</Tabs>
 
 Both worker files demonstrate asynchronous loading. They use a sleep function to simulate an asynchronous operation that takes 500 milliseconds.
 
-```js title="worker.js" tab={"label":"Javascript"}
+<Tabs>
+<TabItem value="Javascript">
+```js title="worker.js"
 "use strict";
 
 const { promisify } = require("util");
 const sleep = promisify(setTimeout);
 
 module.exports = (async () => {
-  await sleep(500);
-  return () => console.log("hello from an async loaded CommonJS worker");
+await sleep(500);
+return () => console.log("hello from an async loaded CommonJS worker");
 })();
 ```
+</TabItem>
 
-```js title="worker.ts" tab={"label":"Typescript"}
+<TabItem value="Typescript">
+```js title="worker.ts"
 import { promisify } from "util";
 import { resolve } from "path";
 
@@ -86,6 +95,9 @@ export async function callSleep(): Promise<void> {
   return console.log("hello from an async loaded TypeScript worker");
 }
 ```
+</TabItem>
+
+</Tabs>
 
 In `worker.mjs`:
 
