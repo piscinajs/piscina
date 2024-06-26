@@ -1,11 +1,11 @@
-"use strict";
+'use strict';
 
-const Piscina = require("../..");
-const { AbortController } = require("abort-controller");
-const { resolve } = require("path");
+const Piscina = require('../..');
+const { AbortController } = require('abort-controller');
+const { resolve } = require('path');
 
 const piscina = new Piscina({
-  filename: resolve(__dirname, "worker.js"),
+  filename: resolve(__dirname, 'worker.js')
 });
 
 (async function () {
@@ -13,11 +13,10 @@ const piscina = new Piscina({
   try {
     const task = piscina.run(
       { a: 4, b: 6 },
-      { signal: abortController.signal }
-    );
+      { signal: abortController.signal });
     abortController.abort();
     await task;
   } catch (err) {
-    console.log("The task was cancelled");
+    console.log('The task was cancelled');
   }
 })();
