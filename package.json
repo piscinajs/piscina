@@ -53,7 +53,7 @@
     "tap": "^16.3.7",
     "tinybench": "^2.8.0",
     "ts-node": "^10.9.2",
-    "typescript": "5.4.5"
+    "typescript": "5.5.3"
   },
   "optionalDependencies": {
     "nice-napi": "^1.0.2"
