@@ -3,6 +3,8 @@ id: Custom Task Queues
 sidebar_position: 1
 ---
 import {WorkerWrapperComponent} from '@site/src/components/WorkerWrapper.mdx';
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
 
 By default, Piscina uses a simple array-based first-in-first-out (fifo)
 task queue. When a new task is submitted and there are no available
@@ -70,7 +72,9 @@ Users can import `FixedQueue` from the `Piscina` package and pass it as the `tas
 
 Here's an example of how to use the `FixedQueue`:
 
-```js tab={"label":"Javascript"}
+<Tabs>
+<TabItem value="Javascript">
+```js
 const { Piscina, FixedQueue } = require("piscina");
 const { resolve } = require("path");
 
@@ -93,7 +97,9 @@ for (let i = 0; i < 10; i++) {
 }
 ```
 
-```js tab={"label":"Typescript","span":2} title="main.ts"
+</TabItem>
+<TabItem value="Typescript">
+```js  title="main.ts"
 import Piscina from "piscina";
 import { resolve } from "path";
 import { filename } from "./worker";
@@ -116,6 +122,9 @@ for (let i = 0; i < 10; i++) {
 }
 ```
 <WorkerWrapperComponent/>
+</TabItem>
+</Tabs>
+
 :::info
 The `FixedQueue` will become the default task queue implementation in a next major version.
 :::

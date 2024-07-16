@@ -7,7 +7,7 @@ import { WorkerWrapperComponent } from "@site/src/components/WorkerWrapper.mdx";
 import Tabs from "@theme/Tabs";
 import TabItem from "@theme/TabItem";
 
-Piscina provides a `move()` function that allows the transfer of data between the main thread and worker threads. The example below will sohw how to use `Piscina.move()` to transfer `ArrayBuffer` without cloning, which can significantly improve performance for large data transfers.
+Piscina provides a `move()` function that allows the transfer of data between the main thread and worker threads. The example below will show you how to use `Piscina.move()` to transfer `ArrayBuffer` without cloning, which can significantly improve performance for large data transfers.
 
 <Tabs>
 <TabItem value="Javascript">
@@ -55,7 +55,7 @@ const pool = new Piscina({
 </TabItem>
 </Tabs>
 
-The worker file also uses `move()` to transfer data back to the main thread:
+The worker file uses `move()` to transfer data back to the main thread:
 
 <Tabs>
 <TabItem value="Javascript">
@@ -90,3 +90,5 @@ export default (): Uint8Array => {
 ```
 </TabItem>
 </Tabs>
+
+You can also check out this example on [github](https://github.com/piscinajs/piscina/tree/current/examples/move).

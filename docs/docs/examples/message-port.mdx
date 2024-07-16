@@ -7,9 +7,9 @@ import { WorkerWrapperComponent } from "@site/src/components/WorkerWrapper.mdx";
 import Tabs from "@theme/Tabs";
 import TabItem from "@theme/TabItem";
 
-Piscina supports transferring `MessagePort` objects to workers, allowing for direct communication between the main thread and worker threads. This can be particularly useful for scenarios where you need ongoing communication or to send large amounts of data efficiently between threads.
+Worker threads can receive `MessagePort` objects, enabling direct communication channels with the main thread. This feature is useful for scenarios that require continuous communication or transfer of large data sets between threads.
 
-This example demonstrates how to use `MessagePort` with Piscina.
+The example below shows how to use `MessagePort` with Piscina.
 
 <Tabs>
 <TabItem value="Javascript">
@@ -98,6 +98,4 @@ export default ({ port }: WorkerInput): void => {
 </TabItem>
 </Tabs>
 
-
-
-
+You can also check out this example on [github](https://github.com/piscinajs/piscina/tree/current/examples/message_port).

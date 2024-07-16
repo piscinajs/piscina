@@ -3,6 +3,8 @@ id: Managing Worker Threads
 sidebar_position: 2
 ---
 import {WorkerWrapperComponent} from '@site/src/components/WorkerWrapper.mdx';
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
 
 ## Delaying Availability of Workers
 
@@ -15,6 +17,9 @@ longer while the worker initializes any resources it may need to operate.
 To support this case, the worker module may export a `Promise` that resolves
 the handler function as opposed to exporting the function directly:
 
+<Tabs>
+<TabItem value="Javascript">
+
 ```js tab={"label":"Javascript"} title="worker.js"
 async function initialize() {
   await someAsyncInitializationActivity();
@@ -23,7 +28,8 @@ async function initialize() {
 
 module.exports = initialize();
 ```
-
+</TabItem>
+<TabItem value="Typescript">
 ```js tab={"label":"Typescript"} title="worker.ts"
 interface OperationInput {
   a: number;
@@ -34,6 +40,9 @@ export async function initialize(): Promise<(input: OperationInput) => number> {
   return ({ a, b }) => a + b;
 }
 ```
+</TabItem>
+</Tabs>
+
 
 Piscina will await the resolution of the exported Promise before marking
 the worker thread available.
@@ -45,7 +54,10 @@ additional tasks may be submitted until the queue size falls below the
 limit. The `'drain'` event may be used to receive notification when the
 queue is empty and all tasks have been submitted to workers for processing.
 
-Example: Using a Node.js stream to feed a Piscina worker pool:
+The example below shows how to use a Node.js stream to feed a Piscina worker pool:
+
+<Tabs>
+<TabItem value="Javascript">
 
 ```js tab={"label":"Javascript"}
 "use strict";
@@ -82,6 +94,8 @@ stream
   });
 ```
 
+</TabItem>
+<TabItem value="Typescript">
 ```js tab={"label":"Typescript","span":2}
 import Pool from "piscina";
 import { resolve } from "path";
@@ -119,13 +133,17 @@ stream
   });
 ```
 <WorkerWrapperComponent/>
+</TabItem>
+</Tabs>
+
 
 ## Out of Scope Asynchronous Code
 
-A worker thread is **only** active until the moment it returns a result, it can be a result of a synchronous call or a Promise that will be fulfilled/rejected in the future. Once this is done, Piscina will wait for stdout and stderr to be flushed, and then pause the worker's event-loop until the next call. If async code is scheduled without being awaited before returning since Piscina has no way of detecting this, that code execution will be resumed on the next call. Thus, it is highly recommended to properly handle all async tasks before returning a result as it could make your code unpredictable.
+A worker thread is **only** active until the moment it returns a result, it can be a result of a synchronous call or a Promise that will be fulfilled/rejected in the future. Once this is done, Piscina will wait for `stdout` and `stderr` to be flushed, and then pause the worker's event-loop until the next call. If async code is scheduled without being awaited before returning since Piscina has no way of detecting this, that code execution will be resumed on the next call. Thus, it is highly recommended to properly handle all async tasks before returning a result as it could make your code unpredictable.
 
 For example:
-
+<Tabs>
+<TabItem value="Javascript">
 ```js tab={"label":"Javascript"}
 const { setTimeout } = require("timers/promises");
 
@@ -139,6 +157,9 @@ module.exports = ({ a, b }) => {
 };
 ```
 
+
+</TabItem>
+<TabItem value="Typescript">
 ```js tab={"label":"Typescript"}
 import { setTimeout } from "timers/promises";
 
@@ -155,3 +176,7 @@ export async ({ a, b }: OperationInput): Promise<number> => {
   return a + b;
 };
 ```
+</TabItem>
+</Tabs>
+
+
