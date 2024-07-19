@@ -1,7 +1,6 @@
 import { themes as prismThemes } from 'prism-react-renderer';
 import type { Config } from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
-import tabBlocks from 'docusaurus-remark-plugin-tab-blocks';
 
 const config: Config = {
   title: 'Piscina',
@@ -32,32 +31,17 @@ const config: Config = {
 
   presets: [
     [
-      '@docusaurus/preset-classic',
+      'classic',
       {
         docs: {
           sidebarPath: './sidebars.ts',
-          routeBasePath: '/',
-          remarkPlugins: [
-            [
-              tabBlocks,
-              {
-                labels: [
-                  ['json', 'JSON'],
-                  ['jsx', 'JSX'],
-                  ['tsx', 'TSX']
-                ]
-              }
-            ]
-          ]
+          routeBasePath: '/'
         },
         blog: false,
         theme: {
           customCss: './src/css/custom.css'
-        },
-        pages: {
-          remarkPlugins: [tabBlocks]
         }
-      }
+      } satisfies Preset.Options
     ]
   ],
 

@@ -43,7 +43,7 @@ Schedules a task to be run on a Worker thread.
 * `filename`: Optionally overrides the `filename` option passed to the
   constructor for this task. If no `filename` was specified to the constructor,
   this is mandatory.
-* `abortSignal`: An [`AbortSignal`][] instance. If passed, this can be used to
+* `signal`: An [`AbortSignal`][] instance. If passed, this can be used to
   cancel a task. If the task is already running, the corresponding `Worker`
   thread will be stopped.
   (More generally, any `EventEmitter` or `EventTarget` that emits `'abort'`
