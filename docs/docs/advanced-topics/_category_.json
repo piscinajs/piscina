@@ -1,0 +1,8 @@
+{
+  "label": "Advanced topics",
+  "position": 4,
+  "link": {
+    "type": "generated-index",
+    "description": "In this section, you'll find information on more complex features of Piscina like setting up your own task queues and tips for making your application run faster. This part of the documentation is great for when you want to get more out of Piscina and understand how to manage tasks and performance better."
+  }
+}
