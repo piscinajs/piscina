@@ -64,3 +64,116 @@ test('pool does not maintain run and wait time histograms when recordTiming is f
   equal(pool.waitTime, null);
   equal(pool.runTime, null);
 });
+
+test('workers has histogram', async t => {
+  let index = 0;
+  // Its expected to have one task get balanced twice due to the load balancer distribution
+  // first task enters, its distributed; second is enqueued, once first is done, second is distributed and normalizes
+  t.plan(44);
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js'),
+    maxThreads: 1,
+    concurrentTasksPerWorker: 1,
+    workerHistogram: true,
+    loadBalancer (_task, workers) {
+      // Verify distribution to properly test this feature
+      const candidate = workers[index++ % workers.length];
+      const histogram = candidate.histogram;
+
+      t.type(histogram?.average, 'number');
+      t.type(histogram?.max, 'number');
+      t.type(histogram?.mean, 'number');
+      t.type(histogram?.min, 'number');
+
+      if (candidate.currentUsage !== 0) {
+        return {
+          candidate: null,
+          command: 0
+        };
+      }
+
+      return {
+        candidate,
+        command: 0
+      };
+    }
+  });
+
+  const tasks = [];
+  for (let n = 0; n < 10; n++) {
+    tasks.push(pool.run('new Promise(resolve => setTimeout(resolve, 500))'));
+  }
+  await Promise.all(tasks);
+});
+
+test('workers does not have histogram if disabled', async t => {
+  let index = 0;
+  // Its expected to have one task get balanced twice due to the load balancer distribution
+  // first task enters, its distributed; second is enqueued, once first is done, second is distributed and normalizes
+  t.plan(11);
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js'),
+    maxThreads: 1,
+    concurrentTasksPerWorker: 1,
+    workerHistogram: false,
+    loadBalancer (_task, workers) {
+      // Verify distribution to properly test this feature
+      const candidate = workers[index++ % workers.length];
+      const histogram = candidate.histogram;
+
+      t.notOk(histogram);
+
+      if (candidate.currentUsage !== 0) {
+        return {
+          candidate: null,
+          command: 0
+        };
+      }
+
+      return {
+        candidate,
+        command: 0
+      };
+    }
+  });
+
+  const tasks = [];
+  for (let n = 0; n < 10; n++) {
+    tasks.push(pool.run('new Promise(resolve => setTimeout(resolve, 500))'));
+  }
+  await Promise.all(tasks);
+});
+
+test('opts.workerHistogram should be a boolean value', async t => {
+  let index = 0;
+  t.plan(1);
+  t.throws(() => {
+    // eslint-disable-next-line no-new
+    new Piscina({
+      filename: resolve(__dirname, 'fixtures/eval.js'),
+      maxThreads: 1,
+      concurrentTasksPerWorker: 1,
+      // @ts-expect-error
+      workerHistogram: 1,
+      loadBalancer (_task, workers) {
+        // Verify distribution to properly test this feature
+        const candidate = workers[index++ % workers.length];
+        const histogram = candidate.histogram;
+
+        t.notOk(histogram);
+
+        if (candidate.currentUsage !== 0) {
+          return {
+            candidate: null,
+            command: 0
+          };
+        }
+
+        return {
+          candidate,
+          command: 0
+        };
+      }
+    });
+  }, 'options.workerHistogram must be a boolean');
+});

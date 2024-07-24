@@ -85,7 +85,8 @@ interface Options {
   trackUnmanagedFds? : boolean,
   closeTimeout?: number,
   recordTiming?: boolean,
-  loadBalancer?: PisicnaLoadBalancer
+  loadBalancer?: PisicnaLoadBalancer,
+  workerHistogram?: boolean,
 }
 
 interface FilledOptions extends Options {
@@ -100,7 +101,8 @@ interface FilledOptions extends Options {
   taskQueue : TaskQueue,
   niceIncrement : number,
   closeTimeout : number,
-  recordTiming : boolean
+  recordTiming : boolean,
+  workerHistogram: boolean,
 }
 
 interface RunOptions {
@@ -134,7 +136,8 @@ const kDefaultOptions : FilledOptions = {
   niceIncrement: 0,
   trackUnmanagedFds: true,
   closeTimeout: 30000,
-  recordTiming: true
+  recordTiming: true,
+  workerHistogram: false
 };
 
 const kDefaultRunOptions : FilledRunOptions = {
@@ -252,7 +255,7 @@ class ThreadPool {
     });
 
     const { port1, port2 } = new MessageChannel();
-    const workerInfo = new WorkerInfo(worker, port1, onMessage);
+    const workerInfo = new WorkerInfo(worker, port1, onMessage, this.options.workerHistogram);
     if (this.startingUp) {
       // There is no point in waiting for the initial set of Workers to indicate
       // that they are ready, we just mark them as such from the start.
@@ -836,8 +839,11 @@ export default class Piscina<T = any, R = any> extends EventEmitterAsyncResource
     if (options.closeTimeout !== undefined && (typeof options.closeTimeout !== 'number' || options.closeTimeout < 0)) {
       throw new TypeError('options.closeTimeout must be a non-negative integer');
     }
-    if (options.loadBalancer !== undefined && (typeof options.loadBalancer !== 'function' || options.loadBalancer.length < 0)) {
+    if (options.loadBalancer !== undefined && (typeof options.loadBalancer !== 'function' || options.loadBalancer.length < 1)) {
       throw new TypeError('options.loadBalancer must be a function with at least two args');
+    }
+    if (options.workerHistogram !== undefined && (typeof options.workerHistogram !== 'boolean')) {
+      throw new TypeError('options.workerHistogram must be a boolean');
     }
 
     this.#pool = new ThreadPool(this, options);
@@ -943,7 +949,7 @@ export default class Piscina<T = any, R = any> extends EventEmitterAsyncResource
     }
 
     // count is available as of Node.js v16.14.0 but not present in the types
-    const count = (this.#pool.runTime as RecordableHistogram & { count: number}).count;
+    const count = (this.#pool.runTime as RecordableHistogram & { count: number }).count;
     if (count === 0) {
       return 0;
     }

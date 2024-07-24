@@ -17,6 +17,7 @@ export interface RequestMessage {
   task: any
   filename: string
   name: string
+  histogramEnabled: number
 }
 
 export interface ReadyMessage {
@@ -27,6 +28,7 @@ export interface ResponseMessage {
   taskId: number
   result: any
   error: Error | null
+  time: number | null
 }
 export const commonState = {
   isWorkerThread: false,
