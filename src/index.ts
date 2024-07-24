@@ -4,9 +4,9 @@ import { resolve } from 'node:path';
 import { inspect, types } from 'node:util';
 import { RecordableHistogram, createHistogram, performance } from 'node:perf_hooks';
 import { setTimeout as sleep } from 'node:timers/promises';
-import { readFileSync } from 'node:fs';
 import assert from 'node:assert';
 
+import { version } from '../package.json';
 import type {
   ResponseMessage,
   StartupMessage,
@@ -55,15 +55,6 @@ import {
   getAvailableParallelism,
   maybeFileURLToPath
 } from './common';
-
-const { version } = JSON.parse(
-  readFileSync(
-    resolve(__dirname, '..', 'package.json'),
-    {
-      encoding: 'utf-8'
-    }
-  ));
-
 const cpuParallelism : number = getAvailableParallelism();
 
 interface Options {
@@ -735,6 +726,12 @@ class ThreadPool {
 
     const onPoolFlushed = () => new Promise<void>((resolve) => {
       const numberOfWorkers = this.workers.size;
+
+      if (numberOfWorkers === 0) {
+        resolve();
+        return;
+      }
+
       let numberOfWorkersDone = 0;
 
       const checkIfWorkerIsDone = (workerInfo: WorkerInfo) => {

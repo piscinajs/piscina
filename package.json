@@ -1,6 +1,6 @@
 {
   "name": "piscina",
-  "version": "4.5.1",
+  "version": "4.6.1",
   "description": "A fast, efficient Node.js Worker Thread Pool implementation",
   "main": "./dist/main.js",
   "types": "./dist/index.d.ts",
@@ -48,7 +48,7 @@
     "@typescript-eslint/eslint-plugin": "^6.9.0",
     "@typescript-eslint/parser": "^6.9.0",
     "abort-controller": "^3.0.0",
-    "c8": "^9.1.0",
+    "c8": "^10.1.2",
     "concat-stream": "^2.0.0",
     "gen-esm-wrapper": "^1.1.1",
     "snazzy": "^9.0.0",
