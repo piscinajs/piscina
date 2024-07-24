@@ -17,6 +17,7 @@ test('close()', async (t) => {
     await pool.close();
     t.pass('pool closed successfully');
   });
+});
 
 test('queued tasks waits for all tasks to complete', async (t) => {
   const pool = new Piscina({ filename: resolve(__dirname, 'fixtures/sleep.js'), maxThreads: 1 });
@@ -66,8 +67,6 @@ test('force: queued tasks waits for all tasks already running and aborts tasks t
 
   await task1;
   await task2;
-
-  // console.log(pool.)
 });
 
 test('timed out close operation destroys the pool', async (t) => {
