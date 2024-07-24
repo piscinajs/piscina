@@ -5,11 +5,18 @@ import { test } from 'tap';
 
 import Piscina from '..';
 
-test('no pending tasks', async (t) => {
-  const pool = new Piscina({ filename: resolve(__dirname, 'fixtures/sleep.js') });
-  await pool.close();
-  t.pass('pool closed successfully');
-});
+test('close()', async (t) => {
+  t.test('no pending tasks', async (t) => {
+    const pool = new Piscina({ filename: resolve(__dirname, 'fixtures/sleep.js') });
+    await pool.close();
+    t.pass('pool closed successfully');
+  });
+
+  t.test('no pending tasks (with minThreads=0)', async (t) => {
+    const pool = new Piscina({ filename: resolve(__dirname, 'fixtures/sleep.js'), minThreads: 0 });
+    await pool.close();
+    t.pass('pool closed successfully');
+  });
 
 test('queued tasks waits for all tasks to complete', async (t) => {
   const pool = new Piscina({ filename: resolve(__dirname, 'fixtures/sleep.js'), maxThreads: 1 });
