@@ -145,6 +145,8 @@ function onMessage (
   (async function () {
     let response : ResponseMessage;
     let transferList : any[] = [];
+    const start = message.histogramEnabled === 1 ? process.hrtime.bigint() : null;
+
     try {
       const handler = await getHandler(filename, name);
       if (handler === null) {
@@ -158,7 +160,8 @@ function onMessage (
       response = {
         taskId,
         result: result,
-        error: null
+        error: null,
+        time: start == null ? null : Number(process.hrtime.bigint() - start)
       };
 
       // If the task used e.g. console.log(), wait for the stream to drain
@@ -177,7 +180,8 @@ function onMessage (
         result: null,
         // It may be worth taking a look at the error cloning algorithm we
         // use in Node.js core here, it's quite a bit more flexible
-        error: <Error>error
+        error: <Error>error,
+        time: start == null ? null : Number(process.hrtime.bigint() - start)
       };
     }
     currentTasks--;

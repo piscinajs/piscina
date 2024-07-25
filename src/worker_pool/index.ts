@@ -1,11 +1,13 @@
 import { Worker, MessagePort, receiveMessageOnPort } from 'node:worker_threads';
+import { createHistogram, RecordableHistogram } from 'node:perf_hooks';
 import assert from 'node:assert';
 
-import { RequestMessage, ResponseMessage } from '../types';
+import { HistogramSummary, RequestMessage, ResponseMessage } from '../types';
 import { Errors } from '../errors';
 
 import { TaskInfo } from '../task_queue';
 import { kFieldCount, kRequestCountField, kResponseCountField, kWorkerData } from '../symbols';
+import { createHistogramSummary } from '../common';
 
 import { AsynchronouslyCreatedResource, AsynchronouslyCreatedResourcePool } from './base';
 export * from './balancer';
@@ -16,8 +18,8 @@ export type PiscinaWorker = {
   id: string;
   currentUsage: number;
   isRunningAbortableTask: boolean;
+  histogram: HistogramSummary | null;
   [kWorkerData]: WorkerInfo;
-  // TODO: maybe add histogram data here?
 }
 
 export class WorkerInfo extends AsynchronouslyCreatedResource {
@@ -28,11 +30,14 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
     sharedBuffer : Int32Array;
     lastSeenResponseCount : number = 0;
     onMessage : ResponseCallback;
+    histogram: RecordableHistogram | null;
 
     constructor (
       worker : Worker,
       port : MessagePort,
-      onMessage : ResponseCallback) {
+      onMessage : ResponseCallback,
+      enableHistogram: boolean
+    ) {
       super();
       this.worker = worker;
       this.port = port;
@@ -42,6 +47,7 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
       this.taskInfos = new Map();
       this.sharedBuffer = new Int32Array(
         new SharedArrayBuffer(kFieldCount * Int32Array.BYTES_PER_ELEMENT));
+      this.histogram = enableHistogram ? createHistogram() : null;
     }
 
     destroy () : void {
@@ -74,6 +80,10 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
     }
 
     _handleResponse (message : ResponseMessage) : void {
+      if (message.time != null) {
+        this.histogram?.record(Math.max(1, message.time));
+      }
+
       this.onMessage(message);
 
       if (this.taskInfos.size === 0) {
@@ -89,7 +99,8 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
         task: taskInfo.releaseTask(),
         taskId: taskInfo.taskId,
         filename: taskInfo.filename,
-        name: taskInfo.name
+        name: taskInfo.name,
+        histogramEnabled: this.histogram != null ? 1 : 0
       };
 
       try {
@@ -143,10 +154,14 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
     }
 
     get interface (): PiscinaWorker {
+      const parent = this;
       return {
         id: this.worker.threadId.toString(),
         currentUsage: this.currentUsage(),
         isRunningAbortableTask: this.isRunningAbortableTask(),
+        get histogram () {
+          return parent.histogram != null ? createHistogramSummary(parent.histogram) : null;
+        },
         [kWorkerData]: this
       };
     }

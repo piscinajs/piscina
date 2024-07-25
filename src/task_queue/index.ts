@@ -89,6 +89,7 @@ export class TaskInfo extends AsyncResource implements Task {
 
       this.filename = filename;
       this.name = name;
+      // TODO: This should not be global
       this.taskId = taskIdCounter++;
       this.abortSignal = abortSignal;
       this.created = performance.now();
