@@ -19,6 +19,8 @@ export type PiscinaWorker = {
   currentUsage: number;
   isRunningAbortableTask: boolean;
   histogram: HistogramSummary | null;
+  terminating: boolean;
+  destroyed: boolean;
   [kWorkerData]: WorkerInfo;
 }
 
@@ -31,6 +33,8 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
     lastSeenResponseCount : number = 0;
     onMessage : ResponseCallback;
     histogram: RecordableHistogram | null;
+    terminating = false;
+    destroyed = false;
 
     constructor (
       worker : Worker,
@@ -51,6 +55,9 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
     }
 
     destroy () : void {
+      if (this.terminating || this.destroyed) return;
+
+      this.terminating = true;
       this.worker.terminate();
       this.port.close();
       this.clearIdleTimeout();
@@ -58,6 +65,9 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
         taskInfo.done(Errors.ThreadTermination());
       }
       this.taskInfos.clear();
+
+      this.terminating = false;
+      this.destroyed = true;
     }
 
     clearIdleTimeout () : void {
@@ -95,6 +105,8 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
 
     postTask (taskInfo : TaskInfo) {
       assert(!this.taskInfos.has(taskInfo.taskId));
+      assert(!this.terminating && !this.destroyed);
+
       const message : RequestMessage = {
         task: taskInfo.releaseTask(),
         taskId: taskInfo.taskId,
@@ -124,6 +136,7 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
     }
 
     processPendingMessages () {
+      if (this.terminating || this.destroyed) return;
       // If we *know* that there are more messages than we have received using
       // 'message' events yet, then try to load and handle them synchronously,
       // without the need to wait for more expensive events on the event loop.
@@ -156,13 +169,25 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
     get interface (): PiscinaWorker {
       const parent = this;
       return {
-        id: this.worker.threadId.toString(),
-        currentUsage: this.currentUsage(),
-        isRunningAbortableTask: this.isRunningAbortableTask(),
+        get id () {
+          return parent.worker.threadId.toString();
+        },
+        get currentUsage () {
+          return parent.currentUsage();
+        },
+        get isRunningAbortableTask () {
+          return parent.isRunningAbortableTask();
+        },
         get histogram () {
           return parent.histogram != null ? createHistogramSummary(parent.histogram) : null;
         },
-        [kWorkerData]: this
+        get terminating () {
+          return parent.terminating;
+        },
+        get destroyed () {
+          return parent.destroyed;
+        },
+        [kWorkerData]: parent
       };
     }
 }
