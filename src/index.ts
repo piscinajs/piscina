@@ -474,7 +474,7 @@ class ThreadPool {
         }
 
         if (task.abortSignal) {
-          console.log('into skipqueue');
+          // console.log('into skipqueue');
           this.skipQueue.push(task);
         } else {
           this.taskQueue.push(task);
