@@ -136,7 +136,7 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
     }
 
     processPendingMessages () {
-      if (this.terminating || this.destroyed) return;
+      if (this.destroyed) return;
       // If we *know* that there are more messages than we have received using
       // 'message' events yet, then try to load and handle them synchronously,
       // without the need to wait for more expensive events on the event loop.
