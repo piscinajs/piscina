@@ -247,10 +247,22 @@ class ThreadPool {
 
     const { port1, port2 } = new MessageChannel();
     const workerInfo = new WorkerInfo(worker, port1, onMessage, this.options.workerHistogram);
+
+    workerInfo.onDestroy(() => {
+      this.publicInterface.emit('workerDestroy', workerInfo.interface);
+    });
+
     if (this.startingUp) {
       // There is no point in waiting for the initial set of Workers to indicate
       // that they are ready, we just mark them as such from the start.
       workerInfo.markAsReady();
+      // We need to emit the event in the next microtask, so that the user can
+      // attach event listeners before the event is emitted.
+      queueMicrotask(() => this.publicInterface.emit('workerCreate', workerInfo.interface));
+    } else {
+      workerInfo.onReady(() => {
+        this.publicInterface.emit('workerCreate', workerInfo.interface);
+      });
     }
 
     const message : StartupMessage = {

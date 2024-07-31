@@ -2,6 +2,7 @@ import assert from 'node:assert';
 
 export abstract class AsynchronouslyCreatedResource {
     onreadyListeners : (() => void)[] | null = [];
+    ondestroyListeners : (() => void)[] | null = [];
 
     markAsReady () : void {
       const listeners = this.onreadyListeners;
@@ -22,6 +23,23 @@ export abstract class AsynchronouslyCreatedResource {
         return;
       }
       this.onreadyListeners.push(fn);
+    }
+
+    onDestroy (fn : () => void) {
+      if (this.ondestroyListeners === null) {
+        return;
+      }
+
+      this.ondestroyListeners.push(fn);
+    }
+
+    markAsDestroyed () {
+      const listeners = this.ondestroyListeners;
+      assert(listeners !== null);
+      this.ondestroyListeners = null;
+      for (const listener of listeners) {
+        listener();
+      }
     }
 
     abstract currentUsage() : number;
