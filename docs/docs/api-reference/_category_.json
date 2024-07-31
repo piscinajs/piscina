@@ -1,8 +1,0 @@
-{
-  "label": "API Reference",
-  "position": 5,
-  "link": {
-    "type": "generated-index",
-    "description": "This section provides a  detailed explanation of the classes, methods, properties, events, and other components that make up the library"
-  }
-}
