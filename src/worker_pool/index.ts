@@ -15,7 +15,7 @@ export * from './balancer';
 type ResponseCallback = (response : ResponseMessage) => void;
 
 export type PiscinaWorker = {
-  id: string;
+  id: number;
   currentUsage: number;
   isRunningAbortableTask: boolean;
   histogram: HistogramSummary | null;
@@ -171,7 +171,7 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
       const parent = this;
       return {
         get id () {
-          return parent.worker.threadId.toString();
+          return parent.worker.threadId;
         },
         get currentUsage () {
           return parent.currentUsage();

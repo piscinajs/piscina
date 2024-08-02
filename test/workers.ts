@@ -4,7 +4,7 @@ import { test } from 'tap';
 
 import Piscina from '../dist';
 
-test('workers are marked as detroyed if destroyed', async t => {
+test('workers are marked as destroyed if destroyed', async t => {
   let index = 0;
   // Its expected to have one task get balanced twice due to the load balancer distribution
   // first task enters, its distributed; second is enqueued, once first is done, second is distributed and normalizes
