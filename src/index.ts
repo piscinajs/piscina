@@ -214,7 +214,7 @@ class ThreadPool {
     this.balancer = this.options.loadBalancer ?? ResourceBasedBalancer({ maximumUsage: this.options.concurrentTasksPerWorker });
     this.workers = new AsynchronouslyCreatedResourcePool<WorkerInfo>(
       this.options.concurrentTasksPerWorker);
-    this.workers.onAvailable((w : WorkerInfo) => this._onWorkerAvailable(w));
+    this.workers.onTaskDone((w : WorkerInfo) => this._onWorkerTaskDone(w));
     this.maxCapacity = this.options.maxThreads * this.options.concurrentTasksPerWorker;
 
     this.startingUp = true;
@@ -283,7 +283,9 @@ class ThreadPool {
       const taskInfo = workerInfo.taskInfos.get(taskId);
       workerInfo.taskInfos.delete(taskId);
 
-      pool.workers.maybeAvailable(workerInfo);
+      // TODO: we can abstract the task info handling
+      // right into the pool.workers.taskDone method
+      pool.workers.taskDone(workerInfo);
 
       /* istanbul ignore if */
       if (taskInfo === undefined) {
@@ -391,6 +393,14 @@ class ThreadPool {
     workerInfo.destroy();
 
     this.workers.delete(workerInfo);
+  }
+
+  _onWorkerReady (workerInfo : WorkerInfo) : void {
+    this._onWorkerAvailable(workerInfo);
+  }
+
+  _onWorkerTaskDone (workerInfo: WorkerInfo) : void {
+    this._onWorkerAvailable(workerInfo);
   }
 
   _onWorkerAvailable (workerInfo : WorkerInfo) : void {

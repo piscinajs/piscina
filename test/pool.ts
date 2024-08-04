@@ -6,15 +6,13 @@ import Piscina from '../dist';
 
 test('workerCreate/workerDestroy should be emitted while managing worker lifecycle', async t => {
   let index = 0;
-  // Its expected to have one task get balanced twice due to the load balancer distribution
-  // first task enters, its distributed; second is enqueued, once first is done, second is distributed and normalizes
   t.plan(2);
   let newWorkers = 0;
   let destroyedWorkers = 0;
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js'),
-    maxThreads: 3,
-    minThreads: 3,
+    maxThreads: 2,
+    minThreads: 2,
     concurrentTasksPerWorker: 1,
     loadBalancer (_task, workers) {
       // Verify distribution to properly test this feature
@@ -34,7 +32,6 @@ test('workerCreate/workerDestroy should be emitted while managing worker lifecyc
   });
 
   pool.on('workerCreate', () => {
-    console.log('workerCreate');
     newWorkers++;
   });
 
@@ -56,6 +53,9 @@ test('workerCreate/workerDestroy should be emitted while managing worker lifecyc
   controller.abort();
   await Promise.allSettled(tasks);
   await pool.close();
-  t.equal(destroyedWorkers, 4);
-  t.equal(newWorkers, 4);
+  // 1 worker is created for the initial task
+  // 2 workers are created for the 2 concurrent tasks
+  // 3 worker is destroyed due to an abortable task, and a new one is made
+  t.equal(destroyedWorkers, 3);
+  t.equal(newWorkers, 3);
 });
