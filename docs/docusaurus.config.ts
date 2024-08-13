@@ -8,15 +8,15 @@ const config: Config = {
   favicon: 'img/favicon.ico',
 
   // Set the production url of your site here
-  url: 'https://github.com/piscinajs/piscina',
+  url: 'https://piscinajs.github.io',
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
   baseUrl: '/piscina/',
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
-  organizationName: 'Piscina', // Usually your GitHub org/user name.
-  projectName: 'piscina.js', // Usually your repo name.
+  organizationName: 'Piscinajs', // Usually your GitHub org/user name.
+  projectName: 'piscina', // Usually your repo name.
 
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'warn',
