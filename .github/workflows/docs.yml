@@ -1,0 +1,37 @@
+name: 'Documentation'
+on:
+  push:
+    # tags:
+    #   - 'v*'
+    #   - 'v*-beta.*'
+
+jobs:
+  deploy:
+    permissions:
+      contents: write
+    name: Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Use Node.js LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          cache: 'npm'
+          cache-dependency-path: package.json
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Deploy
+        env:
+            USE_SSH: true
+            CURRENT_BRANCH: ${{ github.ref_name }}
+            DEPLOYMENT_BRANCH: 'gh-pages'
+        run: |
+            cd docs
+            yarn install
+            yarn deploy
