@@ -1,9 +1,8 @@
 name: 'Documentation'
 on:
   push:
-    # tags:
-    #   - 'v*'
-    #   - 'v*-beta.*'
+    tags:
+      - 'v*'
 
 jobs:
   build:
