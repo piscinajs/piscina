@@ -6,10 +6,10 @@ on:
     #   - 'v*-beta.*'
 
 jobs:
-  deploy:
+  build:
     permissions:
-      contents: write
-    name: Deploy
+      contents: read
+    name: Build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,18 +20,31 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 'lts/*'
-          cache: 'npm'
-          cache-dependency-path: package.json
+          cache: 'yarn'
+          cache-dependency-path: docs/package.json
 
       - name: Install Dependencies
-        run: npm install
-
-      - name: Deploy
-        env:
-            USE_SSH: true
-            CURRENT_BRANCH: ${{ github.ref_name }}
-            DEPLOYMENT_BRANCH: 'gh-pages'
         run: |
-            cd docs
-            yarn install
-            yarn deploy
+          cd docs
+          yarn install --frozen-lockfile
+
+      - name: Upload Build Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/build
+
+  deploy:
+    permissions:
+      pages: write
+      id-token: write
+    name: Deploy to GH Pages
+    needs: [build]
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
