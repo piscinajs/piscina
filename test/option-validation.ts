@@ -108,7 +108,9 @@ test('taskQueue must be a TaskQueue object', async ({ throws }) => {
   }) as any), /options.taskQueue must be a TaskQueue object/);
 });
 
-test('niceIncrement must be non-negative integer', async ({ throws }) => {
+test('niceIncrement must be non-negative integer on Unix', {
+  skip: process.platform === 'win32' ? 'Unix options validate' : false
+}, async ({ throws }) => {
   throws(() => new Piscina(({
     niceIncrement: -1
   }) as any), /options.niceIncrement must be a non-negative integer/);
