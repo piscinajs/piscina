@@ -273,7 +273,8 @@ const { resolve } = require('path');
 
 const Piscina = require('piscina');
 const piscina = new Piscina({
-    filename: resolve(__dirname, 'worker.js')
+    filename: resolve(__dirname, 'worker.js'),
+    useAtomics: false
 });
 
 async function main() {
