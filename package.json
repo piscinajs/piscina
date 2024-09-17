@@ -56,7 +56,7 @@
     "typescript": "5.5.4"
   },
   "optionalDependencies": {
-    "nice-napi": "^1.0.2"
+    "@napi-rs/nice": "^1.0.1"
   },
   "eslintConfig": {
     "rules": {
