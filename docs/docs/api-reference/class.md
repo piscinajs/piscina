@@ -79,9 +79,9 @@ This class extends [`EventEmitter`](https://nodejs.org/api/events.html) from Nod
     alternative implementation. See [Custom Task Queues](https://github.com/piscinajs/piscina#custom_task_queues) for additional detail.
   - `niceIncrement`: (`number`) An optional value that decreases priority for
     the individual threads, i.e. the higher the value, the lower the priority
-    of the Worker threads. This value is only used on Linux and requires the
-    optional [`nice-napi`](https://npmjs.org/package/nice-napi) module to be installed.
-    See [`nice(2)`](https://linux.die.net/man/2/nice) for more details.
+    of the Worker threads. This value is used on Unix/Windows and requires the
+    optional [`@napi-rs/nice`](https://npmjs.org/package/@napi-rs/nice) module to be installed.
+    See [`nice(2)`](https://linux.die.net/man/2/nice) and [`SetThreadPriority`](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-setthreadpriority) for more details.
   - `trackUnmanagedFds`: (`boolean`) An optional setting that, when `true`, will
     cause Workers to track file descriptors managed using `fs.open()` and
     `fs.close()`, and will close them automatically when the Worker exits.
