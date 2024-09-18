@@ -388,9 +388,9 @@ This class extends [`EventEmitter`][] from Node.js.
     alternative implementation. See [Custom Task Queues][] for additional detail.
   * `niceIncrement`: (`number`) An optional value that decreases priority for
     the individual threads, i.e. the higher the value, the lower the priority
-    of the Worker threads. This value is only used on Linux and requires the
-    optional [`nice-napi`][] module to be installed.
-    See [`nice(2)`][] for more details.
+    of the Worker threads. This value is used on Unix/Windows and requires the
+    optional [`@napi-rs/nice`][https://www.npmjs.com/package/@napi-rs/nice] module to be installed.
+    See [`nice(2)`][https://linux.die.net/man/2/nice] for more details.
   * `trackUnmanagedFds`: (`boolean`) An optional setting that, when `true`, will
     cause Workers to track file descriptors managed using `fs.open()` and
     `fs.close()`, and will close them automatically when the Worker exits.
@@ -891,8 +891,8 @@ are no one set of options that are going to work best.
 
 On Linux systems that support [`nice(2)`][], Piscina is capable of setting
 the priority of every worker in the pool. To use this mechanism, an additional
-optional native addon dependency (`nice-napi`, `npm i nice-napi`) is required.
-Once [`nice-napi`][] is installed, creating a `Piscina` instance with the
+optional native addon dependency (`@napi-rs/nice`, `npm i @napi-rs/nice`) is required.
+Once [`@napi-rs/nice`][] is installed, creating a `Piscina` instance with the
 `niceIncrement` configuration option will set the priority for the pool:
 
 ```js
@@ -1037,7 +1037,7 @@ Piscina development is sponsored by [NearForm Research][].
 [`postMessage`]: https://nodejs.org/api/worker_threads.html#worker_threads_port_postmessage_value_transferlist
 [`examples/task-queue`]: https://github.com/jasnell/piscina/blob/master/examples/task-queue/index.js
 [`nice(2)`]: https://linux.die.net/man/2/nice
-[`nice-napi`]: https://npmjs.org/package/nice-napi
+[`@napi-rs/nice`]: https://npmjs.org/package/@napi-rs/nice
 [`runTime`]: #property-runtime-readonly
 [Custom Task Queues]: #custom_task_queues
 [ES modules]: https://nodejs.org/api/esm.html
