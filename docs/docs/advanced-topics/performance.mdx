@@ -83,18 +83,21 @@ are no one set of options that are going to work best.
 
 ### Thread priority on Linux systems
 
-On Linux systems that support [`nice(2)`][], Piscina is capable of setting
+On Unix systems that support [`nice(2)`][https://linux.die.net/man/2/nice] and Windows, Piscina is capable of setting
 the priority of every worker in the pool. To use this mechanism, an additional
-optional native addon dependency (`nice-napi`, `npm i nice-napi`) is required.
-Once [`nice-napi`][] is installed, creating a `Piscina` instance with the
-`niceIncrement` configuration option will set the priority for the pool:
+optional native addon dependency (`@napi-rs/nice`, `npm i @napi-rs/nice`) is required.
+Once [`@napi-rs/nice`][https://www.npmjs.com/package/@napi-rs/nice] is installed, creating a `Piscina`instance with the`niceIncrement` configuration option will set the priority for the pool:
 
 ```js
-const Piscina = require('piscina');
+const Piscina = require('piscina')
+const { WindowsThreadPriority } = require('@napi-rs/nice')
 const pool = new Piscina({
   worker: '/absolute/path/to/worker.js',
-  niceIncrement: 20
-});
+  niceIncrement:
+    process.platform !== 'win32'
+      ? 20
+      : WindowsThreadPriority.ThreadPriorityHighest,
+})
 ```
 
 The higher the `niceIncrement`, the lower the CPU scheduling priority will be
