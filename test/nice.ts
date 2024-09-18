@@ -29,7 +29,7 @@ test('can set niceness for threads on Windows', {
     niceIncrement: WindowsThreadPriority.ThreadPriorityAboveNormal
   });
 
-  const result = await worker.runTask('require("@napi-rs/nice").getCurrentProcessPriority()');
+  const result = await worker.run('require("@napi-rs/nice").getCurrentProcessPriority()');
 
   equal(result, WindowsThreadPriority.ThreadPriorityAboveNormal);
 });
