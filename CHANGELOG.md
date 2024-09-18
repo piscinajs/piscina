@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [4.7.0](https://github.com/piscinajs/piscina/compare/v4.6.1...v4.7.0) (2024-09-18)
+
+
+### Features
+
+* **backport:** use @napi-rs/nice to support Windows ([#655](https://github.com/piscinajs/piscina/issues/655)) ([#660](https://github.com/piscinajs/piscina/issues/660)) ([541295d](https://github.com/piscinajs/piscina/commit/541295dad21c4c3f43bc133d78d82871fa86c864))
+
+
+### Bug Fixes
+
+* adjust docusaurus ([5c3d2c9](https://github.com/piscinajs/piscina/commit/5c3d2c90ff0a00f338d194b20efdc6772d8e01e3))
+
 ### [4.6.1](https://github.com/piscinajs/piscina/compare/v4.6.0...v4.6.1) (2024-06-26)
 
 ## [4.6.0](https://github.com/piscinajs/piscina/compare/v4.5.2...v4.6.0) (2024-06-18)
