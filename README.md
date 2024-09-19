@@ -303,7 +303,7 @@ module.exports = async (thread) => {
   bc.onmessage = (event) => {
     console.log(thread + ' Received from:' + event.data);
   };
-  await new Promise((resolve, reject) => {
+  await new Promise((resolve) => {
     setTimeout(resolve, 2000);
   });
 };
