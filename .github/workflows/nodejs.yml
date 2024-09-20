@@ -1,9 +1,9 @@
 on:
   push:
     branches:
-     - current
-     - next
-     - 'v*'
+      - current
+      - next
+      - 'v*'
   pull_request:
 
 name: CI

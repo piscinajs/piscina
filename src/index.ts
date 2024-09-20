@@ -462,11 +462,12 @@ class ThreadPool {
   }
 
   _distributeTask (task: TaskInfo, workers: PiscinaWorker[]): boolean {
-    const balancerResult = this.balancer(task.interface, workers);
     // TODO: we need to verify if the task is aborted already or not
     // otherwise we might be distributing aborted tasks to workers
     if (task.aborted) return false;
     // console.log(task.interface, balancerResult);
+
+    const balancerResult = this.balancer(task.interface, workers);
 
     if (balancerResult.candidate != null) {
       const now = performance.now();
@@ -848,8 +849,8 @@ export default class Piscina<T = any, R = any> extends EventEmitterAsyncResource
       throw new TypeError('options.taskQueue must be a TaskQueue object');
     }
     if (options.niceIncrement !== undefined &&
-        (typeof options.niceIncrement !== 'number' || options.niceIncrement < 0)) {
-      throw new TypeError('options.niceIncrement must be a non-negative integer');
+        (typeof options.niceIncrement !== 'number' || (options.niceIncrement < 0 && process.platform !== 'win32'))) {
+      throw new TypeError('options.niceIncrement must be a non-negative integer on Unix systems');
     }
     if (options.trackUnmanagedFds !== undefined &&
         typeof options.trackUnmanagedFds !== 'boolean') {
