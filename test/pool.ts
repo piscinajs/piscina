@@ -34,7 +34,6 @@ test('workerCreate/workerDestroy should be emitted while managing worker lifecyc
   });
 
   pool.on('workerCreate', () => {
-    console.log('workerCreate');
     newWorkers++;
   });
 
