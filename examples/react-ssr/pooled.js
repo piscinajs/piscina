@@ -11,7 +11,7 @@ fastify.register(require('fastify-piscina'), {
 });
 
 // Declare a route
-fastify.get('/', async () => fastify.runTask({ name: 'James' }));
+fastify.get('/', async () => fastify.run({ name: 'James' }));
 
 // Run the server!
 const start = async () => {

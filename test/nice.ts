@@ -11,8 +11,10 @@ test('can set niceness for threads on Linux', {
     niceIncrement: 5
   });
 
+  // ts-ignore because the dependency is not installed on Windows.
+  // @ts-ignore
   const currentNiceness = getCurrentProcessPriority();
-  const result = await worker.runTask('require("@napi-rs/nice").getCurrentProcessPriority()');
+  const result = await worker.run('require("@napi-rs/nice").getCurrentProcessPriority()');
 
   // niceness is capped to 19 on Linux.
   const expected = Math.min(currentNiceness + 5, 19);
@@ -27,7 +29,7 @@ test('can set niceness for threads on Windows', {
     niceIncrement: WindowsThreadPriority.ThreadPriorityAboveNormal
   });
 
-  const result = await worker.runTask('require("@napi-rs/nice").getCurrentProcessPriority()');
+  const result = await worker.run('require("@napi-rs/nice").getCurrentProcessPriority()');
 
   equal(result, WindowsThreadPriority.ThreadPriorityAboveNormal);
 });
@@ -38,6 +40,6 @@ test('setting niceness never does anything bad', async ({ equal }) => {
     niceIncrement: 5
   });
 
-  const result = await worker.runTask('42');
+  const result = await worker.run('42');
   equal(result, 42);
 });

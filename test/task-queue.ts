@@ -21,19 +21,19 @@ test('will put items into a task queue until they can run', async ({ equal }) =>
 
   const results = [];
 
-  results.push(pool.runTask(buffers[0]));
+  results.push(pool.run(buffers[0]));
   equal(pool.threads.length, 2);
   equal(pool.queueSize, 0);
 
-  results.push(pool.runTask(buffers[1]));
+  results.push(pool.run(buffers[1]));
   equal(pool.threads.length, 2);
   equal(pool.queueSize, 0);
 
-  results.push(pool.runTask(buffers[2]));
+  results.push(pool.run(buffers[2]));
   equal(pool.threads.length, 3);
   equal(pool.queueSize, 0);
 
-  results.push(pool.runTask(buffers[3]));
+  results.push(pool.run(buffers[3]));
   equal(pool.threads.length, 3);
   equal(pool.queueSize, 1);
 
@@ -59,19 +59,19 @@ test('will reject items over task queue limit', async ({ equal, rejects }) => {
   equal(pool.threads.length, 0);
   equal(pool.queueSize, 0);
 
-  rejects(pool.runTask('while (true) {}'), /Terminating worker thread/);
+  rejects(pool.run('while (true) {}'), /Terminating worker thread/);
   equal(pool.threads.length, 1);
   equal(pool.queueSize, 0);
 
-  rejects(pool.runTask('while (true) {}'), /Terminating worker thread/);
+  rejects(pool.run('while (true) {}'), /Terminating worker thread/);
   equal(pool.threads.length, 1);
   equal(pool.queueSize, 1);
 
-  rejects(pool.runTask('while (true) {}'), /Terminating worker thread/);
+  rejects(pool.run('while (true) {}'), /Terminating worker thread/);
   equal(pool.threads.length, 1);
   equal(pool.queueSize, 2);
 
-  rejects(pool.runTask('while (true) {}'), /Task queue is at limit/);
+  rejects(pool.run('while (true) {}'), /Task queue is at limit/);
   await pool.destroy();
 });
 
@@ -86,11 +86,11 @@ test('will reject items when task queue is unavailable', async ({ equal, rejects
   equal(pool.threads.length, 0);
   equal(pool.queueSize, 0);
 
-  rejects(pool.runTask('while (true) {}'), /Terminating worker thread/);
+  rejects(pool.run('while (true) {}'), /Terminating worker thread/);
   equal(pool.threads.length, 1);
   equal(pool.queueSize, 0);
 
-  rejects(pool.runTask('while (true) {}'), /No task queue available and all Workers are busy/);
+  rejects(pool.run('while (true) {}'), /No task queue available and all Workers are busy/);
   await pool.destroy();
 });
 
@@ -105,11 +105,11 @@ test('will reject items when task queue is unavailable (fixed thread count)', as
   equal(pool.threads.length, 1);
   equal(pool.queueSize, 0);
 
-  rejects(pool.runTask('while (true) {}'), /Terminating worker thread/);
+  rejects(pool.run('while (true) {}'), /Terminating worker thread/);
   equal(pool.threads.length, 1);
   equal(pool.queueSize, 0);
 
-  rejects(pool.runTask('while (true) {}'), /No task queue available and all Workers are busy/);
+  rejects(pool.run('while (true) {}'), /No task queue available and all Workers are busy/);
   await pool.destroy();
 });
 
@@ -125,11 +125,11 @@ test('tasks can share a Worker if requested (both tests blocking)', async ({ equ
   equal(pool.threads.length, 0);
   equal(pool.queueSize, 0);
 
-  rejects(pool.runTask(new Int32Array(new SharedArrayBuffer(4))));
+  rejects(pool.run(new Int32Array(new SharedArrayBuffer(4))));
   equal(pool.threads.length, 1);
   equal(pool.queueSize, 0);
 
-  rejects(pool.runTask(new Int32Array(new SharedArrayBuffer(4))));
+  rejects(pool.run(new Int32Array(new SharedArrayBuffer(4))));
   equal(pool.threads.length, 1);
   equal(pool.queueSize, 0);
 
@@ -153,13 +153,14 @@ test('tasks can share a Worker if requested (one test finishes)', async ({ equal
   equal(pool.threads.length, 0);
   equal(pool.queueSize, 0);
 
-  const firstTask = pool.runTask(buffers[0]);
+  const firstTask = pool.run(buffers[0]);
   equal(pool.threads.length, 1);
   equal(pool.queueSize, 0);
 
-  rejects(pool.runTask(
+  rejects(pool.run(
     'new Promise((resolve) => setTimeout(resolve, 1000000))',
-    resolve(__dirname, 'fixtures/eval.js')), /Terminating worker thread/);
+    { filename: resolve(__dirname, 'fixtures/eval.js') })
+  , /Terminating worker thread/);
   equal(pool.threads.length, 1);
   equal(pool.queueSize, 0);
 
@@ -190,11 +191,11 @@ test('tasks can share a Worker if requested (both tests finish)', async ({ equal
   equal(pool.threads.length, 1);
   equal(pool.queueSize, 0);
 
-  const firstTask = pool.runTask(buffers[0]);
+  const firstTask = pool.run(buffers[0]);
   equal(pool.threads.length, 1);
   equal(pool.queueSize, 0);
 
-  const secondTask = pool.runTask(buffers[1]);
+  const secondTask = pool.run(buffers[1]);
   equal(pool.threads.length, 1);
   equal(pool.queueSize, 0);
 
@@ -264,9 +265,9 @@ test('custom task queue works', async ({ equal, ok }) => {
   }
 
   const ret = await Promise.all([
-    pool.runTask(makeTask({ a: 1 }, 1)),
-    pool.runTask(makeTask({ a: 2 }, 2)),
-    pool.runTask({ a: 3 }) // No queueOptionsSymbol attached
+    pool.run(makeTask({ a: 1 }, 1)),
+    pool.run(makeTask({ a: 2 }, 2)),
+    pool.run({ a: 3 }) // No queueOptionsSymbol attached
   ]);
 
   equal(ret[0].a, 1);

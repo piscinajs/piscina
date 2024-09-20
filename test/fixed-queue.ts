@@ -190,7 +190,7 @@ test('simple integraion with Piscina', async ({ equal }) => {
     taskQueue: queue
   });
 
-  const result = await pool.runTask(null);
+  const result = await pool.run(null);
   equal(result, 'done');
 });
 
@@ -202,7 +202,7 @@ test('concurrent calls with Piscina', async ({ same }) => {
   });
 
   const tasks = ['1+1', '2+2', '3+3'];
-  const results = await Promise.all(tasks.map((task) => pool.runTask(task)));
+  const results = await Promise.all(tasks.map((task) => pool.run(task)));
   // eslint-disable-next-line
   const expected = tasks.map(eval);
 

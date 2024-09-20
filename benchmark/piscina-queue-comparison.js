@@ -15,7 +15,7 @@ bench
     });
     const tasks = [];
     for (let i = 0; i < QUEUE_SIZE; i++) {
-      tasks.push(pool.runTask({ a: 4, b: 6 }));
+      tasks.push(pool.run({ a: 4, b: 6 }));
     }
     await Promise.all(tasks);
     await pool.destroy();
@@ -28,7 +28,7 @@ bench
     });
     const tasks = [];
     for (let i = 0; i < QUEUE_SIZE; i++) {
-      tasks.push(pool.runTask({ a: 4, b: 6 }));
+      tasks.push(pool.run({ a: 4, b: 6 }));
     }
     await Promise.all(tasks);
     await pool.destroy();

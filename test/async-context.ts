@@ -33,7 +33,7 @@ test('postTask() calls the correct async hooks', async ({ equal }) => {
     filename: resolve(__dirname, 'fixtures/eval.js')
   });
 
-  await pool.runTask('42');
+  await pool.run('42');
 
   hook.disable();
   equal(initCalls, 1);

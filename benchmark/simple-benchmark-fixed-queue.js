@@ -18,7 +18,7 @@ async function simpleBenchmark ({ duration = 10000 } = {}) {
 
   async function scheduleTasks () {
     while ((process.hrtime.bigint() - start) / 1_000_000n < duration) {
-      await pool.runTask({ a: 4, b: 6 });
+      await pool.run({ a: 4, b: 6 });
       done++;
     }
   }
