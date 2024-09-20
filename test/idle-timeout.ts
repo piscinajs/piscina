@@ -17,8 +17,8 @@ test('idle timeout will let go of threads early', async ({ equal }) => {
   const buffer = new Int32Array(new SharedArrayBuffer(4));
 
   const firstTasks = [
-    pool.runTask([buffer, 2]),
-    pool.runTask([buffer, 2])
+    pool.run([buffer, 2]),
+    pool.run([buffer, 2])
   ];
   equal(pool.threads.length, 2);
 
@@ -29,8 +29,8 @@ test('idle timeout will let go of threads early', async ({ equal }) => {
   equal(pool.threads.length, 1);
 
   const secondTasks = [
-    pool.runTask([buffer, 4]),
-    pool.runTask([buffer, 4])
+    pool.run([buffer, 4]),
+    pool.run([buffer, 4])
   ];
   equal(pool.threads.length, 2);
 

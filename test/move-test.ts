@@ -75,21 +75,6 @@ test('Moving works', async ({ equal, ok }) => {
   });
 
   {
-    const ab = new ArrayBuffer(10);
-    const ret = await pool.runTask(Piscina.move(ab));
-    equal(ab.byteLength, 0); // It was moved
-    ok(types.isAnyArrayBuffer(ret));
-  }
-
-  {
-    // Test with empty transferList
-    const ab = new ArrayBuffer(10);
-    const ret = await pool.runTask(Piscina.move(ab), []);
-    equal(ab.byteLength, 0); // It was moved
-    ok(types.isAnyArrayBuffer(ret));
-  }
-
-  {
     // Test with empty transferList
     const ab = new ArrayBuffer(10);
     const ret = await pool.run(Piscina.move(ab));

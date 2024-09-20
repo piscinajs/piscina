@@ -17,9 +17,13 @@
 
 Written in TypeScript.
 
-For Node.js 16.x and higher.
+For Node.js 18.x and higher.
 
 [MIT Licensed][].
+
+## Documentation
+
+- [Website](https://piscinajs.github.io/piscina/)
 
 ## Piscina API
 
@@ -432,33 +436,6 @@ an error, the returned `Promise` will be rejected with that error.
 If the task is aborted, the returned `Promise` is rejected with an error
 as well.
 
-### Method: `runTask(task[, transferList][, filename][, abortSignal])`
-
-**Deprecated** -- Use `run(task, options)` instead.
-
-Schedules a task to be run on a Worker thread.
-
-* `task`: Any value. This will be passed to the function that is exported from
-  `filename`.
-* `transferList`: An optional lists of objects that is passed to
-  [`postMessage()`] when posting `task` to the Worker, which are transferred
-  rather than cloned.
-* `filename`: Optionally overrides the `filename` option passed to the
-  constructor for this task. If no `filename` was specified to the constructor,
-  this is mandatory.
-* `abortSignal`: An [`AbortSignal`][] instance. If passed, this can be used to
-  cancel a task. If the task is already running, the corresponding `Worker`
-  thread will be stopped.
-  (More generally, any `EventEmitter` or `EventTarget` that emits `'abort'`
-  events can be passed here.) Abortable tasks cannot share threads regardless
-  of the `concurrentTasksPerWorker` options.
-
-This returns a `Promise` for the return value of the (async) function call
-made to the function exported from `filename`. If the (async) function throws
-an error, the returned `Promise` will be rejected with that error.
-If the task is aborted, the returned `Promise` is rejected with an error
-as well.
-
 ### Method: `destroy()`
 
 Stops all Workers and rejects all `Promise`s for pending tasks.
@@ -489,12 +466,16 @@ An `'error'` event is emitted by instances of this class when:
 - Unexpected messages are sent from from Worker threads.
 
 All other errors are reported by rejecting the `Promise` returned from
-`run()` or `runTask()`, including rejections reported by the handler function
+`run()`, including rejections reported by the handler function
 itself.
 
 ### Event: `'drain'`
 
-A `'drain'` event is emitted whenever the `queueSize` reaches `0`.
+A `'drain'` event is emitted when the current usage of the
+pool is below the maximum capacity of the same.
+The intended goal is to provide backpressure to the task source
+so creating tasks that can not be executed at immediately can be avoided.
+
 
 ### Event: `'needsDrain'`
 
@@ -747,7 +728,7 @@ An example of a custom task queue that uses a shuffled priority queue
 is available in [`examples/task-queue`](./examples/task-queue/index.js);
 
 The special symbol `Piscina.queueOptionsSymbol` may be set as a property
-on tasks submitted to `run()` or `runTask()` as a way of passing additional
+on tasks submitted to `run()` as a way of passing additional
 options on to the custom `TaskQueue` implementation. (Note that because the
 queue options are set as a property on the task, tasks with queue
 options cannot be submitted as JavaScript primitives).
@@ -794,14 +775,13 @@ const piscina = new Piscina({
 
 // Submit tasks to the pool
 for (let i = 0; i < 10; i++) {
-  piscina.runTask({ data: i }).then((result) => {
+  piscina.run({ data: i }).then((result) => {
     console.log(result);
   }).catch((error) => {
     console.error(error);
   });
 }
 ```
-**Note** The `FixedQueue` will become the default task queue implementation in a next major version.
 
 ## Current Limitations (Things we're working on / would love help with)
 
@@ -927,107 +907,14 @@ documentation that threads are being used. It would be ideal if those
 would make it possible for users to provide an existing `Piscina` instance
 as a configuration option in lieu of always creating their own.
 
-
-## Release Notes
-
-### 4.1.0
-
-#### Features
-
-* add `needsDrain` property ([#368](https://github.com/piscinajs/piscina/issues/368)) ([2d49b63](https://github.com/piscinajs/piscina/commit/2d49b63368116c172a52e2019648049b4d280162))
-* correctly handle process.exit calls outside of a task ([#361](https://github.com/piscinajs/piscina/issues/361)) ([8e6d16e](https://github.com/piscinajs/piscina/commit/8e6d16e1dc23f8bb39772ed954f6689852ad435f))
-
-
-#### Bug Fixes
-
-* Fix types for TypeScript 4.7 ([#239](https://github.com/piscinajs/piscina/issues/239)) ([a38fb29](https://github.com/piscinajs/piscina/commit/a38fb292e8fcc45cc20abab8668f82d908a24dc0))
-* use CJS imports ([#374](https://github.com/piscinajs/piscina/issues/374)) ([edf8dc4](https://github.com/piscinajs/piscina/commit/edf8dc4f1a19e9b49e266109cdb70d9acc86f3ca))
-
-### 4.0.0
-
-* Drop Node.js 14.x support
-* Add Node.js 20.x to CI
-
-### 3.2.0
-
-* Adds a new `PISCINA_DISABLE_ATOMICS` environment variable as an alternative way of
-  disabling Piscina's internal use of the `Atomics` API. (https://github.com/piscinajs/piscina/pull/163)
-* Fixes a bug with transferable objects. (https://github.com/piscinajs/piscina/pull/155)
-* Fixes CI issues with TypeScript. (https://github.com/piscinajs/piscina/pull/161)
-
-### 3.1.0
-
-* Deprecates `piscina.runTask()`; adds `piscina.run()` as an alternative.
-  https://github.com/piscinajs/piscina/commit/d7fa24d7515789001f7237ad6ae9ad42d582fc75
-* Allows multiple exported handler functions from a single file.
-  https://github.com/piscinajs/piscina/commit/d7fa24d7515789001f7237ad6ae9ad42d582fc75
-
-### 3.0.0
-
-* Drops Node.js 10.x support
-* Updates minimum TypeScript target to ES2019
-
-### 2.1.0
-
-* Adds name property to indicate `AbortError` when tasks are
-  canceled using an `AbortController` (or similar)
-* More examples
-
-### 2.0.0
-
-* Added unmanaged file descriptor tracking
-* Updated dependencies
-
-### 1.6.1
-
-* Bug fix: Reject if AbortSignal is already aborted
-* Bug Fix: Use once listener for abort event
-
-### 1.6.0
-
-* Add the `niceIncrement` configuration parameter.
-
-### 1.5.1
-
-* Bug fixes around abortable task selection.
-
-### 1.5.0
-
-* Added `Piscina.move()`
-* Added Custom Task Queues
-* Added utilization metric
-* Wait for workers to be ready before considering them as candidates
-* Additional examples
-
-### 1.4.0
-
-* Added `maxQueue = 'auto'` to autocalculate the maximum queue size.
-* Added more examples, including an example of implementing a worker
-  as a Node.js native addon.
-
-### 1.3.0
-
-* Added the `'drain'` event
-
-### 1.2.0
-
-* Added support for ESM and file:// URLs
-* Added `env`, `argv`, `execArgv`, and `workerData` options
-* More examples
-
-### 1.1.0
-
-* Added support for Worker Thread `resourceLimits`
-
-### 1.0.0
-
-* Initial release!
-
 ## The Team
 
 * James M Snell <jasnell@gmail.com>
 * Anna Henningsen <anna@addaleax.net>
 * Matteo Collina <matteo.collina@gmail.com>
+* Rafael Gonzaga <rafael.nunu@hotmail.com>
+* Robert Nagy <ronagy@icloud.com>
+* Carlos Fuentes <me@metcoder.dev>
 
 ## Acknowledgements
 

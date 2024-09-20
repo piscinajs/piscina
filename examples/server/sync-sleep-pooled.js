@@ -13,7 +13,7 @@ fastify.register(require('fastify-piscina'), {
 });
 
 // Declare a route
-fastify.get('/', () => fastify.runTask());
+fastify.get('/', () => fastify.run());
 
 // Run the server!
 const start = async () => {
