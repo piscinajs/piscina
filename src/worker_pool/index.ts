@@ -68,10 +68,11 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
 
       this.terminating = false;
       this.destroyed = true;
+      this.markAsDestroyed();
     }
 
     clearIdleTimeout () : void {
-      if (this.idleTimeout !== null) {
+      if (this.idleTimeout != null) {
         clearTimeout(this.idleTimeout);
         this.idleTimeout = null;
       }
