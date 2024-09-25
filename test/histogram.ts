@@ -115,7 +115,7 @@ test('workers does not have histogram if disabled', async t => {
   let index = 0;
   // After each task the balancer is called to distribute the next task
   // The first task is distributed, the second is enqueued, once the first is done, the second is distributed and normalizes
-  t.plan((10 * 2) - 1);
+  t.plan(10 * 2);
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js'),
     maxThreads: 1,

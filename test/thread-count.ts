@@ -1,26 +1,43 @@
+import { resolve } from 'node:path';
+import { cpus } from 'node:os';
+import { once } from 'node:events';
 import Piscina from '..';
-import { cpus } from 'os';
 import { test } from 'tap';
-import { resolve } from 'path';
 
-test('will start with minThreads and max out at maxThreads', async ({ equal, rejects }) => {
+test('will start with minThreads and max out at maxThreads', { only: true }, async ({ equal, rejects }) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js'),
     minThreads: 2,
-    maxThreads: 4
+    maxThreads: 4,
+    concurrentTasksPerWorker: 1
   });
+  let counter = 0;
+
+  pool.on('workerCreate', () => {
+    counter++;
+  });
+
   equal(pool.threads.length, 2);
+
   rejects(pool.run('while(true) {}'));
-  equal(pool.threads.length, 2);
   rejects(pool.run('while(true) {}'));
-  equal(pool.threads.length, 2);
+
+  // #3
   rejects(pool.run('while(true) {}'));
-  equal(pool.threads.length, 3);
+  await once(pool, 'workerCreate');
+
+  // #4
   rejects(pool.run('while(true) {}'));
-  equal(pool.threads.length, 4);
+  await once(pool, 'workerCreate');
+
+  // #4 - as spawn does not happen synchronously anymore, we wait for the signal once more
   rejects(pool.run('while(true) {}'));
+  await once(pool, 'workerCreate');
+
   equal(pool.threads.length, 4);
   await pool.destroy();
+  equal(pool.threads.length, 0);
+  equal(counter, 4);
 });
 
 test('low maxThreads sets minThreads', async ({ equal }) => {

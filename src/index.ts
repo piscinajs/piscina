@@ -258,10 +258,14 @@ class ThreadPool {
       workerInfo.markAsReady();
       // We need to emit the event in the next microtask, so that the user can
       // attach event listeners before the event is emitted.
-      queueMicrotask(() => this.publicInterface.emit('workerCreate', workerInfo.interface));
+      queueMicrotask(() => {
+        this.publicInterface.emit('workerCreate', workerInfo.interface);
+        this._onWorkerReady(workerInfo);
+      });
     } else {
       workerInfo.onReady(() => {
         this.publicInterface.emit('workerCreate', workerInfo.interface);
+        this._onWorkerReady(workerInfo);
       });
     }
 
@@ -424,8 +428,6 @@ class ThreadPool {
     //   this._maybeDrain();
     //   return;
     // }
-
-    if (this.closingUp) return;
 
     let workers: PiscinaWorker[] | null = null;
     while ((this.taskQueue.size > 0 || this.skipQueue.length > 0)) {
@@ -614,6 +616,7 @@ class ThreadPool {
     //   this._maybeDrain();
     //   return ret;
     // }
+
     if (this.taskQueue.size > 0) {
       const totalCapacity = this.options.maxQueue + this.pendingCapacity();
       if (this.taskQueue.size >= totalCapacity) {
@@ -773,7 +776,7 @@ class ThreadPool {
       for (const workerInfo of this.workers) {
         checkIfWorkerIsDone(workerInfo);
 
-        workerInfo.port.on('message', () => checkIfWorkerIsDone(workerInfo));
+        this.workers.onTaskDone(checkIfWorkerIsDone);
       }
     });
 

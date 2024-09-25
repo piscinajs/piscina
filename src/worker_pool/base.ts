@@ -42,6 +42,10 @@ export abstract class AsynchronouslyCreatedResource {
       }
     }
 
+    isDestroyed () {
+      return this.ondestroyListeners === null;
+    }
+
     abstract currentUsage() : number;
 }
 
