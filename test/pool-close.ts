@@ -41,7 +41,7 @@ test('abort any task enqueued during closing up', async (t) => {
     t.resolves(pool.close(), 'close is resolved when running tasks are completed');
     t.resolves(pool.run({ time: 1000 }).then(null, err => {
       t.equal(err.message, 'The task has been aborted');
-      t.equal(err.cause, 'queue is closing up');
+      t.equal(err.cause, 'queue is being terminated');
     }));
   });
 

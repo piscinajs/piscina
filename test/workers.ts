@@ -29,16 +29,10 @@ test('workers are marked as destroyed if destroyed', async t => {
       const candidate = workers[index++ % workers.length];
 
       if (candidate.currentUsage !== 0 && !candidate.isRunningAbortableTask) {
-        return {
-          candidate: null,
-          command: 0
-        };
+        return null;
       }
 
-      return {
-        candidate,
-        command: 0
-      };
+      return candidate;
     }
   });
 

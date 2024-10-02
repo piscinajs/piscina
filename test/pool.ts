@@ -20,16 +20,10 @@ test('workerCreate/workerDestroy should be emitted while managing worker lifecyc
       // Verify distribution to properly test this feature
       const candidate = workers[index++ % workers.length];
       if (candidate != null && candidate.currentUsage >= 1) {
-        return {
-          candidate: null,
-          command: 1
-        };
+        return null;
       }
 
-      return {
-        candidate,
-        command: 1
-      };
+      return candidate;
     }
   });
 

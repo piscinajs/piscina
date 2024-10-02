@@ -86,16 +86,10 @@ test('workers has histogram', async t => {
       list = workers;
 
       if (candidate.currentUsage !== 0) {
-        return {
-          candidate: null,
-          command: 0
-        };
+        return null;
       }
 
-      return {
-        candidate,
-        command: 0
-      };
+      return candidate;
     }
   });
 
@@ -128,16 +122,10 @@ test('workers does not have histogram if disabled', async t => {
       t.notOk(histogram);
 
       if (candidate.currentUsage !== 0) {
-        return {
-          candidate: null,
-          command: 0
-        };
+        return null;
       }
 
-      return {
-        candidate,
-        command: 0
-      };
+      return candidate;
     }
   });
 
@@ -167,16 +155,10 @@ test('opts.workerHistogram should be a boolean value', async t => {
         t.notOk(histogram);
 
         if (candidate.currentUsage !== 0) {
-          return {
-            candidate: null,
-            command: 0
-          };
+          return null;
         }
 
-        return {
-          candidate,
-          command: 0
-        };
+        return candidate;
       }
     });
   }, 'options.workerHistogram must be a boolean');

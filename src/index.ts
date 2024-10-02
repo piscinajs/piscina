@@ -34,7 +34,7 @@ import {
 import {
   WorkerInfo,
   AsynchronouslyCreatedResourcePool,
-  PisicnaLoadBalancer,
+  PiscinaTaskBalancer,
   PiscinaWorker,
   ResourceBasedBalancer
 } from './worker_pool';
@@ -76,7 +76,7 @@ interface Options {
   trackUnmanagedFds? : boolean,
   closeTimeout?: number,
   recordTiming?: boolean,
-  loadBalancer?: PisicnaLoadBalancer,
+  loadBalancer?: PiscinaTaskBalancer,
   workerHistogram?: boolean,
 }
 
@@ -181,7 +181,7 @@ class ThreadPool {
   workerFailsDuringBootstrap : boolean = false;
   destroying : boolean = false;
   maxCapacity: number;
-  balancer: PisicnaLoadBalancer;
+  balancer: PiscinaTaskBalancer;
 
   constructor (publicInterface : Piscina, options : Options) {
     this.publicInterface = publicInterface;
@@ -469,47 +469,33 @@ class ThreadPool {
     if (task.aborted) return false;
     // console.log(task.interface, balancerResult);
 
-    const balancerResult = this.balancer(task.interface, workers);
+    const candidate = this.balancer(task.interface, workers);
 
-    if (balancerResult.candidate != null) {
+    // Seeking for a real worker instead of customized one
+    if (candidate != null && candidate[kWorkerData] != null) {
       const now = performance.now();
       this.waitTime?.record(toHistogramIntegerNano(now - task.created));
       task.started = now;
-      balancerResult.candidate[kWorkerData].postTask(task);
+      candidate[kWorkerData].postTask(task);
       this._maybeDrain();
       // If candidate, let's try to distribute more tasks
       return true;
     }
 
-    switch (balancerResult.command) {
-      case 0: { // busy
-        if (task.abortSignal) {
-          // console.log('into skipqueue');
-          this.skipQueue.push(task);
-        } else {
-          this.taskQueue.push(task);
-        }
-
-        return false;
-      }
-      case 1: { // add
-        // Only add if spare room
-        if (this.workers.size < this.options.maxThreads) {
-          this._addNewWorker();
-        }
-
-        if (task.abortSignal) {
-          // console.log('into skipqueue');
-          this.skipQueue.push(task);
-        } else {
-          this.taskQueue.push(task);
-        }
-        return false;
-      }
-      default: {
-        return false;
-      }
+    // We spawn if possible
+    // TODO: scheduler will intercept this.
+    if (this.workers.size < this.options.maxThreads) {
+      this._addNewWorker();
     }
+
+    if (task.abortSignal) {
+      // console.log('into skipqueue');
+      this.skipQueue.push(task);
+    } else {
+      this.taskQueue.push(task);
+    }
+
+    return false;
   }
 
   runTask (
@@ -534,9 +520,9 @@ class ThreadPool {
     filename = maybeFileURLToPath(filename);
 
     let signal: AbortSignalAny | null;
-    if (this.closingUp) {
+    if (this.closingUp || this.destroying) {
       const closingUpAbortController = new AbortController();
-      closingUpAbortController.abort('queue is closing up');
+      closingUpAbortController.abort('queue is being terminated');
 
       signal = closingUpAbortController.signal;
     } else {
@@ -596,27 +582,6 @@ class ThreadPool {
       onabort(signal, taskInfo.abortListener);
     }
 
-    // If there is a task queue, there's no point in looking for an available
-    // Worker thread. Add this task to the queue, if possible.
-    // if (this.taskQueue.size > 0) {
-    //   const totalCapacity = this.options.maxQueue + this.pendingCapacity();
-    //   if (this.taskQueue.size >= totalCapacity) {
-    //     if (this.options.maxQueue === 0) {
-    //       return Promise.reject(Errors.NoTaskQueueAvailable());
-    //     } else {
-    //       return Promise.reject(Errors.TaskQueueAtLimit());
-    //     }
-    //   } else {
-    //     if (this.workers.size < this.options.maxThreads) {
-    //       this._addNewWorker();
-    //     }
-    //     this.taskQueue.push(taskInfo);
-    //   }
-
-    //   this._maybeDrain();
-    //   return ret;
-    // }
-
     if (this.taskQueue.size > 0) {
       const totalCapacity = this.options.maxQueue + this.pendingCapacity();
       if (this.taskQueue.size >= totalCapacity) {
@@ -633,41 +598,9 @@ class ThreadPool {
       return ret;
     }
 
-    // Look for a Worker with a minimum number of tasks it is currently running.
-    // let workerInfo : WorkerInfo | null = this.workers.findAvailable();
-
-    // If we want the ability to abort this task, use only workers that have
-    // // no running tasks.
-    // if (workerInfo !== null && workerInfo.currentUsage() > 0 && signal) {
-    //   workerInfo = null;
-    // }
-
-    // // If no Worker was found, or that Worker was handling another task in some
-    // // way, and we still have the ability to spawn new threads, do so.
-    // let waitingForNewWorker = false;
-    // if ((workerInfo === null || workerInfo.currentUsage() > 0) &&
-    //     this.workers.size < this.options.maxThreads) {
-    //   this._addNewWorker();
-    //   waitingForNewWorker = true;
-    // }
-
-    // // TODO: find a way to handle this properly
-    // // If no Worker is found, try to put the task into the queue.
-    // if (workerInfo === null) {
-    //   if (this.options.maxQueue <= 0 && !waitingForNewWorker) {
-    //     return Promise.reject(Errors.NoTaskQueueAvailable());
-    //   } else {
-    //     this.taskQueue.push(taskInfo);
-    //   }
-
-    //   this._maybeDrain();
-    //   return ret;
-    // }
-
     const workers = [...this.workers.readyItems].map(workerInfo => workerInfo.interface);
     const distributed = this._distributeTask(taskInfo, workers);
 
-    // TODO: test out
     if (!distributed) {
       // We reject if no task queue set and no more pending capacity.
       if (this.options.maxQueue <= 0 && this.pendingCapacity() === 0) {
@@ -898,6 +831,7 @@ export default class Piscina<T = any, R = any> extends EventEmitterAsyncResource
       return Promise.reject(
         new TypeError('signal argument must be an object'));
     }
+
     return this.#pool.runTask(task, { transferList, filename, name, signal });
   }
 
