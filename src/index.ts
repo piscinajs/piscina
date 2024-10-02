@@ -408,27 +408,6 @@ class ThreadPool {
   }
 
   _onWorkerAvailable (workerInfo : WorkerInfo) : void {
-    // while ((this.taskQueue.size > 0 || this.skipQueue.length > 0) &&
-    //   workerInfo.currentUsage() < this.options.concurrentTasksPerWorker) {
-    //   // The skipQueue will have tasks that we previously shifted off
-    //   // the task queue but had to skip over... we have to make sure
-    //   // we drain that before we drain the taskQueue.
-    //   const taskInfo = this.skipQueue.shift() ||
-    //                    this.taskQueue.shift() as TaskInfo;
-    //   // If the task has an abortSignal and the worker has any other
-    //   // tasks, we cannot distribute the task to it. Skip for now.
-    //   if (taskInfo.abortSignal && workerInfo.taskInfos.size > 0) {
-    //     this.skipQueue.push(taskInfo);
-    //     break;
-    //   }
-    //   const now = performance.now();
-    //   this.waitTime?.record(toHistogramIntegerNano(now - taskInfo.created));
-    //   taskInfo.started = now;
-    //   workerInfo.postTask(taskInfo);
-    //   this._maybeDrain();
-    //   return;
-    // }
-
     let workers: PiscinaWorker[] | null = null;
     while ((this.taskQueue.size > 0 || this.skipQueue.length > 0)) {
       // The skipQueue will have tasks that we previously shifted off
@@ -441,7 +420,6 @@ class ThreadPool {
         workers = [...this.workers].map(workerInfo => workerInfo.interface);
       }
 
-      // console.log('distributing task', taskInfo.interface);
       const distributed = this._distributeTask(taskInfo, workers);
 
       // If task was distributed, we should continue to distribute more tasks
@@ -464,10 +442,9 @@ class ThreadPool {
   }
 
   _distributeTask (task: TaskInfo, workers: PiscinaWorker[]): boolean {
-    // TODO: we need to verify if the task is aborted already or not
+    // We need to verify if the task is aborted already or not
     // otherwise we might be distributing aborted tasks to workers
     if (task.aborted) return false;
-    // console.log(task.interface, balancerResult);
 
     const candidate = this.balancer(task.interface, workers);
 
@@ -489,7 +466,6 @@ class ThreadPool {
     }
 
     if (task.abortSignal) {
-      // console.log('into skipqueue');
       this.skipQueue.push(task);
     } else {
       this.taskQueue.push(task);
