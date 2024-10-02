@@ -54,6 +54,10 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
       this.histogram = enableHistogram ? createHistogram() : null;
     }
 
+    get id (): number {
+      return this.worker.threadId;
+    }
+
     destroy () : void {
       if (this.terminating || this.destroyed) return;
 

@@ -214,7 +214,7 @@ class ThreadPool {
     this.balancer = this.options.loadBalancer ?? ResourceBasedBalancer({ maximumUsage: this.options.concurrentTasksPerWorker });
     this.workers = new AsynchronouslyCreatedResourcePool<WorkerInfo>(
       this.options.concurrentTasksPerWorker);
-    this.workers.onAvailable((w : WorkerInfo) => this._onWorkerAvailable(w));
+    this.workers.onTaskDone((w : WorkerInfo) => this._onWorkerTaskDone(w));
     this.maxCapacity = this.options.maxThreads * this.options.concurrentTasksPerWorker;
 
     this.startingUp = true;
@@ -258,10 +258,14 @@ class ThreadPool {
       workerInfo.markAsReady();
       // We need to emit the event in the next microtask, so that the user can
       // attach event listeners before the event is emitted.
-      queueMicrotask(() => this.publicInterface.emit('workerCreate', workerInfo.interface));
+      queueMicrotask(() => {
+        this.publicInterface.emit('workerCreate', workerInfo.interface);
+        this._onWorkerReady(workerInfo);
+      });
     } else {
       workerInfo.onReady(() => {
         this.publicInterface.emit('workerCreate', workerInfo.interface);
+        this._onWorkerReady(workerInfo);
       });
     }
 
@@ -283,7 +287,9 @@ class ThreadPool {
       const taskInfo = workerInfo.taskInfos.get(taskId);
       workerInfo.taskInfos.delete(taskId);
 
-      pool.workers.maybeAvailable(workerInfo);
+      // TODO: we can abstract the task info handling
+      // right into the pool.workers.taskDone method
+      pool.workers.taskDone(workerInfo);
 
       /* istanbul ignore if */
       if (taskInfo === undefined) {
@@ -393,6 +399,14 @@ class ThreadPool {
     this.workers.delete(workerInfo);
   }
 
+  _onWorkerReady (workerInfo : WorkerInfo) : void {
+    this._onWorkerAvailable(workerInfo);
+  }
+
+  _onWorkerTaskDone (workerInfo: WorkerInfo) : void {
+    this._onWorkerAvailable(workerInfo);
+  }
+
   _onWorkerAvailable (workerInfo : WorkerInfo) : void {
     // while ((this.taskQueue.size > 0 || this.skipQueue.length > 0) &&
     //   workerInfo.currentUsage() < this.options.concurrentTasksPerWorker) {
@@ -414,8 +428,6 @@ class ThreadPool {
     //   this._maybeDrain();
     //   return;
     // }
-
-    if (this.closingUp) return;
 
     let workers: PiscinaWorker[] | null = null;
     while ((this.taskQueue.size > 0 || this.skipQueue.length > 0)) {
@@ -604,6 +616,7 @@ class ThreadPool {
     //   this._maybeDrain();
     //   return ret;
     // }
+
     if (this.taskQueue.size > 0) {
       const totalCapacity = this.options.maxQueue + this.pendingCapacity();
       if (this.taskQueue.size >= totalCapacity) {
@@ -763,7 +776,7 @@ class ThreadPool {
       for (const workerInfo of this.workers) {
         checkIfWorkerIsDone(workerInfo);
 
-        workerInfo.port.on('message', () => checkIfWorkerIsDone(workerInfo));
+        this.workers.onTaskDone(checkIfWorkerIsDone);
       }
     });
 

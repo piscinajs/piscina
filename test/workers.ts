@@ -13,6 +13,7 @@ test('workers are marked as destroyed if destroyed', async t => {
   let workersSecondRound = [];
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js'),
+    minThreads: 2,
     maxThreads: 2,
     concurrentTasksPerWorker: 1,
     loadBalancer (_task, workers) {

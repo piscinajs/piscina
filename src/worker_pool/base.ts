@@ -42,6 +42,10 @@ export abstract class AsynchronouslyCreatedResource {
       }
     }
 
+    isDestroyed () {
+      return this.ondestroyListeners === null;
+    }
+
     abstract currentUsage() : number;
 }
 
@@ -51,10 +55,12 @@ export class AsynchronouslyCreatedResourcePool<
   readyItems = new Set<T>();
   maximumUsage : number;
   onAvailableListeners : ((item : T) => void)[];
+  onTaskDoneListeners : ((item : T) => void)[];
 
   constructor (maximumUsage : number) {
     this.maximumUsage = maximumUsage;
     this.onAvailableListeners = [];
+    this.onTaskDoneListeners = [];
   }
 
   add (item : T) {
@@ -109,6 +115,16 @@ export class AsynchronouslyCreatedResourcePool<
 
   onAvailable (fn : (item : T) => void) {
     this.onAvailableListeners.push(fn);
+  }
+
+  taskDone (item : T) {
+    for (let i = 0; i < this.onTaskDoneListeners.length; i++) {
+      this.onTaskDoneListeners[i](item);
+    }
+  }
+
+  onTaskDone (fn : (item : T) => void) {
+    this.onTaskDoneListeners.push(fn);
   }
 
   getCurrentUsage (): number {
