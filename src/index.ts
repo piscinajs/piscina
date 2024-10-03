@@ -422,11 +422,13 @@ class ThreadPool {
 
       const distributed = this._distributeTask(taskInfo, workers);
 
-      // If task was distributed, we should continue to distribute more tasks
       if (distributed) {
+        // If task was distributed, we should continue to distribute more tasks
         continue;
+      } else { 
         // If balancer states that pool is busy, we should stop trying to distribute tasks
-      } else { break; }
+        break; 
+      }
     }
 
     // If more workers than minThreads, we can remove idle workers
