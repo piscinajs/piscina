@@ -425,9 +425,9 @@ class ThreadPool {
       if (distributed) {
         // If task was distributed, we should continue to distribute more tasks
         continue;
-      } else { 
+      } else {
         // If balancer states that pool is busy, we should stop trying to distribute tasks
-        break; 
+        break;
       }
     }
 
