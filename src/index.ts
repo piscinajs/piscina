@@ -425,6 +425,11 @@ class ThreadPool {
       if (distributed) {
         // If task was distributed, we should continue to distribute more tasks
         continue;
+      } else if (this.workers.size < this.options.maxThreads) {
+        // We spawn if possible
+        // TODO: scheduler will intercept this.
+        this._addNewWorker();
+        continue;
       } else {
         // If balancer states that pool is busy, we should stop trying to distribute tasks
         break;
@@ -459,12 +464,6 @@ class ThreadPool {
       this._maybeDrain();
       // If candidate, let's try to distribute more tasks
       return true;
-    }
-
-    // We spawn if possible
-    // TODO: scheduler will intercept this.
-    if (this.workers.size < this.options.maxThreads) {
-      this._addNewWorker();
     }
 
     if (task.abortSignal) {
@@ -580,6 +579,12 @@ class ThreadPool {
     const distributed = this._distributeTask(taskInfo, workers);
 
     if (!distributed) {
+      // We spawn if possible
+      // TODO: scheduler will intercept this.
+      if (this.workers.size < this.options.maxThreads) {
+        this._addNewWorker();
+      }
+
       // We reject if no task queue set and no more pending capacity.
       if (this.options.maxQueue <= 0 && this.pendingCapacity() === 0) {
         reject!(Errors.NoTaskQueueAvailable());
