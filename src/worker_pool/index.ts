@@ -7,7 +7,7 @@ import { Errors } from '../errors';
 
 import { TaskInfo } from '../task_queue';
 import { kFieldCount, kRequestCountField, kResponseCountField, kWorkerData } from '../symbols';
-import { createHistogramSummary } from '../common';
+import { createHistogramSummary, toHistogramIntegerNano } from '../common';
 
 import { AsynchronouslyCreatedResource, AsynchronouslyCreatedResourcePool } from './base';
 export * from './balancer';
@@ -96,7 +96,7 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
 
     _handleResponse (message : ResponseMessage) : void {
       if (message.time != null) {
-        this.histogram?.record(Math.max(1, message.time));
+        this.histogram?.record(toHistogramIntegerNano(message.time));
       }
 
       this.onMessage(message);
@@ -172,27 +172,27 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
     }
 
     get interface (): PiscinaWorker {
-      const parent = this;
+      const worker = this;
       return {
         get id () {
-          return parent.worker.threadId;
+          return worker.worker.threadId;
         },
         get currentUsage () {
-          return parent.currentUsage();
+          return worker.currentUsage();
         },
         get isRunningAbortableTask () {
-          return parent.isRunningAbortableTask();
+          return worker.isRunningAbortableTask();
         },
         get histogram () {
-          return parent.histogram != null ? createHistogramSummary(parent.histogram) : null;
+          return worker.histogram != null ? createHistogramSummary(worker.histogram) : null;
         },
         get terminating () {
-          return parent.terminating;
+          return worker.terminating;
         },
         get destroyed () {
-          return parent.destroyed;
+          return worker.destroyed;
         },
-        [kWorkerData]: parent
+        [kWorkerData]: worker
       };
     }
 }

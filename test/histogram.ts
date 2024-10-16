@@ -136,6 +136,33 @@ test('workers does not have histogram if disabled', async t => {
   await Promise.all(tasks);
 });
 
+// test('histogram of worker should be initialized with max concurrent task set as min', { only: true }, async t => {
+//   // After each task the balancer is called to distribute the next task
+//   // The first task is distributed, the second is enqueued, once the first is done, the second is distributed and normalizes
+//   let counter = 0;
+//   const pool = new Piscina({
+//     filename: resolve(__dirname, 'fixtures/eval.js'),
+//     maxThreads: 2,
+//     concurrentTasksPerWorker: 1,
+//     workerHistogram: true,
+//   });
+//   const tasks = [];
+
+//   t.plan(10 * 2);
+//   pool.on('workerCreate', worker => {
+//     if (counter === 0) {
+//       t.equal(worker.histogram.min, 0);
+//     } else {
+//       t.equal(worker.histogram.min, 1);
+//     }
+//   })
+
+//   for (let n = 0; n < 10; n++) {
+//     tasks.push(pool.run('new Promise(resolve => setTimeout(resolve, 500))'));
+//   }
+//   await Promise.all(tasks);
+// });
+
 test('opts.workerHistogram should be a boolean value', async t => {
   let index = 0;
   t.plan(1);

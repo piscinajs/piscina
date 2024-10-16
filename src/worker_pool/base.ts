@@ -49,6 +49,7 @@ export abstract class AsynchronouslyCreatedResource {
     abstract currentUsage() : number;
 }
 
+// TODO: this will eventually become an scheduler
 export class AsynchronouslyCreatedResourcePool<
   T extends AsynchronouslyCreatedResource> {
   pendingItems = new Set<T>();
@@ -78,21 +79,6 @@ export class AsynchronouslyCreatedResourcePool<
   delete (item : T) {
     this.pendingItems.delete(item);
     this.readyItems.delete(item);
-  }
-
-  findAvailable () : T | null {
-    let minUsage = this.maximumUsage;
-    let candidate = null;
-    for (const item of this.readyItems) {
-      const usage = item.currentUsage();
-      if (usage === 0) return item;
-      if (usage < minUsage) {
-        candidate = item;
-        minUsage = usage;
-      }
-    }
-
-    return candidate;
   }
 
   * [Symbol.iterator] () {
