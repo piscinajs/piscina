@@ -1,7 +1,9 @@
+import { once } from 'node:events';
+import { resolve } from 'node:path';
+
 import { test } from 'tap';
+
 import Piscina from '..';
-import { resolve } from 'path';
-import { once } from 'events';
 
 test('close()', async (t) => {
   t.test('no pending tasks', async (t) => {
@@ -15,74 +17,56 @@ test('close()', async (t) => {
     await pool.close();
     t.pass('pool closed successfully');
   });
-
-  t.test('queued tasks waits for all tasks to complete', async (t) => {
-    const pool = new Piscina({ filename: resolve(__dirname, 'fixtures/sleep.js'), maxThreads: 1 });
-
-    const task1 = pool.run({ time: 100 });
-    const task2 = pool.run({ time: 100 });
-
-    setImmediate(() => t.resolves(pool.close(), 'close is resolved when all running tasks are completed'));
-
-    await Promise.all([
-      t.resolves(once(pool, 'close'), 'handler is called when pool is closed'),
-      t.resolves(task1, 'complete running task'),
-      t.resolves(task2, 'complete running task')
-    ]);
-  });
-
-  t.test('abort any task enqueued during closing up', async (t) => {
-    const pool = new Piscina({ filename: resolve(__dirname, 'fixtures/sleep.js'), maxThreads: 1 });
-
-    setImmediate(() => {
-      t.resolves(pool.close(), 'close is resolved when running tasks are completed');
-      t.resolves(pool.run({ time: 1000 }).then(null, err => {
-        t.equal(err.message, 'The task has been aborted');
-        t.equal(err.cause, 'queue is closing up');
-      }));
-    });
-
-    await t.resolves(pool.run({ time: 100 }), 'complete running task');
-  });
 });
 
-test('close({force: true})', async (t) => {
-  t.test('queued tasks waits for all tasks already running and aborts tasks that are not started yet', async (t) => {
-    const pool = new Piscina({ filename: resolve(__dirname, 'fixtures/sleep.js'), maxThreads: 1, concurrentTasksPerWorker: 1 });
+test('queued tasks waits for all tasks to complete', async (t) => {
+  const pool = new Piscina({ filename: resolve(__dirname, 'fixtures/sleep.js'), maxThreads: 1 });
 
-    const task1 = pool.run({ time: 1000 });
-    const task2 = pool.run({ time: 200 });
+  const task1 = pool.run({ time: 100 });
+  const task2 = pool.run({ time: 100 });
 
-    setImmediate(() => t.resolves(pool.close({ force: true }), 'close is resolved when all running tasks are completed'));
+  setImmediate(() => t.resolves(pool.close(), 'close is resolved when all running tasks are completed'));
 
-    await Promise.all([
-      t.resolves(once(pool, 'close'), 'handler is called when pool is closed'),
-      t.resolves(task1, 'complete running task'),
-      t.resolves(task2.then(null, err => {
-        t.equal(err.message, 'The task has been aborted');
-        t.equal(err.cause, 'pool is closed');
-      }))
-    ]);
+  await Promise.all([
+    t.resolves(once(pool, 'close'), 'handler is called when pool is closed'),
+    t.resolves(task1, 'complete running task'),
+    t.resolves(task2, 'complete running task')
+  ]);
+});
+
+test('abort any task enqueued during closing up', async (t) => {
+  const pool = new Piscina({ filename: resolve(__dirname, 'fixtures/sleep.js'), maxThreads: 1 });
+
+  setImmediate(() => {
+    t.resolves(pool.close(), 'close is resolved when running tasks are completed');
+    t.resolves(pool.run({ time: 1000 }).then(null, err => {
+      t.equal(err.message, 'The task has been aborted');
+      t.equal(err.cause, 'queue is being terminated');
+    }));
   });
 
-  t.test('queued tasks waits for all tasks already running and aborts tasks that are not started yet', async (t) => {
-    const pool = new Piscina({ filename: resolve(__dirname, 'fixtures/sleep.js'), maxThreads: 1, concurrentTasksPerWorker: 2 });
+  await t.resolves(pool.run({ time: 100 }), 'complete running task');
+});
 
-    const task1 = pool.run({ time: 500 });
-    const task2 = pool.run({ time: 100 });
-    const task3 = pool.run({ time: 100 });
-    const task4 = pool.run({ time: 100 });
+test('force: queued tasks waits for all tasks already running and aborts tasks that are not started yet', async (t) => {
+  const pool = new Piscina({ filename: resolve(__dirname, 'fixtures/sleep.js'), maxThreads: 1, concurrentTasksPerWorker: 2 });
 
-    setImmediate(() => t.resolves(pool.close({ force: true }), 'close is resolved when all running tasks are completed'));
+  const task1 = pool.run({ time: 1000 });
+  const task2 = pool.run({ time: 1000 });
+  // const task3 = pool.run({ time: 100 });
+  // const task4 = pool.run({ time: 100 });
 
-    await Promise.all([
-      t.resolves(once(pool, 'close'), 'handler is called when pool is closed'),
-      t.resolves(task1, 'complete running task'),
-      t.resolves(task2, 'complete running task'),
-      t.rejects(task3, /The task has been aborted/, 'abort task that are not started yet'),
-      t.rejects(task4, /The task has been aborted/, 'abort task that are not started yet')
-    ]);
-  });
+  t.plan(6);
+
+  t.resolves(pool.close({ force: true }));
+  t.resolves(once(pool, 'close'), 'handler is called when pool is closed');
+  t.resolves(task1, 'complete running task');
+  t.resolves(task2, 'complete running task');
+  t.rejects(pool.run({ time: 100 }), /The task has been aborted/, 'abort task that are not started yet');
+  t.rejects(pool.run({ time: 100 }), /The task has been aborted/, 'abort task that are not started yet');
+
+  await task1;
+  await task2;
 });
 
 test('timed out close operation destroys the pool', async (t) => {

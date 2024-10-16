@@ -28,3 +28,15 @@ by number of tasks enqueued that are pending of execution.
 ## Event: `'message'`
 
 A `'message'` event is emitted whenever a message is received from a worker thread.
+
+## Event: `'workerCreate'`
+
+Event that is triggered when a new worker is created.
+
+As argument, it receives the worker instance.
+
+## Event: `'workerDestroy'`
+
+Event that is triggered when a worker is destroyed.
+
+As argument, it receives the worker instance that has been destroyed.

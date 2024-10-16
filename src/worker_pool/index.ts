@@ -1,116 +1,27 @@
 import { Worker, MessagePort, receiveMessageOnPort } from 'node:worker_threads';
+import { createHistogram, RecordableHistogram } from 'node:perf_hooks';
 import assert from 'node:assert';
 
-import { RequestMessage, ResponseMessage } from '../types';
+import { HistogramSummary, RequestMessage, ResponseMessage } from '../types';
 import { Errors } from '../errors';
 
 import { TaskInfo } from '../task_queue';
-import { kFieldCount, kRequestCountField, kResponseCountField } from '../symbols';
+import { kFieldCount, kRequestCountField, kResponseCountField, kWorkerData } from '../symbols';
+import { createHistogramSummary, toHistogramIntegerNano } from '../common';
+
+import { AsynchronouslyCreatedResource, AsynchronouslyCreatedResourcePool } from './base';
+export * from './balancer';
 
 type ResponseCallback = (response : ResponseMessage) => void;
 
-abstract class AsynchronouslyCreatedResource {
-    onreadyListeners : (() => void)[] | null = [];
-
-    markAsReady () : void {
-      const listeners = this.onreadyListeners;
-      assert(listeners !== null);
-      this.onreadyListeners = null;
-      for (const listener of listeners) {
-        listener();
-      }
-    }
-
-    isReady () : boolean {
-      return this.onreadyListeners === null;
-    }
-
-    onReady (fn : () => void) {
-      if (this.onreadyListeners === null) {
-        fn(); // Zalgo is okay here.
-        return;
-      }
-      this.onreadyListeners.push(fn);
-    }
-
-    abstract currentUsage() : number;
-}
-
-export class AsynchronouslyCreatedResourcePool<
-  T extends AsynchronouslyCreatedResource> {
-  pendingItems = new Set<T>();
-  readyItems = new Set<T>();
-  maximumUsage : number;
-  onAvailableListeners : ((item : T) => void)[];
-
-  constructor (maximumUsage : number) {
-    this.maximumUsage = maximumUsage;
-    this.onAvailableListeners = [];
-  }
-
-  add (item : T) {
-    this.pendingItems.add(item);
-    item.onReady(() => {
-      /* istanbul ignore else */
-      if (this.pendingItems.has(item)) {
-        this.pendingItems.delete(item);
-        this.readyItems.add(item);
-        this.maybeAvailable(item);
-      }
-    });
-  }
-
-  delete (item : T) {
-    this.pendingItems.delete(item);
-    this.readyItems.delete(item);
-  }
-
-  findAvailable () : T | null {
-    let minUsage = this.maximumUsage;
-    let candidate = null;
-    for (const item of this.readyItems) {
-      const usage = item.currentUsage();
-      if (usage === 0) return item;
-      if (usage < minUsage) {
-        candidate = item;
-        minUsage = usage;
-      }
-    }
-    return candidate;
-  }
-
-  * [Symbol.iterator] () {
-    yield * this.pendingItems;
-    yield * this.readyItems;
-  }
-
-  get size () {
-    return this.pendingItems.size + this.readyItems.size;
-  }
-
-  maybeAvailable (item : T) {
-    /* istanbul ignore else */
-    if (item.currentUsage() < this.maximumUsage) {
-      for (const listener of this.onAvailableListeners) {
-        listener(item);
-      }
-    }
-  }
-
-  onAvailable (fn : (item : T) => void) {
-    this.onAvailableListeners.push(fn);
-  }
-
-  getCurrentUsage (): number {
-    let inFlight = 0;
-    for (const worker of this.readyItems) {
-      const currentUsage = worker.currentUsage();
-
-      if (Number.isFinite(currentUsage)) inFlight += currentUsage;
-    }
-
-    return inFlight;
-  }
+export type PiscinaWorker = {
+  id: number;
+  currentUsage: number;
+  isRunningAbortableTask: boolean;
+  histogram: HistogramSummary | null;
+  terminating: boolean;
+  destroyed: boolean;
+  [kWorkerData]: WorkerInfo;
 }
 
 export class WorkerInfo extends AsynchronouslyCreatedResource {
@@ -121,11 +32,16 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
     sharedBuffer : Int32Array;
     lastSeenResponseCount : number = 0;
     onMessage : ResponseCallback;
+    histogram: RecordableHistogram | null;
+    terminating = false;
+    destroyed = false;
 
     constructor (
       worker : Worker,
       port : MessagePort,
-      onMessage : ResponseCallback) {
+      onMessage : ResponseCallback,
+      enableHistogram: boolean
+    ) {
       super();
       this.worker = worker;
       this.port = port;
@@ -135,9 +51,17 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
       this.taskInfos = new Map();
       this.sharedBuffer = new Int32Array(
         new SharedArrayBuffer(kFieldCount * Int32Array.BYTES_PER_ELEMENT));
+      this.histogram = enableHistogram ? createHistogram() : null;
+    }
+
+    get id (): number {
+      return this.worker.threadId;
     }
 
     destroy () : void {
+      if (this.terminating || this.destroyed) return;
+
+      this.terminating = true;
       this.worker.terminate();
       this.port.close();
       this.clearIdleTimeout();
@@ -145,10 +69,14 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
         taskInfo.done(Errors.ThreadTermination());
       }
       this.taskInfos.clear();
+
+      this.terminating = false;
+      this.destroyed = true;
+      this.markAsDestroyed();
     }
 
     clearIdleTimeout () : void {
-      if (this.idleTimeout !== null) {
+      if (this.idleTimeout != null) {
         clearTimeout(this.idleTimeout);
         this.idleTimeout = null;
       }
@@ -167,6 +95,10 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
     }
 
     _handleResponse (message : ResponseMessage) : void {
+      if (message.time != null) {
+        this.histogram?.record(toHistogramIntegerNano(message.time));
+      }
+
       this.onMessage(message);
 
       if (this.taskInfos.size === 0) {
@@ -178,11 +110,14 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
 
     postTask (taskInfo : TaskInfo) {
       assert(!this.taskInfos.has(taskInfo.taskId));
+      assert(!this.terminating && !this.destroyed);
+
       const message : RequestMessage = {
         task: taskInfo.releaseTask(),
         taskId: taskInfo.taskId,
         filename: taskInfo.filename,
-        name: taskInfo.name
+        name: taskInfo.name,
+        histogramEnabled: this.histogram != null ? 1 : 0
       };
 
       try {
@@ -206,6 +141,7 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
     }
 
     processPendingMessages () {
+      if (this.destroyed) return;
       // If we *know* that there are more messages than we have received using
       // 'message' events yet, then try to load and handle them synchronously,
       // without the need to wait for more expensive events on the event loop.
@@ -234,4 +170,31 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
       if (this.isRunningAbortableTask()) return Infinity;
       return this.taskInfos.size;
     }
+
+    get interface (): PiscinaWorker {
+      const worker = this;
+      return {
+        get id () {
+          return worker.worker.threadId;
+        },
+        get currentUsage () {
+          return worker.currentUsage();
+        },
+        get isRunningAbortableTask () {
+          return worker.isRunningAbortableTask();
+        },
+        get histogram () {
+          return worker.histogram != null ? createHistogramSummary(worker.histogram) : null;
+        },
+        get terminating () {
+          return worker.terminating;
+        },
+        get destroyed () {
+          return worker.destroyed;
+        },
+        [kWorkerData]: worker
+      };
+    }
 }
+
+export { AsynchronouslyCreatedResourcePool };

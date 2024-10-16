@@ -36,7 +36,7 @@ test('tasks can be aborted through EventEmitter while running', async ({ equal, 
 
 test('tasks can be aborted through EventEmitter before running', async ({ equal, rejects }) => {
   const pool = new Piscina({
-    filename: resolve(__dirname, 'fixtures/wait-for-notify.ts'),
+    filename: resolve(__dirname, 'fixtures/wait-for-notify.js'),
     maxThreads: 1
   });
 
@@ -46,8 +46,9 @@ test('tasks can be aborted through EventEmitter before running', async ({ equal,
   ];
   const ee = new EventEmitter();
   const task1 = pool.run(bufs[0]);
-  rejects(pool.run(bufs[1], { signal: ee }), /The task has been aborted/);
-  equal(pool.queueSize, 1);
+  const abortable = pool.run(bufs[1], { signal: ee });
+  equal(pool.queueSize, 0); // Means it's running
+  rejects(abortable, /The task has been aborted/);
 
   ee.emit('abort');
 
@@ -71,7 +72,7 @@ test('abortable tasks will not share workers (abortable posted second)', async (
   const task1 = pool.run(bufs[0]);
   const ee = new EventEmitter();
   rejects(pool.run(bufs[1], { signal: ee }), /The task has been aborted/);
-  equal(pool.queueSize, 1);
+  equal(pool.queueSize, 0);
 
   ee.emit('abort');
 
@@ -81,6 +82,7 @@ test('abortable tasks will not share workers (abortable posted second)', async (
   await task1;
 });
 
+// TODO: move to testing balancer
 test('abortable tasks will not share workers (abortable posted first)', async ({ equal, rejects }) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js'),
@@ -99,6 +101,7 @@ test('abortable tasks will not share workers (abortable posted first)', async ({
   equal(await task2, 42);
 });
 
+// TODO: move to testing balancer
 test('abortable tasks will not share workers (on worker available)', async ({ equal }) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/sleep.js'),
@@ -111,7 +114,6 @@ test('abortable tasks will not share workers (on worker available)', async ({ eq
   // Abortable task 3 should still be in the queue
   // when Task 1 completes, but should not be selected
   // until after Task 2 completes because it is abortable.
-
   const ret = await Promise.all([
     pool.run({ time: 100, a: 1 }),
     pool.run({ time: 300, a: 2 }),
