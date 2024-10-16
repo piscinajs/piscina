@@ -1,5 +1,6 @@
 import { parentPort, MessagePort, receiveMessageOnPort, workerData } from 'node:worker_threads';
 import { pathToFileURL } from 'node:url';
+import { performance } from 'node:perf_hooks';
 
 import type {
   ReadyMessage,
@@ -143,7 +144,7 @@ function onMessage (
   (async function () {
     let response : ResponseMessage;
     let transferList : any[] = [];
-    const start = message.histogramEnabled === 1 ? process.hrtime.bigint() : null;
+    const start = message.histogramEnabled === 1 ? performance.now() : null;
 
     try {
       const handler = await getHandler(filename, name);
@@ -159,7 +160,7 @@ function onMessage (
         taskId,
         result: result,
         error: null,
-        time: start == null ? null : Number(process.hrtime.bigint() - start)
+        time: start == null ? null : Math.round(performance.now() - start)
       };
 
       // If the task used e.g. console.log(), wait for the stream to drain
@@ -179,7 +180,7 @@ function onMessage (
         // It may be worth taking a look at the error cloning algorithm we
         // use in Node.js core here, it's quite a bit more flexible
         error: <Error>error,
-        time: start == null ? null : Number(process.hrtime.bigint() - start)
+        time: start == null ? null : Math.round(performance.now() - start)
       };
     }
     currentTasks--;
