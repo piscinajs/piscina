@@ -1,5 +1,5 @@
 ---
-id: Class
+id: Instance
 sidebar_position: 2
 ---
 
@@ -98,3 +98,129 @@ This class extends [`EventEmitter`](https://nodejs.org/api/events.html) from Nod
 Use caution when setting resource limits. Setting limits that are too low may
 result in the `Piscina` worker threads being unusable.
 :::
+
+## `PiscinaLoadBalancer`
+
+The `PiscinaLoadBalancer` interface is used to implement custom load balancing algorithm that determines which worker thread should be assigned a task.
+
+> For more information, see [Custom Load Balancers](../advanced-topics/loadbalancer.mdx).
+
+### Interface: `PiscinaLoadBalancer`
+
+```ts
+type PiscinaLoadBalancer = (
+  task: PiscinaTask, // Task to be distributed
+  workers: PiscinaWorker[] // Array of Worker instances
+) => PiscinaWorker | null; // Worker instance to be assigned the task
+```
+
+If the `PiscinaLoadBalancer` returns `null`, `Piscina` will attempt to spawn a new worker, otherwise the task will be queued until a worker is available.
+
+### Interface: `PiscinaTask`
+
+```ts
+interface PiscinaTask {
+  taskId: number; // Unique identifier for the task
+  filename: string; // Filename of the worker module
+  name: string; // Name of the worker function
+  created: number; // Timestamp when the task was created
+  isAbortable: boolean; // Indicates if the task can be aborted through AbortSignal
+}
+```
+
+### Interface: `PiscinaWorker`
+
+```ts
+interface PiscinaWorker {
+  id: number; // Unique identifier for the worker
+  currentUsage: number; // Number of tasks currently running on the worker
+  isRunningAbortableTask: boolean; // Indicates if the worker is running an abortable task
+  histogram: HistogramSummary | null; // Worker histogram
+  terminating: boolean; // Indicates if the worker is terminating
+  destroyed: boolean; // Indicates if the worker has been destroyed
+}
+```
+
+### Example: Custom Load Balancer
+
+#### JavaScript
+<a id="custom-load-balancer-example-js"> </a>
+
+```js
+const { Piscina } = require('piscina');
+
+function LeastBusyBalancer(opts) {
+  const { maximumUsage } = opts;
+
+  return (task, workers) => {
+    let candidate = null;
+    let checkpoint = maximumUsage;
+    for (const worker of workers) {
+      if (worker.currentUsage === 0) {
+        candidate = worker;
+        break;
+      }
+
+      if (worker.isRunningAbortableTask) continue;
+
+      if (!task.isAbortable && worker.currentUsage < checkpoint) {
+        candidate = worker;
+        checkpoint = worker.currentUsage;
+      }
+    }
+
+    return candidate;
+  };
+}
+
+const piscina = new Piscina({
+  loadBalancer: LeastBusyBalancer({ maximumUsage: 2 }),
+});
+
+piscina
+  .runTask({ filename: 'worker.js', name: 'default' })
+  .then((result) => console.log(result))
+  .catch((err) => console.error(err));
+```
+
+#### TypeScript
+<a id="custom-load-balancer-example-ts"> </a>
+
+```ts
+import { Piscina } from 'piscina';
+
+function LeastBusyBalancer(
+  opts: LeastBusyBalancerOptions
+): PiscinaLoadBalancer {
+  const { maximumUsage } = opts;
+
+  return (task, workers) => {
+    let candidate: PiscinaWorker | null = null;
+    let checkpoint = maximumUsage;
+    for (const worker of workers) {
+      if (worker.currentUsage === 0) {
+        candidate = worker;
+        break;
+      }
+
+      if (worker.isRunningAbortableTask) continue;
+
+      if (!task.isAbortable && worker.currentUsage < checkpoint) {
+        candidate = worker;
+        checkpoint = worker.currentUsage;
+      }
+    }
+
+    return candidate;
+  };
+}
+
+const piscina = new Piscina({
+  loadBalancer: LeastBusyBalancer({ maximumUsage: 2 }),
+});
+
+piscina
+  .runTask({ filename: 'worker.js', name: 'default' })
+  .then((result) => console.log(result))
+  .catch((err) => console.error(err));
+```

@@ -1,0 +1,42 @@
+---
+id: Custom Load Balancers
+sidebar_position: 2
+---
+
+[Load Balancers](https://www.cloudflare.com/learning/performance/what-is-load-balancing/) are a crucial part of any distributed workload.
+Piscina by default uses a [Resource Based](https://www.cloudflare.com/en-gb/learning/performance/types-of-load-balancing-algorithms/) algorithm (least-busy)
+to distribute the load across the different workers set by the pool.
+
+### Choosing the Load Balancing Algorithm
+
+Choosing the right algorithm heavily depends on the requirements of each individual problem, and to assess
+them by testing the implementation against several variations of workloads.
+
+The algorithms can be grouped on:
+
+#### Dynamic
+
+Focused on taking decision based on heuristics from the workload.
+
+It aims to balance the work by adapting itself to the environment and distribute the workloads equally across the different workers/nodes attempting to make better use
+of resources or to minimize the time to finish each individual workload.
+
+> Piscina uses a Dynamic algorithm, based on how busy the worker is (least-busy)
+
+#### Static
+
+Aims to distribute the workload based on a group of predefined factors.
+It does not adapt to the environment, but rather aims to preserve the state of the distribution accordingly
+to the values set beforehand.
+
+This can be helpful under several situations where we want the workload to be distributed evenly or stick to a specific worker/node over time.
+
+> Round Robin, Ring Hash, are just examples of these algorithms
+
+It is heavily advised to understand the problem and the workload your pool will be facing, and tests heavily against the different algorithms that matches your
+use case with several combinations to better understand its impact and how to manage it.
+
+### Resources
+
+- [Load Balancing Algorithms](https://en.wikipedia.org/wiki/Load_balancing_(computing))
+- [Types of Load Balancing Algorithms](https://www.cloudflare.com/en-gb/learning/performance/types-of-load-balancing-algorithms/)
