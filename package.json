@@ -54,7 +54,7 @@
     "snazzy": "^9.0.0",
     "standardx": "^7.0.0",
     "tap": "^16.3.7",
-    "tinybench": "^2.8.0",
+    "tinybench": "^3.0.0",
     "ts-node": "^10.9.2",
     "typescript": "5.6.3"
   },
