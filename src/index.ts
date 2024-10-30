@@ -65,7 +65,7 @@ interface Options {
   idleTimeout? : number,
   maxQueue? : number | 'auto',
   concurrentTasksPerWorker? : number,
-  useAtomics? : boolean,
+  atomics? : 'sync' | 'async' | 'disabled',
   resourceLimits? : ResourceLimits,
   argv? : string[],
   execArgv? : string[],
@@ -88,7 +88,7 @@ interface FilledOptions extends Options {
   idleTimeout : number,
   maxQueue : number,
   concurrentTasksPerWorker : number,
-  useAtomics: boolean,
+  atomics: Options['atomics'],
   taskQueue : TaskQueue,
   niceIncrement : number,
   closeTimeout : number,
@@ -122,7 +122,7 @@ const kDefaultOptions : FilledOptions = {
   idleTimeout: 0,
   maxQueue: Infinity,
   concurrentTasksPerWorker: 1,
-  useAtomics: true,
+  atomics: 'sync',
   taskQueue: new ArrayTaskQueue(),
   niceIncrement: 0,
   trackUnmanagedFds: true,
@@ -274,7 +274,7 @@ class ThreadPool {
       name: this.options.name,
       port: port2,
       sharedBuffer: workerInfo.sharedBuffer,
-      useAtomics: this.options.useAtomics,
+      atomics: this.options.atomics!,
       niceIncrement: this.options.niceIncrement
     };
     worker.postMessage(message, [port2]);
@@ -379,7 +379,7 @@ class ThreadPool {
   }
 
   _processPendingMessages () {
-    if (this.inProcessPendingMessages || !this.options.useAtomics) {
+    if (this.inProcessPendingMessages || this.options.atomics === 'disabled') {
       return;
     }
 
@@ -755,9 +755,9 @@ export default class Piscina<T = any, R = any> extends EventEmitterAsyncResource
       throw new TypeError(
         'options.concurrentTasksPerWorker must be a positive integer');
     }
-    if (options.useAtomics !== undefined &&
-        typeof options.useAtomics !== 'boolean') {
-      throw new TypeError('options.useAtomics must be a boolean value');
+    if (options.atomics != null && (typeof options.atomics !== 'string' ||
+        !['sync', 'async', 'disabled'].includes(options.atomics))) {
+      throw new TypeError('options.atomics should be a value of sync, sync or disabled.');
     }
     if (options.resourceLimits !== undefined &&
         (typeof options.resourceLimits !== 'object' ||

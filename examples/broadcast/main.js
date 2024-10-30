@@ -6,8 +6,8 @@ const { resolve } = require('path');
 const Piscina = require('piscina');
 const piscina = new Piscina({
   filename: resolve(__dirname, 'worker.js'),
-  // Set useAtomics to false to avoid threads being blocked when idle
-  useAtomics: false
+  // Set atomics to disabled to avoid threads being blocked when idle
+  atomics: 'disabled'
 });
 
 async function main () {

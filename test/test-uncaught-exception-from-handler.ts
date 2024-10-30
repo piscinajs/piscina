@@ -25,7 +25,7 @@ test('uncaught exception in immediate after task yields error event', async ({ e
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js'),
     maxThreads: 1,
-    useAtomics: false
+    atomics: 'disabled'
   });
 
   const errorEvent : Promise<Error[]> = once(pool, 'error');

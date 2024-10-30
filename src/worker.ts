@@ -25,6 +25,7 @@ commonState.workerData = workerData;
 
 const handlerCache : Map<string, Function> = new Map();
 let useAtomics : boolean = process.env.PISCINA_DISABLE_ATOMICS !== '1';
+let useAsyncAtomics : boolean = process.env.PISCINA_ENABLE_ASYNC_ATOMICS === '1';
 
 // Get `import(x)` as a function that isn't transpiled to `require(x)` by
 // TypeScript for dual ESM/CJS support.
@@ -81,7 +82,8 @@ async function getHandler (filename : string, name : string) : Promise<Function 
 // communication using Atomics, and the name of the default filename for tasks
 // (so we can pre-load and cache the handler).
 parentPort!.on('message', (message: StartupMessage) => {
-  useAtomics = process.env.PISCINA_DISABLE_ATOMICS === '1' ? false : message.useAtomics;
+  useAtomics = process.env.PISCINA_DISABLE_ATOMICS === '1' ? false : message.atomics !== 'disabled';
+  useAsyncAtomics = process.env.PISCINA_ENABLE_ASYNC_ATOMICS === '1' || message.atomics === 'async';
   const { port, sharedBuffer, filename, name, niceIncrement } = message;
   (async function () {
     try {
@@ -98,15 +100,15 @@ parentPort!.on('message', (message: StartupMessage) => {
     parentPort!.postMessage(readyMessage);
 
     port.on('message', onMessage.bind(null, port, sharedBuffer));
-    atomicsWaitLoop(port, sharedBuffer);
+    // await atomicsWaitLoop(port, sharedBuffer);
+    if (useAtomics) return atomicsWaitLoop(port, sharedBuffer);
   })().catch(throwInNextTick);
 });
 
 let currentTasks : number = 0;
 let lastSeenRequestCount : number = 0;
+// async function atomicsWaitLoop (port : MessagePort, sharedBuffer : Int32Array) {
 function atomicsWaitLoop (port : MessagePort, sharedBuffer : Int32Array) {
-  if (!useAtomics) return;
-
   // This function is entered either after receiving the startup message, or
   // when we are done with a task. In those situations, the *only* thing we
   // expect to happen next is a 'message' on `port`.
@@ -122,7 +124,17 @@ function atomicsWaitLoop (port : MessagePort, sharedBuffer : Int32Array) {
     // Check whether there are new messages by testing whether the current
     // number of requests posted by the parent thread matches the number of
     // requests received.
-    Atomics.wait(sharedBuffer, kRequestCountField, lastSeenRequestCount);
+    
+    if (useAsyncAtomics === true) {
+      // @ts-expect-error
+      const { async, value } =  Atomics.waitAsync(sharedBuffer, kRequestCountField, lastSeenRequestCount);
+
+      return async === true && value;
+    } else {
+      // We do not check for result
+      Atomics.wait(sharedBuffer, kRequestCountField, lastSeenRequestCount);
+    }
+
     lastSeenRequestCount = Atomics.load(sharedBuffer, kRequestCountField);
 
     // We have to read messages *after* updating lastSeenRequestCount in order
@@ -190,7 +202,7 @@ function onMessage (
     // to wait for the next message.
     port.postMessage(response, transferList);
     Atomics.add(sharedBuffer, kResponseCountField, 1);
-    atomicsWaitLoop(port, sharedBuffer);
+    if (useAtomics) return atomicsWaitLoop(port, sharedBuffer);
   })().catch(throwInNextTick);
 }
 

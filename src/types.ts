@@ -8,7 +8,7 @@ export interface StartupMessage {
   name: string
   port: MessagePort
   sharedBuffer: Int32Array
-  useAtomics: boolean
+  atomics: 'async' | 'sync' | 'disabled'
   niceIncrement: number
 }
 

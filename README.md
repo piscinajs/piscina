@@ -278,7 +278,7 @@ const { resolve } = require('path');
 const Piscina = require('piscina');
 const piscina = new Piscina({
   filename: resolve(__dirname, 'worker.js'),
-  useAtomics: false
+  atomics: 'disabled'
 });
 
 async function main () {
@@ -362,12 +362,16 @@ This class extends [`EventEmitter`][] from Node.js.
     only makes sense to specify if there is some kind of asynchronous component
     to the task. Keep in mind that Worker threads are generally not built for
     handling I/O in parallel.
-  * `useAtomics`: (`boolean`) Use the [`Atomics`][] API for faster communication
+  * `atomics`: (`sync` | `async` | `disabled`) Use the [`Atomics`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Atomics) API for faster communication
     between threads. This is on by default. You can disable `Atomics` globally by
-    setting the environment variable `PISCINA_DISABLE_ATOMICS` to `1`. 
-    If `useAtomics` is `true`, it will cause to pause threads (stoping all execution)
-    between tasks. Ideally, threads should wait for all operations to finish before 
-    returning control to the main thread (avoid having open handles within a thread).
+    setting the environment variable `PISCINA_DISABLE_ATOMICS` to `1` .
+    If `atomics` is `sync`, it will cause to pause threads (stoping all execution)
+    between tasks. Ideally, threads should wait for all operations to finish before
+    returning control to the main thread (avoid having open handles within a thread). If still want to have the possibility
+    of having open handles or handle asynchrnous tasks, you can set the environment variable `PISCINA_ENABLE_ASYNC_ATOMICS` to `1` or setting `options.atomics` to `async`.
+
+   > **Note**: The `async` mode comes with performance penalties and can lead to undesired behaviour if open handles are not tracked correctly.
+  
   * `resourceLimits`: (`object`) See [Node.js new Worker options][]
     * `maxOldGenerationSizeMb`: (`number`) The maximum size of each worker threads
       main heap in MB.
