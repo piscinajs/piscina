@@ -1,6 +1,8 @@
-import Piscina from '..';
+import { resolve } from 'node:path';
+
 import { test } from 'tap';
-import { resolve } from 'path';
+
+import Piscina from '..';
 
 test('coverage test for Atomics optimization', async ({ equal }) => {
   const pool = new Piscina({
@@ -11,7 +13,7 @@ test('coverage test for Atomics optimization', async ({ equal }) => {
   });
 
   const tasks = [];
-  let v : number;
+  let v: number;
 
   // Post 4 tasks, and wait for all of them to be ready.
   const i32array = new Int32Array(new SharedArrayBuffer(4));
@@ -78,4 +80,41 @@ test('avoids unbounded recursion', async () => {
   }
 
   await Promise.all(tasks);
+});
+
+test('enable async mode', async (t) => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval-params.js'),
+    atomics: 'async',
+    minThreads: 1,
+    maxThreads: 1
+  });
+
+  const bufs = [
+    new Int32Array(new SharedArrayBuffer(4)),
+    new Int32Array(new SharedArrayBuffer(4)),
+    new Int32Array(new SharedArrayBuffer(4))
+  ];
+
+  const script = `
+    setTimeout(() => { Atomics.exchange(input.shared[0], 0, 1); Atomics.notify(input.shared[0], 0, Infinity); }, 100);
+    setTimeout(() => { Atomics.exchange(input.shared[1], 0, 1); Atomics.notify(input.shared[1], 0, Infinity);  }, 300);
+    setTimeout(() => { Atomics.exchange(input.shared[2], 0, 1); Atomics.notify(input.shared[2], 0, Infinity); }, 500);
+    
+    true;
+  `;
+
+  const promise = pool.run({
+    code: script,
+    shared: bufs
+  });
+
+  t.plan(2);
+
+  const atResult1 = Atomics.wait(bufs[0], 0, 0);
+  const atResult2 = Atomics.wait(bufs[1], 0, 0);
+  const atResult3 = Atomics.wait(bufs[2], 0, 0);
+
+  t.same([atResult1, atResult2, atResult3], ['ok', 'ok', 'ok']);
+  t.equal(await promise, true);
 });
