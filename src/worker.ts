@@ -124,10 +124,9 @@ function atomicsWaitLoop (port : MessagePort, sharedBuffer : Int32Array) {
     // Check whether there are new messages by testing whether the current
     // number of requests posted by the parent thread matches the number of
     // requests received.
-    
     if (useAsyncAtomics === true) {
       // @ts-expect-error
-      const { async, value } =  Atomics.waitAsync(sharedBuffer, kRequestCountField, lastSeenRequestCount);
+      const { async, value } = Atomics.waitAsync(sharedBuffer, kRequestCountField, lastSeenRequestCount);
 
       return async === true && value;
     } else {
