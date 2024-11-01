@@ -124,22 +124,31 @@ function atomicsWaitLoop (port : MessagePort, sharedBuffer : Int32Array) {
     // number of requests posted by the parent thread matches the number of
     // requests received.
     if (useAsyncAtomics === true) {
-      // @ts-expect-error
+      // @ts-expect-error - for some reason not supported by TS
       const { async, value } = Atomics.waitAsync(sharedBuffer, kRequestCountField, lastSeenRequestCount);
 
-      return async === true && value;
+      return async === true && value.then(() => {
+        lastSeenRequestCount = Atomics.load(sharedBuffer, kRequestCountField);
+
+        // We have to read messages *after* updating lastSeenRequestCount in order
+        // to avoid race conditions.
+        let entry;
+        while ((entry = receiveMessageOnPort(port)) !== undefined) {
+          onMessage(port, sharedBuffer, entry.message);
+        }
+      });
     } else {
       // We do not check for result
       Atomics.wait(sharedBuffer, kRequestCountField, lastSeenRequestCount);
-    }
 
-    lastSeenRequestCount = Atomics.load(sharedBuffer, kRequestCountField);
+      lastSeenRequestCount = Atomics.load(sharedBuffer, kRequestCountField);
 
-    // We have to read messages *after* updating lastSeenRequestCount in order
-    // to avoid race conditions.
-    let entry;
-    while ((entry = receiveMessageOnPort(port)) !== undefined) {
-      onMessage(port, sharedBuffer, entry.message);
+      // We have to read messages *after* updating lastSeenRequestCount in order
+      // to avoid race conditions.
+      let entry;
+      while ((entry = receiveMessageOnPort(port)) !== undefined) {
+        onMessage(port, sharedBuffer, entry.message);
+      }
     }
   }
 }
