@@ -100,7 +100,6 @@ parentPort!.on('message', (message: StartupMessage) => {
     parentPort!.postMessage(readyMessage);
 
     port.on('message', onMessage.bind(null, port, sharedBuffer));
-    // await atomicsWaitLoop(port, sharedBuffer);
     if (useAtomics) return atomicsWaitLoop(port, sharedBuffer);
   })().catch(throwInNextTick);
 });
