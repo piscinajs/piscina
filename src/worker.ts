@@ -23,7 +23,7 @@ import {
 commonState.isWorkerThread = true;
 commonState.workerData = workerData;
 
-function noop(): void {}
+function noop (): void {}
 
 const handlerCache : Map<string, Function> = new Map();
 let useAtomics : boolean = process.env.PISCINA_DISABLE_ATOMICS !== '1';
@@ -225,7 +225,6 @@ async function onMessage (
     throwInNextTick(error as Error);
   }
 }
-
 
 function throwInNextTick (error : Error) {
   process.nextTick((e: Error) => { throw e; }, error);
