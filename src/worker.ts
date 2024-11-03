@@ -113,7 +113,7 @@ parentPort!.on('message', async (message: StartupMessage) => {
 
 let currentTasks : number = 0;
 let lastSeenRequestCount : number = 0;
-// async function atomicsWaitLoop (port : MessagePort, sharedBuffer : Int32Array) {
+
 function atomicsWaitLoop (port : MessagePort, sharedBuffer : Int32Array) {
   // This function is entered either after receiving the startup message, or
   // when we are done with a task. In those situations, the *only* thing we
@@ -188,6 +188,7 @@ async function onMessage (
       time: start == null ? null : Math.round(performance.now() - start)
     };
 
+    // TODO: handle atomics: async cases
     // If the task used e.g. console.log(), wait for the stream to drain
     // before potentially entering the `Atomics.wait()` loop, and before
     // returning the result so that messages will always be printed even

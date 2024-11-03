@@ -4,6 +4,8 @@ import { resolve } from 'path';
 import { test } from 'tap';
 
 test('niceness - Linux:', { skip: process.platform !== 'linux' }, scope => {
+  scope.plan(2);
+
   scope.test('can set niceness for threads on Linux', async ({ equal }) => {
     const worker = new Piscina({
       filename: resolve(__dirname, 'fixtures/eval.js'),
@@ -33,6 +35,7 @@ test('niceness - Linux:', { skip: process.platform !== 'linux' }, scope => {
 test('niceness - Windows', {
   skip: process.platform !== 'win32'
 }, scope => {
+  scope.plan(1);
   scope.test('can set niceness for threads on Windows', async ({ equal }) => {
     const worker = new Piscina({
       filename: resolve(__dirname, 'fixtures/eval.js'),
