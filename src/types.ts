@@ -40,7 +40,6 @@ export interface Transferable {
   readonly [kValue]: object;
 }
 
-/* eslint-disable camelcase */
 export interface HistogramSummary {
   average: number;
   mean: number;
@@ -63,7 +62,6 @@ export interface HistogramSummary {
   p99_99: number;
   p99_999: number;
 }
-/* eslint-enable camelcase */
 
 export type ResourceLimits = Worker extends {
   resourceLimits?: infer T;

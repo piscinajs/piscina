@@ -27,7 +27,7 @@ export type PiscinaWorker = {
 export class WorkerInfo extends AsynchronouslyCreatedResource {
     worker : Worker;
     taskInfos : Map<number, TaskInfo>;
-    idleTimeout : NodeJS.Timeout | null = null; // eslint-disable-line no-undef
+    idleTimeout : NodeJS.Timeout | null = null;
     port : MessagePort;
     sharedBuffer : Int32Array;
     lastSeenResponseCount : number = 0;
