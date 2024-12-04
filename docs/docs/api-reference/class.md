@@ -101,6 +101,9 @@ This class extends [`EventEmitter`](https://nodejs.org/api/events.html) from Nod
   - `workerHistogram`: (`boolean`) By default `false`. It will hint the Worker pool to record statistics for each individual Worker
   - `loadBalancer`: ([`PiscinaLoadBalancer`](#piscinaloadbalancer)) By default, Piscina uses a least-busy algorithm. The `loadBalancer`
     option can be used to provide an alternative implementation. See [Custom Load Balancers](../advanced-topics/loadbalancer.mdx) for additional detail.
+  - `workerHistogram`: (`boolean`) By default `false`. It will hint the Worker pool to record statistics for each individual Worker
+  - `loadBalancer`: ([`PiscinaLoadBalancer`](#piscinaloadbalancer)) By default, Piscina uses a least-busy algorithm. The `loadBalancer`
+    option can be used to provide an alternative implementation. See [Custom Load Balancers](../advanced-topics/loadbalancer.mdx) for additional detail.
 
 :::caution
 Use caution when setting resource limits. Setting limits that are too low may
@@ -152,7 +155,6 @@ interface PiscinaWorker {
 ### Example: Custom Load Balancer
 
 #### JavaScript
-
 <a id="custom-load-balancer-example-js"> </a>
 
 ```js
@@ -193,7 +195,6 @@ piscina
 ```
 
 #### TypeScript
-
 <a id="custom-load-balancer-example-ts"> </a>
 
 ```ts

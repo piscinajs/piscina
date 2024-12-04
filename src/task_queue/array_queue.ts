@@ -10,7 +10,7 @@ export class ArrayTaskQueue implements TaskQueue {
   }
 
   shift (): Task | null {
-    return this.tasks.shift() as Task;
+    return this.tasks.shift() ?? null;
   }
 
   push (task: Task): void {
