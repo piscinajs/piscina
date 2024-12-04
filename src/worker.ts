@@ -84,8 +84,6 @@ async function getHandler (filename : string, name : string) : Promise<Function 
 // communication using Atomics, and the name of the default filename for tasks
 // (so we can pre-load and cache the handler).
 parentPort!.on('message', async (message: StartupMessage) => {
-  useAtomics = process.env.PISCINA_DISABLE_ATOMICS === '1' ? false : message.atomics !== 'disabled';
-  useAsyncAtomics = process.env.PISCINA_ENABLE_ASYNC_ATOMICS === '1' || message.atomics === 'async';
   const { port, sharedBuffer, filename, name, niceIncrement } = message;
 
   if (niceIncrement !== 0) {
@@ -98,6 +96,8 @@ parentPort!.on('message', async (message: StartupMessage) => {
     }
 
     const readyMessage : ReadyMessage = { [READY]: true };
+    useAtomics = useAtomics !== false && message.atomics !== 'disabled';
+    useAsyncAtomics = useAtomics !== false && (useAsyncAtomics || message.atomics === 'async');
     parentPort!.postMessage(readyMessage);
 
     port.on('message', onMessage.bind(null, port, sharedBuffer));
@@ -126,29 +126,13 @@ function atomicsWaitLoop (port : MessagePort, sharedBuffer : Int32Array) {
   // The one catch is that this stops asynchronous operations that are still
   // running from proceeding. Generally, tasks should not spawn asynchronous
   // operations without waiting for them to finish, though.
-  while (currentTasks === 0) {
-    // Check whether there are new messages by testing whether the current
-    // number of requests posted by the parent thread matches the number of
-    // requests received.
-    if (useAsyncAtomics === true) {
-      // @ts-expect-error - for some reason not supported by TS
-      const { async, value } = Atomics.waitAsync(sharedBuffer, kRequestCountField, lastSeenRequestCount);
 
-      // We do not check for result
-      return async === true && value.then(() => {
-        lastSeenRequestCount = Atomics.load(sharedBuffer, kRequestCountField);
+  if (useAsyncAtomics === true) {
+    // @ts-expect-error - for some reason not supported by TS
+    const { async, value } = Atomics.waitAsync(sharedBuffer, kRequestCountField, lastSeenRequestCount);
 
-        // We have to read messages *after* updating lastSeenRequestCount in order
-        // to avoid race conditions.
-        let entry;
-        while ((entry = receiveMessageOnPort(port)) !== undefined) {
-          onMessage(port, sharedBuffer, entry.message);
-        }
-      });
-    } else {
-      // We do not check for result
-      Atomics.wait(sharedBuffer, kRequestCountField, lastSeenRequestCount);
-
+    // We do not check for result
+    return async === true && value.then(() => {
       lastSeenRequestCount = Atomics.load(sharedBuffer, kRequestCountField);
 
       // We have to read messages *after* updating lastSeenRequestCount in order
@@ -157,6 +141,23 @@ function atomicsWaitLoop (port : MessagePort, sharedBuffer : Int32Array) {
       while ((entry = receiveMessageOnPort(port)) !== undefined) {
         onMessage(port, sharedBuffer, entry.message);
       }
+    });
+  }
+
+  while (currentTasks === 0) {
+    // Check whether there are new messages by testing whether the current
+    // number of requests posted by the parent thread matches the number of
+    // requests received.
+    // We do not check for result
+    Atomics.wait(sharedBuffer, kRequestCountField, lastSeenRequestCount);
+
+    lastSeenRequestCount = Atomics.load(sharedBuffer, kRequestCountField);
+
+    // We have to read messages *after* updating lastSeenRequestCount in order
+    // to avoid race conditions.
+    let entry;
+    while ((entry = receiveMessageOnPort(port)) !== undefined) {
+      onMessage(port, sharedBuffer, entry.message);
     }
   }
 }
@@ -188,16 +189,18 @@ async function onMessage (
       time: start == null ? null : Math.round(performance.now() - start)
     };
 
-    // TODO: handle atomics: async cases
-    // If the task used e.g. console.log(), wait for the stream to drain
-    // before potentially entering the `Atomics.wait()` loop, and before
-    // returning the result so that messages will always be printed even
-    // if the process would otherwise be ready to exit.
-    if (process.stdout.writableLength > 0) {
-      await new Promise((resolve) => process.stdout.write('', resolve));
-    }
-    if (process.stderr.writableLength > 0) {
-      await new Promise((resolve) => process.stderr.write('', resolve));
+    if (useAtomics && !useAsyncAtomics) {
+      // If the task used e.g. console.log(), wait for the stream to drain
+      // before potentially entering the `Atomics.wait()` loop, and before
+      // returning the result so that messages will always be printed even
+      // if the process would otherwise be ready to exit.
+      if (process.stdout.writableLength > 0) {
+        await new Promise((resolve) => process.stdout.write('', resolve));
+      }
+
+      if (process.stderr.writableLength > 0) {
+        await new Promise((resolve) => process.stderr.write('', resolve));
+      }
     }
   } catch (error) {
     response = {

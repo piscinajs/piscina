@@ -4,12 +4,13 @@ import { test } from 'tap';
 
 import Piscina from '..';
 
-test('coverage test for Atomics optimization', async ({ equal }) => {
+test('coverage test for Atomics optimization (sync mode)', async ({ equal }) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/notify-then-sleep-or.js'),
     minThreads: 2,
     maxThreads: 2,
-    concurrentTasksPerWorker: 2
+    concurrentTasksPerWorker: 2,
+    atomics: 'sync'
   });
 
   const tasks = [];
@@ -71,7 +72,8 @@ test('avoids unbounded recursion', async () => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/simple-isworkerthread.ts'),
     minThreads: 2,
-    maxThreads: 2
+    maxThreads: 2,
+    atomics: 'sync'
   });
 
   const tasks = [];
@@ -85,9 +87,9 @@ test('avoids unbounded recursion', async () => {
 test('enable async mode', async (t) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval-params.js'),
-    atomics: 'async',
     minThreads: 1,
-    maxThreads: 1
+    maxThreads: 1,
+    atomics: 'async'
   });
 
   const bufs = [
@@ -97,11 +99,11 @@ test('enable async mode', async (t) => {
   ];
 
   const script = `
-    setTimeout(() => { Atomics.exchange(input.shared[0], 0, 1); Atomics.notify(input.shared[0], 0, Infinity); }, 100);
-    setTimeout(() => { Atomics.exchange(input.shared[1], 0, 1); Atomics.notify(input.shared[1], 0, Infinity);  }, 300);
-    setTimeout(() => { Atomics.exchange(input.shared[2], 0, 1); Atomics.notify(input.shared[2], 0, Infinity); }, 500);
-    
-    true;
+    setTimeout(() => { Atomics.add(input.shared[0], 0, 1); Atomics.notify(input.shared[0], 0, Infinity); }, 100);
+    setTimeout(() => { Atomics.add(input.shared[1], 0, 1); Atomics.notify(input.shared[1], 0, Infinity);  }, 300);
+    setTimeout(() => { Atomics.add(input.shared[2], 0, 1); Atomics.notify(input.shared[2], 0, Infinity); }, 500);
+
+    true
   `;
 
   const promise = pool.run({
