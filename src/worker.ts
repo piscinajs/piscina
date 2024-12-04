@@ -184,7 +184,7 @@ async function onMessage (
     }
     response = {
       taskId,
-      result: result,
+      result,
       error: null,
       time: start == null ? null : Math.round(performance.now() - start)
     };

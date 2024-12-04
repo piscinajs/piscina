@@ -1,4 +1,3 @@
-// eslint-disable-next-line no-eval
 import util from 'util';
 const sleep = util.promisify(setTimeout);
 
