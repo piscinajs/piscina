@@ -35,6 +35,6 @@ class Progress extends EventEmitter {
       ` ${((this.#tasksCompleted / this.#tasksSubmitted) * 100).toFixed(2)}%` +
       ` [${this.#tasksFailed} failed]`;
   }
-};
+}
 
 module.exports = Progress;
