@@ -110,6 +110,53 @@ Use caution when setting resource limits. Setting limits that are too low may
 result in the `Piscina` worker threads being unusable.
 :::
 
+## `PiscinaHistogram`
+
+The `PiscinaHistogram` allows you to access the histogram data for the pool of worker threads.
+It can be reset upon request in case of a need to clear the data.
+
+### Interface: `PiscinaLoadBalancer`
+
+- `runTime`: (`PiscinaHistogramSummary`) Run Time Histogram Summary. Time taken to execute a task.
+- `waitTime`: (`PiscinaHistogramSummary`) Wait Time Histogram Summary. Time between a task being submitted and the task starting to run.
+
+> **Note**: The histogram data is only available if `recordTiming` is set to `true`.
+
+```ts
+type PiscinaHistogram = {
+  runTime: PiscinaHistogramSummary;
+  waitTime: PiscinaHistogramSummary;
+  resetRunTime(): void; // Reset Run Time Histogram
+  resetWaitTime(): void; // Reset Wait Time Histogram
+```
+
+### Interface: `PiscinaHistogramSummary`
+
+```ts
+type PiscinaHistogramSummary = {
+  average: number;
+  mean: number;
+  stddev: number;
+  min: number;
+  max: number;
+  p0_001: number;
+  p0_01: number;
+  p0_1: number;
+  p1: number;
+  p2_5: number;
+  p10: number;
+  p25: number;
+  p50: number;
+  p75: number;
+  p90: number;
+  p97_5: number;
+  p99: number;
+  p99_9: number;
+  p99_99: number;
+  p99_999: number;
+}
+```
+
 ## `PiscinaLoadBalancer`
 
 The `PiscinaLoadBalancer` interface is used to implement custom load balancing algorithm that determines which worker thread should be assigned a task.
