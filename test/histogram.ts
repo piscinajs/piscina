@@ -14,7 +14,8 @@ test('pool will maintain run and wait time histograms by default', async ({ equa
   }
   await Promise.all(tasks);
 
-  const waitTime = pool.waitTime as any;
+  const histogram = pool.histogram;
+  const waitTime = histogram.waitTime;
   ok(waitTime);
   equal(typeof waitTime.average, 'number');
   equal(typeof waitTime.mean, 'number');
@@ -22,13 +23,15 @@ test('pool will maintain run and wait time histograms by default', async ({ equa
   equal(typeof waitTime.min, 'number');
   equal(typeof waitTime.max, 'number');
 
-  const runTime = pool.runTime as any;
+  const runTime = histogram.runTime;
   ok(runTime);
   equal(typeof runTime.average, 'number');
   equal(typeof runTime.mean, 'number');
   equal(typeof runTime.stddev, 'number');
   equal(typeof runTime.min, 'number');
   equal(typeof runTime.max, 'number');
+  equal(typeof histogram.resetRunTime, 'function');
+  equal(typeof histogram.resetWaitTime, 'function');
 });
 
 test('pool will maintain run and wait time histograms when recordTiming is true', async ({ ok }) => {
@@ -43,14 +46,14 @@ test('pool will maintain run and wait time histograms when recordTiming is true'
   }
   await Promise.all(tasks);
 
-  const waitTime = pool.waitTime as any;
+  const waitTime = pool.histogram.waitTime;
   ok(waitTime);
 
-  const runTime = pool.runTime as any;
+  const runTime = pool.histogram.runTime;
   ok(runTime);
 });
 
-test('pool does not maintain run and wait time histograms when recordTiming is false', async ({ equal }) => {
+test('pool does not maintain run and wait time histograms when recordTiming is false', async ({ notOk }) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js'),
     recordTiming: false
@@ -62,8 +65,8 @@ test('pool does not maintain run and wait time histograms when recordTiming is f
   }
   await Promise.all(tasks);
 
-  equal(pool.waitTime, null);
-  equal(pool.runTime, null);
+  notOk(pool.histogram.waitTime);
+  notOk(pool.histogram.runTime);
 });
 
 test('workers has histogram', async t => {
@@ -136,34 +139,7 @@ test('workers does not have histogram if disabled', async t => {
   await Promise.all(tasks);
 });
 
-// test('histogram of worker should be initialized with max concurrent task set as min', { only: true }, async t => {
-//   // After each task the balancer is called to distribute the next task
-//   // The first task is distributed, the second is enqueued, once the first is done, the second is distributed and normalizes
-//   let counter = 0;
-//   const pool = new Piscina({
-//     filename: resolve(__dirname, 'fixtures/eval.js'),
-//     maxThreads: 2,
-//     concurrentTasksPerWorker: 1,
-//     workerHistogram: true,
-//   });
-//   const tasks = [];
-
-//   t.plan(10 * 2);
-//   pool.on('workerCreate', worker => {
-//     if (counter === 0) {
-//       t.equal(worker.histogram.min, 0);
-//     } else {
-//       t.equal(worker.histogram.min, 1);
-//     }
-//   })
-
-//   for (let n = 0; n < 10; n++) {
-//     tasks.push(pool.run('new Promise(resolve => setTimeout(resolve, 500))'));
-//   }
-//   await Promise.all(tasks);
-// });
-
-test('opts.workerHistogram should be a boolean value', async t => {
+test('opts.workerHistogram should be a boolean value', t => {
   let index = 0;
   t.plan(1);
   t.throws(() => {

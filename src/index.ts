@@ -2,7 +2,7 @@ import { Worker, MessageChannel, MessagePort } from 'node:worker_threads';
 import { once, EventEmitterAsyncResource } from 'node:events';
 import { resolve } from 'node:path';
 import { inspect, types } from 'node:util';
-import { RecordableHistogram, createHistogram, performance } from 'node:perf_hooks';
+import { performance } from 'node:perf_hooks';
 import { setTimeout as sleep } from 'node:timers/promises';
 import assert from 'node:assert';
 
@@ -13,7 +13,6 @@ import type {
   Transferable,
   ResourceLimits,
   EnvSpecifier,
-  HistogramSummary
 } from './types';
 import {
   kQueueOptions,
@@ -44,14 +43,16 @@ import {
   AbortError,
   onabort
 } from './abort';
+import {
+  PiscinaHistogram,
+  PiscinaHistogramHandler,
+} from './histogram';
 import { Errors } from './errors';
 import {
   READY,
   commonState,
   isTransferable,
   markMovable,
-  createHistogramSummary,
-  toHistogramIntegerNano,
   getAvailableParallelism,
   maybeFileURLToPath
 } from './common';
@@ -171,8 +172,7 @@ class ThreadPool {
   taskQueue : TaskQueue;
   skipQueue : TaskInfo[] = [];
   completed : number = 0;
-  runTime? : RecordableHistogram;
-  waitTime? : RecordableHistogram;
+  histogram: PiscinaHistogramHandler | null = null;
   _needsDrain : boolean;
   start : number = performance.now();
   inProcessPendingMessages : boolean = false;
@@ -192,8 +192,7 @@ class ThreadPool {
     this.options = { ...kDefaultOptions, ...options, filename, maxQueue: 0 };
 
     if (this.options.recordTiming) {
-      this.runTime = createHistogram();
-      this.waitTime = createHistogram();
+      this.histogram = new PiscinaHistogramHandler();
     }
 
     // The >= and <= could be > and < but this way we get 100 % coverage 🙃
@@ -458,7 +457,7 @@ class ThreadPool {
     // Seeking for a real worker instead of customized one
     if (candidate != null && candidate[kWorkerData] != null) {
       const now = performance.now();
-      this.waitTime?.record(toHistogramIntegerNano(now - task.created));
+      this.histogram?.recordWaitTime(now - task.created)
       task.started = now;
       candidate[kWorkerData].postTask(task);
       this._maybeDrain();
@@ -518,7 +517,7 @@ class ThreadPool {
       (err : Error | null, result : any) => {
         this.completed++;
         if (taskInfo.started) {
-          this.runTime?.record(toHistogramIntegerNano(performance.now() - taskInfo.started));
+          this.histogram?.recordRunTime(performance.now() - taskInfo.started);
         }
         if (err !== null) {
           reject(err);
@@ -718,6 +717,7 @@ class ThreadPool {
 
 export default class Piscina<T = any, R = any> extends EventEmitterAsyncResource {
   #pool : ThreadPool;
+  #histogram: PiscinaHistogram | null = null;
 
   constructor (options : Options = {}) {
     super({ ...options, name: 'Piscina' });
@@ -867,34 +867,45 @@ export default class Piscina<T = any, R = any> extends EventEmitterAsyncResource
     return this.#pool.completed;
   }
 
-  get waitTime () : HistogramSummary | null {
-    if (!this.#pool.waitTime) {
-      return null;
-    }
+  get histogram () : PiscinaHistogram {
+    if (this.#histogram == null) {
+      const piscinahistogram = {
+        // @ts-expect-error
+        get runTime() { return this.histogram?.runTimeSummary! },
+        // @ts-expect-error
+        get waitTime() { return this.histogram?.waitTimeSummary! },
+        resetRunTime() {
+          // @ts-expect-error
+          this.histogram?.resetRunTime()
+        },
+        resetWaitTime() {
+          // @ts-expect-error
+          this.histogram?.resetWaitTime()
+        },
+      }
+  
+      Object.defineProperty(piscinahistogram, 'histogram', {
+        value: this.#pool.histogram,
+        writable: false,
+        enumerable: false,
+        configurable: false,
+      })
+  
+      this.#histogram = piscinahistogram;
+    };
 
-    return createHistogramSummary(this.#pool.waitTime);
-  }
-
-  get runTime () : any {
-    if (!this.#pool.runTime) {
-      return null;
-    }
-
-    return createHistogramSummary(this.#pool.runTime);
+    return this.#histogram;
   }
 
   get utilization () : number {
-    if (!this.#pool.runTime) {
+    if (this.#pool.histogram == null) {
       return 0;
     }
 
     // count is available as of Node.js v16.14.0 but not present in the types
-    const count = (this.#pool.runTime as RecordableHistogram & { count: number }).count;
-    if (count === 0) {
-      return 0;
-    }
+    const count = this.#pool.histogram.runTimeCount;
 
-    if (!this.#pool.runTime) {
+    if (count === 0) {
       return 0;
     }
 
@@ -903,7 +914,7 @@ export default class Piscina<T = any, R = any> extends EventEmitterAsyncResource
     // of time the pool has been running multiplied by the
     // maximum number of threads.
     const capacity = this.duration * this.#pool.options.maxThreads;
-    const totalMeanRuntime = (this.#pool.runTime.mean / 1000) * count;
+    const totalMeanRuntime = (this.#pool.histogram.runTimeSummary.mean / 1000) * count;
 
     // We calculate the appoximate pool utilization by multiplying
     // the mean run time of all tasks by the number of runtime

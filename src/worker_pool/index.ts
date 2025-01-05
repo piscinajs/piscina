@@ -2,12 +2,12 @@ import { Worker, MessagePort, receiveMessageOnPort } from 'node:worker_threads';
 import { createHistogram, RecordableHistogram } from 'node:perf_hooks';
 import assert from 'node:assert';
 
-import { HistogramSummary, RequestMessage, ResponseMessage } from '../types';
+import { RequestMessage, ResponseMessage } from '../types';
 import { Errors } from '../errors';
 
 import { TaskInfo } from '../task_queue';
 import { kFieldCount, kRequestCountField, kResponseCountField, kWorkerData } from '../symbols';
-import { createHistogramSummary, toHistogramIntegerNano } from '../common';
+import { PiscinaHistogramHandler, PiscinaHistogramSummary } from '../histogram';
 
 import { AsynchronouslyCreatedResource, AsynchronouslyCreatedResourcePool } from './base';
 export * from './balancer';
@@ -18,7 +18,7 @@ export type PiscinaWorker = {
   id: number;
   currentUsage: number;
   isRunningAbortableTask: boolean;
-  histogram: HistogramSummary | null;
+  histogram: PiscinaHistogramSummary | null;
   terminating: boolean;
   destroyed: boolean;
   [kWorkerData]: WorkerInfo;
@@ -96,7 +96,7 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
 
     _handleResponse (message : ResponseMessage) : void {
       if (message.time != null) {
-        this.histogram?.record(toHistogramIntegerNano(message.time));
+        this.histogram?.record(PiscinaHistogramHandler.toHistogramIntegerNano(message.time));
       }
 
       this.onMessage(message);
@@ -184,7 +184,7 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
           return worker.isRunningAbortableTask();
         },
         get histogram () {
-          return worker.histogram != null ? createHistogramSummary(worker.histogram) : null;
+          return worker.histogram != null ? PiscinaHistogramHandler.createHistogramSummary(worker.histogram) : null;
         },
         get terminating () {
           return worker.terminating;
