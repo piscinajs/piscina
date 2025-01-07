@@ -115,6 +115,43 @@ result in the `Piscina` worker threads being unusable.
 The `PiscinaHistogram` allows you to access the histogram data for the pool of worker threads.
 It can be reset upon request in case of a need to clear the data.
 
+**Example**:
+
+```js
+import { Piscina } from 'piscina';
+
+const pool = new Piscina({
+  filename: resolve(__dirname, 'path/to/worker.js'),
+});
+
+const firstBatch = [];
+
+for (let n = 0; n < 10; n++) {
+  firstBatch.push(pool.run('42'));
+}
+
+await Promise.all(firstBatch);
+
+console.log(pool.histogram.runTime); // Print run time histogram summary
+console.log(pool.histogram.waitTime); // Print wait time histogram summary
+
+// If in need to reset the histogram data for a new set of tasks
+pool.histogram.resetRunTime();
+pool.histogram.resetWaitTime();
+
+const secondBatch = [];
+
+for (let n = 0; n < 10; n++) {
+  secondBatch.push(pool.run('42'));
+}
+
+await Promise.all(secondBatch);
+
+// The histogram data will only contain the data for the second batch of tasks
+console.log(pool.histogram.runTime);
+console.log(pool.histogram.waitTime);
+```
+
 ### Interface: `PiscinaLoadBalancer`
 
 - `runTime`: (`PiscinaHistogramSummary`) Run Time Histogram Summary. Time taken to execute a task.
