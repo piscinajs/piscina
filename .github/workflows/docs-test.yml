@@ -1,0 +1,33 @@
+name: 'Documentation Build Test'
+on:
+  pull_request:
+    paths:
+      - docs/**
+
+jobs:
+  build:
+    permissions:
+      contents: read
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Use Node.js LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          cache: 'yarn'
+          cache-dependency-path: docs/package.json
+
+      - name: Install Dependencies
+        run: |
+          cd docs
+          yarn install --frozen-lockfile
+
+      - name: build
+        run: |
+          cd docs
+          yarn build

@@ -3,3 +3,5 @@
 package-lock.json
 coverage
 examples
+docs/**/*
+!docs/docs/**/*.md

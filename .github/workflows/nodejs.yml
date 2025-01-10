@@ -5,6 +5,8 @@ on:
       - next
       - 'v*'
   pull_request:
+    paths-ignore:
+      - docs/**
 
 name: CI
 
