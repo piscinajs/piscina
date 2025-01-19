@@ -66,7 +66,7 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
       this.port.close();
       this.clearIdleTimeout();
       for (const taskInfo of this.taskInfos.values()) {
-        taskInfo.done(Errors.ThreadTermination());
+        taskInfo.done(Errors.ThreadTermination(), null, true);
       }
       this.taskInfos.clear();
 
@@ -125,7 +125,7 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
       } catch (err) {
         // This would mostly happen if e.g. message contains unserializable data
         // or transferList is invalid.
-        taskInfo.done(<Error>err);
+        taskInfo.done(<Error>err, null, true);
         return;
       }
 

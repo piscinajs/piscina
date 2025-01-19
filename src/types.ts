@@ -27,6 +27,8 @@ export interface ReadyMessage {
 export interface ResponseMessage {
   taskId: number
   result: any
+  kind: 0 | 1; // 0 normal - 1 iterator
+  state: 0 | 1; // 0 done - 1 yield
   error: Error | null
   time: number | null
 }

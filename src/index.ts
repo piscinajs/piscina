@@ -37,6 +37,7 @@ import {
   PiscinaWorker,
   LeastBusyBalancer
 } from './worker_pool';
+import { WorkerStream } from './worker_pool/worker_stream';
 import {
   AbortSignalAny,
   AbortSignalEventTarget,
@@ -284,22 +285,28 @@ class ThreadPool {
       // remove the `TaskInfo` associated with the Worker, which marks it as
       // free again.
       const taskInfo = workerInfo.taskInfos.get(taskId);
-      workerInfo.taskInfos.delete(taskId);
-
-      // TODO: we can abstract the task info handling
-      // right into the pool.workers.taskDone method
-      pool.workers.taskDone(workerInfo);
 
       /* istanbul ignore if */
-      if (taskInfo === undefined) {
+      if (taskInfo == null) {
         const err = new Error(
           `Unexpected message from Worker: ${inspect(message)}`);
         pool.publicInterface.emit('error', err);
+        workerInfo.taskInfos.delete(taskId);
       } else {
-        taskInfo.done(message.error, result);
-      }
+        // Iterator -- yield
+        if (message.kind === 1) {
+          taskInfo.done(message.error, message.state === 0 ? null : result, message.state === 0)
+        } else {
+          workerInfo.taskInfos.delete(taskId);
+          taskInfo.done(message.error, result, true);
 
-      pool._processPendingMessages();
+          // TODO: we can abstract the task info handling
+          // right into the pool.workers.taskDone method
+          pool.workers.taskDone(workerInfo);
+
+          pool._processPendingMessages();
+        }
+      }
     }
 
     function onReady () {
@@ -369,7 +376,7 @@ class ThreadPool {
       // If there are remaining unfinished tasks, call the callback that was
       // passed to `postTask` with the error
       for (const taskInfo of taskInfos) {
-        taskInfo.done(err, null);
+        taskInfo.done(err, null, true);
       }
     } else if (!onlyErrorUnfinishedTasks) {
       // If there are no unfinished tasks, instead emit an 'error' event
@@ -514,15 +521,31 @@ class ThreadPool {
       transferList,
       filename,
       name,
-      (err : Error | null, result : any) => {
+      (err, result, done) => {
+        if (done === false) {
+          // TODO: implement custom Stream class
+          if (taskInfo.redeable == null) {
+            taskInfo.redeable = new WorkerStream();
+            resolve(taskInfo.redeable);
+          }
+          
+          taskInfo.redeable.push(result)
+          return;
+        } else if (done === true && taskInfo.redeable != null) {
+          taskInfo.redeable.push(null)
+        }
+
         this.completed++;
         if (taskInfo.started) {
           this.histogram?.recordRunTime(performance.now() - taskInfo.started);
         }
-        if (err !== null) {
-          reject(err);
-        } else {
-          resolve(result);
+
+        if (taskInfo.redeable == null && done === true) {
+          if (err !== null) {
+            reject(err);
+          } else {
+            resolve(result);
+          }
         }
 
         this._maybeDrain();
@@ -622,11 +645,11 @@ class ThreadPool {
     this.destroying = true;
     while (this.skipQueue.length > 0) {
       const taskInfo : TaskInfo = this.skipQueue.shift() as TaskInfo;
-      taskInfo.done(new Error('Terminating worker thread'));
+      taskInfo.done(new Error('Terminating worker thread'), null, true);
     }
     while (this.taskQueue.size > 0) {
       const taskInfo : TaskInfo = this.taskQueue.shift() as TaskInfo;
-      taskInfo.done(new Error('Terminating worker thread'));
+      taskInfo.done(new Error('Terminating worker thread'), null, true);
     }
 
     const exitEvents : Promise<any[]>[] = [];
@@ -651,7 +674,7 @@ class ThreadPool {
       for (let i = 0; i < skipQueueLength; i++) {
         const taskInfo : TaskInfo = this.skipQueue.shift() as TaskInfo;
         if (taskInfo.workerInfo === null) {
-          taskInfo.done(new AbortError('pool is closed'));
+          taskInfo.done(new AbortError('pool is closed'), null, true);
         } else {
           this.skipQueue.push(taskInfo);
         }
@@ -661,7 +684,7 @@ class ThreadPool {
       for (let i = 0; i < taskQueueLength; i++) {
         const taskInfo : TaskInfo = this.taskQueue.shift() as TaskInfo;
         if (taskInfo.workerInfo === null) {
-          taskInfo.done(new AbortError('pool is closed'));
+          taskInfo.done(new AbortError('pool is closed'), null, true);
         } else {
           this.taskQueue.push(taskInfo);
         }

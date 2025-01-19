@@ -26,6 +26,10 @@ commonState.workerData = workerData;
 function noop (): void {}
 
 const handlerCache : Map<string, Function> = new Map();
+const GeneratorFunctionConstructor = (function*(){}).constructor.name;
+const AsyncGeneratorConstructor = (async function*(){}).constructor.name;
+const AsyncFunctionConstructor = (async function(){}).constructor.name;
+const FunctionConstructor = (function(){}).constructor.name;
 let useAtomics : boolean = process.env.PISCINA_DISABLE_ATOMICS !== '1';
 let useAsyncAtomics : boolean = process.env.PISCINA_ENABLE_ASYNC_ATOMICS === '1';
 
@@ -123,9 +127,6 @@ function atomicsWaitLoop (port : MessagePort, sharedBuffer : Int32Array) {
   // running, we wait for a signal from the parent thread using Atomics.wait(),
   // and read the message from the port instead of generating an event,
   // in order to avoid that overhead.
-  // The one catch is that this stops asynchronous operations that are still
-  // running from proceeding. Generally, tasks should not spawn asynchronous
-  // operations without waiting for them to finish, though.
 
   if (useAsyncAtomics === true) {
     // @ts-expect-error - for some reason not supported by TS
@@ -177,13 +178,84 @@ async function onMessage (
     if (handler === null) {
       throw new Error(`No handler function exported from ${filename}`);
     }
-    let result = await handler(task);
-    if (isMovable(result)) {
-      transferList = transferList.concat(result[kTransferable]);
-      result = result[kValue];
+    
+    let result: any;
+    switch (handler.constructor.name) {
+      case FunctionConstructor: {
+        result = handler(task);
+
+        // Handle theneable
+        if (result?.then != null) {
+          result = await result;
+        }
+
+        if (isMovable(result)) {
+          transferList = transferList.concat(result[kTransferable]);
+          result = result[kValue];
+        }
+
+        break
+      }
+      case AsyncFunctionConstructor: {
+        result = await handler(task)
+        if (isMovable(result)) {
+          transferList = transferList.concat(result[kTransferable]);
+          result = result[kValue];
+        }
+        break;
+      }
+      case AsyncGeneratorConstructor: {
+        for await (const chunk of handler(task)) {
+          if (isMovable(chunk)) {
+            transferList = transferList.concat(result[kTransferable]);
+            result = result[kValue];
+          } else {
+            result = chunk;
+          }
+
+          const res = {
+            taskId,
+            kind: 1,
+            state: 1,
+            result,
+            error: null,
+            // time: start == null ? null : Math.round(performance.now() - start)
+          };
+
+          port.postMessage(res, transferList);
+        }
+        break;
+      }
+      case GeneratorFunctionConstructor: {
+        for (const chunk of handler(task)) {
+          if (isMovable(chunk)) {
+            transferList = transferList.concat(result[kTransferable]);
+            result = result[kValue];
+          } else {
+            result = chunk;
+          }
+
+          const res = {
+            taskId,
+            kind: 1,
+            state: 1,
+            result,
+            error: null,
+            // time: start == null ? null : Math.round(performance.now() - start)
+          };
+
+          port.postMessage(res, transferList);
+        }
+        break;
+      }
+      default: {
+        throw new Error(`Unsupported handler exported from ${filename}`);
+      }
     }
     response = {
       taskId,
+      kind: 0,
+      state: 0,
       result,
       error: null,
       time: start == null ? null : Math.round(performance.now() - start)
@@ -205,6 +277,8 @@ async function onMessage (
   } catch (error) {
     response = {
       taskId,
+      kind: 0,
+      state: 0,
       result: null,
       // It may be worth taking a look at the error cloning algorithm we
       // use in Node.js core here, it's quite a bit more flexible

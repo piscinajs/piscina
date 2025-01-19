@@ -8,11 +8,12 @@ import { isMovable } from '../common';
 import { kTransferable, kValue, kQueueOptions } from '../symbols';
 
 import type { Task, TaskQueue, PiscinaTask } from './common';
+import type { WorkerStream } from '../worker_pool/worker_stream';
 
 export { ArrayTaskQueue } from './array_queue';
 export { FixedQueue } from './fixed_queue';
 
-export type TaskCallback = (err: Error, result: any) => void
+export type TaskCallback = (err: Error, result: any, done: boolean) => void
 // Grab the type of `transferList` off `MessagePort`. At the time of writing,
 // only ArrayBuffer and MessagePort are valid, but let's avoid having to update
 // our types here every time Node.js adds support for more objects.
@@ -56,6 +57,7 @@ export class TaskInfo extends AsyncResource implements Task {
     workerInfo : WorkerInfo | null = null;
     created : number;
     started : number;
+    redeable : WorkerStream | null = null;
     aborted = false;
     _abortListener: (() => void) | null = null;
 
@@ -114,8 +116,11 @@ export class TaskInfo extends AsyncResource implements Task {
       return ret;
     }
 
-    done (err : Error | null, result? : any) : void {
-      this.runInAsyncScope(this.callback, null, err, result);
+    done (err : Error | null, result : any, done: boolean) : void {
+      this.runInAsyncScope(this.callback, null, err, result, done);
+
+      if (done === false) return;
+
       this.emitDestroy(); // `TaskInfo`s are used only once.
       // If an abort signal was used, remove the listener from it when
       // done to make sure we do not accidentally leak.
