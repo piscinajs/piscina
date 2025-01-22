@@ -523,7 +523,6 @@ class ThreadPool {
       name,
       (err, result, done) => {
         if (done === false) {
-          // TODO: implement custom Stream class
           if (taskInfo.redeable == null) {
             taskInfo.redeable = new WorkerStream();
             resolve(taskInfo.redeable);

@@ -22,3 +22,21 @@ test('should support iterator', (t) => {
     });
   });
 });
+
+test('should support async iterator', (t) => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures', 'async-iterator.js'),
+  });
+
+  t.plan(1);
+  pool.run(10).then((red: Readable) => {
+    const chunks: Buffer[] = [];
+    red.on('data', (chunk) => {
+      chunks.push(chunk);
+    });
+
+    red.on('end', () => {
+      t.equal(Buffer.concat(chunks).toString('utf-8'), '0123456789');
+    });
+  });
+});
