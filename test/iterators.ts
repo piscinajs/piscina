@@ -11,7 +11,7 @@ test('should support iterator', (t) => {
   });
 
   t.plan(1);
-  pool.run(10).then((red: Readable) => {
+  pool.run({ length: 10 }).then((red: Readable) => {
     const chunks: Buffer[] = [];
     red.on('data', (chunk) => {
       chunks.push(chunk);
@@ -23,13 +23,51 @@ test('should support iterator', (t) => {
   });
 });
 
+test('should handle iterator throw', (t) => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures', 'iterator.js'),
+  });
+
+  t.plan(2);
+  pool.run({ length: 5, throwNext: true }).then((red: Readable) => {
+    const chunks: Buffer[] = [];
+    red.on('data', (chunk) => {
+      chunks.push(chunk);
+    });
+    
+    red.on('error', (err) => {
+      t.equal(err.message, 'Thrown error');
+      t.equal(Buffer.concat(chunks).toString('utf-8'), '01');
+    });
+  });
+});
+
+test('should handle iterator throw (async)', (t) => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures', 'async-iterator.js'),
+  });
+
+  t.plan(2);
+  pool.run({ length: 5, throwNext: true }).then((red: Readable) => {
+    const chunks: Buffer[] = [];
+    red.on('data', (chunk) => {
+      chunks.push(chunk);
+    });
+    
+    red.on('error', (err) => {
+      t.equal(err.message, 'Thrown error');
+      t.equal(Buffer.concat(chunks).toString('utf-8'), '01');
+    });
+  });
+});
+
 test('should support async iterator', (t) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures', 'async-iterator.js'),
   });
 
   t.plan(1);
-  pool.run(10).then((red: Readable) => {
+  pool.run({ length: 10 }).then((red: Readable) => {
     const chunks: Buffer[] = [];
     red.on('data', (chunk) => {
       chunks.push(chunk);

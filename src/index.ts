@@ -295,7 +295,7 @@ class ThreadPool {
       } else {
         // Iterator -- yield
         if (message.kind === 1) {
-          taskInfo.done(message.error, message.state === 0 ? null : result, message.state === 0)
+          taskInfo.done(message.error, message.state === 0 ? null : result, message.error != null || message.state === 0)
         } else {
           workerInfo.taskInfos.delete(taskId);
           taskInfo.done(message.error, result, true);
@@ -531,7 +531,8 @@ class ThreadPool {
           taskInfo.redeable.push(result)
           return;
         } else if (done === true && taskInfo.redeable != null) {
-          taskInfo.redeable.push(null)
+          if (err == null) taskInfo.redeable.push(null);
+          else taskInfo.redeable.destroy(err)
         }
 
         this.completed++;
@@ -539,7 +540,7 @@ class ThreadPool {
           this.histogram?.recordRunTime(performance.now() - taskInfo.started);
         }
 
-        if (taskInfo.redeable == null && done === true) {
+        if (done === true) {
           if (err !== null) {
             reject(err);
           } else {

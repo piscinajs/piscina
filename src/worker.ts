@@ -179,7 +179,7 @@ async function onMessage (
       throw new Error(`No handler function exported from ${filename}`);
     }
     
-    let result: any;
+    let result: any = null;
     switch (handler.constructor.name) {
       case FunctionConstructor: {
         result = handler(task);
@@ -205,21 +205,14 @@ async function onMessage (
         break;
       }
       case AsyncGeneratorConstructor: {
+        // We only support string or buffer
         for await (const chunk of handler(task)) {
-          if (isMovable(chunk)) {
-            transferList = transferList.concat(result[kTransferable]);
-            result = result[kValue];
-          } else {
-            result = chunk;
-          }
-
           const res = {
             taskId,
             kind: 1,
             state: 1,
-            result,
+            result: chunk,
             error: null,
-            // time: start == null ? null : Math.round(performance.now() - start)
           };
 
           port.postMessage(res, transferList);
@@ -227,21 +220,14 @@ async function onMessage (
         break;
       }
       case GeneratorFunctionConstructor: {
+        // We only support string or buffer
         for (const chunk of handler(task)) {
-          if (isMovable(chunk)) {
-            transferList = transferList.concat(result[kTransferable]);
-            result = result[kValue];
-          } else {
-            result = chunk;
-          }
-
           const res = {
             taskId,
             kind: 1,
             state: 1,
-            result,
+            result: chunk,
             error: null,
-            // time: start == null ? null : Math.round(performance.now() - start)
           };
 
           port.postMessage(res, transferList);
@@ -252,6 +238,7 @@ async function onMessage (
         throw new Error(`Unsupported handler exported from ${filename}`);
       }
     }
+
     response = {
       taskId,
       kind: 0,
@@ -280,7 +267,7 @@ async function onMessage (
       kind: 0,
       state: 0,
       result: null,
-      // It may be worth taking a look at the error cloning algorithm we
+      // TODO: It may be worth taking a look at the error cloning algorithm we
       // use in Node.js core here, it's quite a bit more flexible
       error: <Error>error,
       time: start == null ? null : Math.round(performance.now() - start)
