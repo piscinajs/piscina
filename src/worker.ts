@@ -221,7 +221,7 @@ async function onMessage (
             error: null,
           };
 
-          port.postMessage(res, transferList);
+          queueMicrotask(() => { port.postMessage(res); })
         }
         break;
       }
@@ -242,7 +242,7 @@ async function onMessage (
             error: null,
           };
 
-          port.postMessage(res, transferList);
+          port.postMessage(res);
         }
         break;
       }
