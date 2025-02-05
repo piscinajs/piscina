@@ -207,6 +207,12 @@ async function onMessage (
       case AsyncGeneratorConstructor: {
         // We only support string or buffer
         for await (const chunk of handler(task)) {
+          if (typeof chunk !== 'string'
+            && Buffer.isBuffer(chunk) === false
+            && ArrayBuffer.isView(chunk) === false) {
+            throw new TypeError('AsyncIterators should only return string, buffer or typed arrays')
+          }
+
           const res = {
             taskId,
             kind: 1,
@@ -222,6 +228,12 @@ async function onMessage (
       case GeneratorFunctionConstructor: {
         // We only support string or buffer
         for (const chunk of handler(task)) {
+          if (typeof chunk !== 'string'
+            && Buffer.isBuffer(chunk) === false
+            && ArrayBuffer.isView(chunk) === false) {
+            throw new TypeError('AsyncIterators should only return string, buffer or typed arrays')
+          }
+
           const res = {
             taskId,
             kind: 1,
