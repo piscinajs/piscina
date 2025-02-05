@@ -213,6 +213,9 @@ async function onMessage (
             throw new TypeError('AsyncIterators should only return string, buffer or typed arrays')
           }
 
+          // TODO: change the shape of the response
+          // Ideally we can hint the main thread that the
+          // response will be streamed
           const res = {
             taskId,
             kind: 1,

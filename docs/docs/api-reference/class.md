@@ -55,55 +55,54 @@ This class extends [`EventEmitter`](https://nodejs.org/api/events.html) from Nod
     returning control to the main thread (avoid having open handles within a thread). If still want to have the possibility
     of having open handles or handle asynchrnous tasks, you can set the environment variable `PISCINA_ENABLE_ASYNC_ATOMICS` to `1` or setting `options.atomics` to `async`.
 
-**    :::info
+    :::info
     **Note**: The `async` mode comes with performance penalties and can lead to undesired behaviour if open handles are not tracked correctly.
     Workers should be designed to wait for all operations to finish before returning control to the main thread, if any background operations are still running
     `async` can be of help (e.g. for cache warming, etc).
     :::
-**
-  - `resourceLimits`: (`object`) See [Node.js new Worker options](https://nodejs.org/api/worker_threads.html#worker_threads_new_worker_filename_options)
-    - `maxOldGenerationSizeMb`: (`number`) The maximum size of each worker threads
-      main heap in MB.
-    - `maxYoungGenerationSizeMb`: (`number`) The maximum size of a heap space for
-      recently created objects.
-    - `codeRangeSizeMb`: (`number`) The size of a pre-allocated memory range used
-      for generated code.
-    - `stackSizeMb` : (`number`) The default maximum stack size for the thread.
-      Small values may lead to unusable Worker instances. Default: 4
-  - `env`: (`object`) If set, specifies the initial value of `process.env` inside
-    the worker threads. See [Node.js new Worker options](https://nodejs.org/api/worker_threads.html#worker_threads_new_worker_filename_options) for details.
-  - `argv`: (`any[]`) List of arguments that will be stringified and appended to
-    `process.argv` in the worker. See [Node.js new Worker options](https://nodejs.org/api/worker_threads.html#worker_threads_new_worker_filename_options) for details.
-  - `execArgv`: (`string[]`) List of Node.js CLI options passed to the worker.
-    See [Node.js new Worker options](https://nodejs.org/api/worker_threads.html#worker_threads_new_worker_filename_options) for details.
-  - `workerData`: (`any`) Any JavaScript value that can be cloned and made
-    available as `require('piscina').workerData`. See [Node.js new Worker options](https://nodejs.org/api/worker_threads.html#worker_threads_new_worker_filename_options)
-    for details. Unlike regular Node.js Worker Threads, `workerData` must not
-    specify any value requiring a `transferList`. This is because the `workerData`
-    will be cloned for each pooled worker.
-  - `taskQueue`: (`TaskQueue`) By default, Piscina uses a first-in-first-out
-    queue for submitted tasks. The `taskQueue` option can be used to provide an
-    alternative implementation. See [Custom Task Queues](https://github.com/piscinajs/piscina#custom_task_queues) for additional detail.
-  - `niceIncrement`: (`number`) An optional value that decreases priority for
-    the individual threads, i.e. the higher the value, the lower the priority
-    of the Worker threads. This value is used on Unix/Windows and requires the
-    optional [`@napi-rs/nice`](https://npmjs.org/package/@napi-rs/nice) module to be installed.
-    See [`nice(2)`](https://linux.die.net/man/2/nice) and [`SetThreadPriority`](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-setthreadpriority) for more details.
-  - `trackUnmanagedFds`: (`boolean`) An optional setting that, when `true`, will
-    cause Workers to track file descriptors managed using `fs.open()` and
-    `fs.close()`, and will close them automatically when the Worker exits.
-    Defaults to `true`. (This option is only supported on Node.js 12.19+ and
-    all Node.js versions higher than 14.6.0).
-  - `closeTimeout`: (`number`) An optional time (in milliseconds) to wait for the pool to
-    complete all in-flight tasks when `close()` is called. The default is `30000`
-  - `recordTiming`: (`boolean`) By default, run and wait time will be recorded
-    for the pool. To disable, set to `false`.
-  - `workerHistogram`: (`boolean`) By default `false`. It will hint the Worker pool to record statistics for each individual Worker
-  - `loadBalancer`: ([`PiscinaLoadBalancer`](#piscinaloadbalancer)) By default, Piscina uses a least-busy algorithm. The `loadBalancer`
-    option can be used to provide an alternative implementation. See [Custom Load Balancers](../advanced-topics/loadbalancer.mdx) for additional detail.
-  - `workerHistogram`: (`boolean`) By default `false`. It will hint the Worker pool to record statistics for each individual Worker
-  - `loadBalancer`: ([`PiscinaLoadBalancer`](#piscinaloadbalancer)) By default, Piscina uses a least-busy algorithm. The `loadBalancer`
-    option can be used to provide an alternative implementation. See [Custom Load Balancers](../advanced-topics/loadbalancer.mdx) for additional detail.
+- `resourceLimits`: (`object`) See [Node.js new Worker options](https://nodejs.org/api/worker_threads.html#worker_threads_new_worker_filename_options)
+  - `maxOldGenerationSizeMb`: (`number`) The maximum size of each worker threads
+    main heap in MB.
+  - `maxYoungGenerationSizeMb`: (`number`) The maximum size of a heap space for
+    recently created objects.
+  - `codeRangeSizeMb`: (`number`) The size of a pre-allocated memory range used
+    for generated code.
+  - `stackSizeMb` : (`number`) The default maximum stack size for the thread.
+    Small values may lead to unusable Worker instances. Default: 4
+- `env`: (`object`) If set, specifies the initial value of `process.env` inside
+  the worker threads. See [Node.js new Worker options](https://nodejs.org/api/worker_threads.html#worker_threads_new_worker_filename_options) for details.
+- `argv`: (`any[]`) List of arguments that will be stringified and appended to
+  `process.argv` in the worker. See [Node.js new Worker options](https://nodejs.org/api/worker_threads.html#worker_threads_new_worker_filename_options) for details.
+- `execArgv`: (`string[]`) List of Node.js CLI options passed to the worker.
+  See [Node.js new Worker options](https://nodejs.org/api/worker_threads.html#worker_threads_new_worker_filename_options) for details.
+- `workerData`: (`any`) Any JavaScript value that can be cloned and made
+  available as `require('piscina').workerData`. See [Node.js new Worker options](https://nodejs.org/api/worker_threads.html#worker_threads_new_worker_filename_options)
+  for details. Unlike regular Node.js Worker Threads, `workerData` must not
+  specify any value requiring a `transferList`. This is because the `workerData`
+  will be cloned for each pooled worker.
+- `taskQueue`: (`TaskQueue`) By default, Piscina uses a first-in-first-out
+  queue for submitted tasks. The `taskQueue` option can be used to provide an
+  alternative implementation. See [Custom Task Queues](https://github.com/piscinajs/piscina#custom_task_queues) for additional detail.
+- `niceIncrement`: (`number`) An optional value that decreases priority for
+  the individual threads, i.e. the higher the value, the lower the priority
+  of the Worker threads. This value is used on Unix/Windows and requires the
+  optional [`@napi-rs/nice`](https://npmjs.org/package/@napi-rs/nice) module to be installed.
+  See [`nice(2)`](https://linux.die.net/man/2/nice) and [`SetThreadPriority`](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-setthreadpriority) for more details.
+- `trackUnmanagedFds`: (`boolean`) An optional setting that, when `true`, will
+  cause Workers to track file descriptors managed using `fs.open()` and
+  `fs.close()`, and will close them automatically when the Worker exits.
+  Defaults to `true`. (This option is only supported on Node.js 12.19+ and
+  all Node.js versions higher than 14.6.0).
+- `closeTimeout`: (`number`) An optional time (in milliseconds) to wait for the pool to
+  complete all in-flight tasks when `close()` is called. The default is `30000`
+- `recordTiming`: (`boolean`) By default, run and wait time will be recorded
+  for the pool. To disable, set to `false`.
+- `workerHistogram`: (`boolean`) By default `false`. It will hint the Worker pool to record statistics for each individual Worker
+- `loadBalancer`: ([`PiscinaLoadBalancer`](#piscinaloadbalancer)) By default, Piscina uses a least-busy algorithm. The `loadBalancer`
+  option can be used to provide an alternative implementation. See [Custom Load Balancers](../advanced-topics/loadbalancer.mdx) for additional detail.
+- `workerHistogram`: (`boolean`) By default `false`. It will hint the Worker pool to record statistics for each individual Worker
+- `loadBalancer`: ([`PiscinaLoadBalancer`](#piscinaloadbalancer)) By default, Piscina uses a least-busy algorithm. The `loadBalancer`
+  option can be used to provide an alternative implementation. See [Custom Load Balancers](../advanced-topics/loadbalancer.mdx) for additional detail.
 
 :::caution
 Use caution when setting resource limits. Setting limits that are too low may
@@ -191,7 +190,7 @@ type PiscinaHistogramSummary = {
   p99_9: number;
   p99_99: number;
   p99_999: number;
-}
+};
 ```
 
 ## `PiscinaLoadBalancer`
@@ -239,6 +238,7 @@ interface PiscinaWorker {
 ### Example: Custom Load Balancer
 
 #### JavaScript
+
 <a id="custom-load-balancer-example-js"> </a>
 
 ```js
@@ -279,6 +279,7 @@ piscina
 ```
 
 #### TypeScript
+
 <a id="custom-load-balancer-example-ts"> </a>
 
 ```ts
