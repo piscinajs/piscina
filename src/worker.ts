@@ -207,6 +207,8 @@ async function onMessage (
       case AsyncGeneratorConstructor: {
         // We only support string or buffer
         for await (const chunk of handler(task)) {
+          // @ts-expect-error
+          process._rawDebug(`async iterator - chunk type ${typeof chunk}`);
           if (typeof chunk !== 'string'
             && Buffer.isBuffer(chunk) === false
             && ArrayBuffer.isView(chunk) === false) {
