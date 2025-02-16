@@ -6,6 +6,20 @@ import { kMovable, kTransferable, kValue } from './symbols';
 // States wether the worker is ready to receive tasks
 export const READY = '_WORKER_READY';
 
+// Ring Buffer
+export const RING_BUFFER_INDEXES = {
+  READ_INDEX: 0,
+  WRITE_INDEX: 1,
+  STATUS_INDEX: 2,
+}
+
+export const RING_BUFFER_STATUSES = {
+  PAUSED: 0,
+  RESUME: 1,
+  ENDED: 2,
+  ERRORED: 3, // ?
+};
+
 /**
  * True if the object implements the Transferable interface
  *

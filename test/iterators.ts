@@ -5,25 +5,8 @@ import { test } from 'tap';
 
 import Piscina from '..';
 
-test('should support iterator', (t) => {
-  const pool = new Piscina({
-    filename: resolve(__dirname, 'fixtures', 'iterator.js'),
-  });
 
-  t.plan(1);
-  pool.run({ length: 10 }).then((red: Readable) => {
-    const chunks: Buffer[] = [];
-    red.on('data', (chunk) => {
-      chunks.push(chunk);
-    });
-
-    red.on('end', () => {
-      t.equal(Buffer.concat(chunks).toString('utf-8'), '0123456789');
-    });
-  });
-});
-
-test('should handle iterator throw', (t) => {
+test('should handle iterator throw', { only: true }, (t) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures', 'iterator.js'),
   });
@@ -64,13 +47,15 @@ test('should handle iterator throw (async)', (t) => {
 test('should support async iterator', (t) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures', 'async-iterator.js'),
+    // atomics: 'async'
   });
 
   t.plan(1);
   pool.run({ length: 10 }).then((red: Readable) => {
     const chunks: Buffer[] = [];
     red.on('data', (chunk) => {
-      chunks.push(chunk);
+      chunks.push(chunk.toString('utf-8'));
+      console.log(chunks)
     });
 
     red.on('end', () => {

@@ -280,7 +280,8 @@ class ThreadPool {
     worker.postMessage(message, [port2]);
 
     function onMessage (message : ResponseMessage) {
-      const { taskId, result } = message;
+      const { taskId, result, shared } = message;
+      // console.log(message)
       // In case of success: Call the callback that was passed to `runTask`,
       // remove the `TaskInfo` associated with the Worker, which marks it as
       // free again.
@@ -295,7 +296,7 @@ class ThreadPool {
       } else {
         // Iterator -- yield
         if (message.kind === 1) {
-          taskInfo.done(message.error, message.state === 0 ? null : result, message.error != null || message.state === 0)
+          taskInfo.done(message.error, shared, message.state === 0)
         } else {
           workerInfo.taskInfos.delete(taskId);
           taskInfo.done(message.error, result, true);
@@ -524,11 +525,11 @@ class ThreadPool {
       (err, result, done) => {
         if (done === false) {
           if (taskInfo.redeable == null) {
-            taskInfo.redeable = new WorkerStream();
+            taskInfo.redeable = new WorkerStream(result as NonNullable<ResponseMessage['shared']>);
             resolve(taskInfo.redeable);
           }
           
-          taskInfo.redeable.push(result)
+          // taskInfo.redeable.push(result)
           return;
         } else if (done === true && taskInfo.redeable != null) {
           if (err == null) taskInfo.redeable.push(null);
