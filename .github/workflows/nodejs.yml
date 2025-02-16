@@ -33,7 +33,6 @@ jobs:
   tests:
     permissions:
       contents: read
-    needs: [lint]
     name: Tests
     strategy:
       fail-fast: false
@@ -52,9 +51,24 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
           cache-dependency-path: package.json
-      
+
       - name: Install Dependencies
         run: npm install
 
       - name: Run Tests
         run: npm run test:ci
+
+  automerge:
+    if: >
+      github.event_name == 'pull_request' && github.event.pull_request.user.login == 'dependabot[bot]'
+    needs:
+      - tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Merge Dependabot PR
+        uses: fastify/github-action-merge-dependabot@c3bde0759d4f24db16f7b250b2122bc2df57e817 # v3.11.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
