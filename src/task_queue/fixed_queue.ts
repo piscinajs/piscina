@@ -59,17 +59,10 @@ const kMask = kSize - 1;
 // but allows much quicker checks.
 
 class FixedCircularBuffer {
-  bottom: number
-  top: number
-  list: Array<Task | undefined>
-  next: FixedCircularBuffer | null
-
-  constructor () {
-    this.bottom = 0;
-    this.top = 0;
-    this.list = new Array(kSize);
-    this.next = null;
-  }
+  bottom: number = 0
+  top: number = 0
+  list: Array<Task | undefined> = new Array(kSize)
+  next: FixedCircularBuffer | null = null
 
   isEmpty () {
     return this.top === this.bottom;
@@ -116,7 +109,7 @@ class FixedCircularBuffer {
 export class FixedQueue implements TaskQueue {
   head: FixedCircularBuffer
   tail: FixedCircularBuffer
-  _size: number = 0
+  #size: number = 0
 
   constructor () {
     this.head = this.tail = new FixedCircularBuffer();
@@ -133,13 +126,13 @@ export class FixedQueue implements TaskQueue {
       this.head = this.head.next = new FixedCircularBuffer();
     }
     this.head.push(data);
-    this._size++;
+    this.#size++;
   }
 
   shift (): Task | null {
     const tail = this.tail;
     const next = tail.shift();
-    if (next !== null) this._size--;
+    if (next !== null) this.#size--;
     if (tail.isEmpty() && tail.next !== null) {
       // If there is another queue, it forms the new tail.
       this.tail = tail.next;
@@ -154,7 +147,7 @@ export class FixedQueue implements TaskQueue {
     while (true) {
       if (buffer.list.includes(task)) {
         buffer.remove(task);
-        this._size--;
+        this.#size--;
         break;
       }
       if (buffer.next === null) break;
@@ -179,6 +172,6 @@ export class FixedQueue implements TaskQueue {
   }
 
   get size () {
-    return this._size;
+    return this.#size;
   }
 };

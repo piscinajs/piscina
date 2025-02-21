@@ -3,7 +3,7 @@ const { ArrayTaskQueue, FixedQueue } = require('..');
 
 const QUEUE_SIZE = 100_000;
 
-const bench = new Bench({ time: 100 });
+const bench = new Bench({ time: 100, warmup: true });
 
 bench
   .add('ArrayTaskQueue full push + full shift', async () => {
@@ -26,7 +26,6 @@ bench
   });
 
 (async () => {
-  await bench.warmup();
   await bench.run();
 
   console.table(bench.table());
