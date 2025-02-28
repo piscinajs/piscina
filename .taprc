@@ -8,7 +8,7 @@ jobs: 2
 test-env: TS_NODE_PROJECT=test/tsconfig.json
 test-ignore: $.
 test-regex: ((\/|^)(test?|__test?__)\/.*|\.(tests?|spec)|^\/?tests?)\.([mc]js|ts)$
-timeout: 60
+timeout: 10
 ts: true
 jsx: false
 flow: false

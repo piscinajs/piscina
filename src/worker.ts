@@ -18,8 +18,8 @@ import {
   READY,
   commonState,
   isMovable,
-  RING_BUFFER_INDEXES
 } from './common';
+import { WorkerStreamWriter } from './worker_pool/worker_stream';
 
 commonState.isWorkerThread = true;
 commonState.workerData = workerData;
@@ -215,106 +215,66 @@ async function onMessage (
         break;
       }
       case AsyncGeneratorConstructor: {
-        // const READ_INDEX = 0;
-        // const WRITE_INDEX = 1;
-        // const STATUS_INDEX = 2;
-        // const CHUNK_HEADER_SIZE = 4;
-        const shared = {
-          state: new SharedArrayBuffer(128),
-          // TODO: make the buffer size configurable
-          data: new SharedArrayBuffer(1024 * 1024)
-        }
-        const state = new Int32Array(shared.state);
-        const buffer = Buffer.from(shared.data);
-        // const view = new DataView(shared.data);
+        const state = new SharedArrayBuffer(128);
+        const data = new SharedArrayBuffer(1024 * 1024);
+        const writer = new WorkerStreamWriter(state, data);
         const res = {
           taskId,
-          shared,
-          // result,
+          shared: {
+            state,
+            data,
+          },
           kind: 1,
           error: null,
-          // time: start == null ? null : Math.round(performance.now() - start)
         };
-        let stateStatus = 0;
 
-        // Hint the parent that we are preparing chunks of data
-        Atomics.store(state, RING_BUFFER_INDEXES.STATUS_INDEX, stateStatus);
         port.postMessage(res);
+        writer.prepare();
 
-        // let cursor = 0;
-        // We only support string, buffer or ArrayBuffer
-        let readPosition = 0;
-        let writePosition = 0;
-        
-        // Initial state
-        Atomics.store(state, RING_BUFFER_INDEXES.READ_INDEX, readPosition)
-        Atomics.store(state, RING_BUFFER_INDEXES.WRITE_INDEX, writePosition)
-        Atomics.notify(state, RING_BUFFER_INDEXES.READ_INDEX)
-        Atomics.notify(state, RING_BUFFER_INDEXES.WRITE_INDEX)
-
-        for await (let chunk of handler(task)) {
-          if (typeof chunk !== 'string'
-            && Buffer.isBuffer(chunk) === false
-            && ArrayBuffer.isView(chunk) === false) {
-            throw new TypeError('AsyncIterators should only return string, buffer or typed arrays')
+        try {
+          for await (const chunk of handler(task)) {
+            if(writer.write(chunk) === false) {
+              await writer.wait();
+            }
           }
-
-          process._rawDebug('>>>worker: chunk', Buffer.isBuffer(chunk));
-          chunk = (Buffer.isBuffer(chunk) || ArrayBuffer.isView(chunk) ? chunk : Buffer.from(chunk)) as Buffer;
-
-          process._rawDebug('>>>worker: chunk', chunk.toString('utf-8'), chunk.byteLength, (chunk as Buffer).length)
-          // process._rawDebug('>>>worker: write index', writePositon)
-
-          // Chunk header with the size of the chunk
-          buffer[writePosition] = chunk.byteLength
-          // Actual chunk data
-          buffer[++writePosition] = chunk;
-          writePosition++
-          
-          process._rawDebug('>>>worker: new write position', writePosition)
-
-          Atomics.store(state, RING_BUFFER_INDEXES.WRITE_INDEX, writePosition)
-
-          // If puased because first chunk, let's change state and move
-          if (stateStatus === 0) {
-            Atomics.store(state, RING_BUFFER_INDEXES.STATUS_INDEX, stateStatus += 1);
-          } else {
-            // For backpressure on the main thread
-            // @ts-expect-error - to allow further tasks to flush
-            await Atomics.waitAsync(state, STATUS_INDEX, 0)  // 0 - pause, 1 - resume, 2 - end, 3 - errored (?),   
-          }
-          
-          if (readPosition === writePosition) {
-            // @ts-expect-error - to allow further tasks to flush
-            await Atomics.waitAsync(state, READ_INDEX, readPosition);
-            readPosition = Atomics.load(state, RING_BUFFER_INDEXES.READ_INDEX);
-          }
+          writer.end();
+        } catch (e) {
+          writer.destroy();
+          throw e
         }
 
-        process._rawDebug('>>>worker: done', writePosition)
-        Atomics.store(state, RING_BUFFER_INDEXES.STATUS_INDEX, 2);
-        Atomics.notify(state, RING_BUFFER_INDEXES.STATUS_INDEX);
         break;
       }
       case GeneratorFunctionConstructor: {
-        // We only support string or buffer
-        for (const chunk of handler(task)) {
-          if (typeof chunk !== 'string'
-            && Buffer.isBuffer(chunk) === false
-            && ArrayBuffer.isView(chunk) === false) {
-            throw new TypeError('AsyncIterators should only return string, buffer or typed arrays')
+        const state = new SharedArrayBuffer(128);
+        const data = new SharedArrayBuffer(1024 * 1024);
+        const writer = new WorkerStreamWriter(state, data);
+
+        const res = {
+          taskId,
+          shared: {
+            state,
+            data,
+          },
+          kind: 1,
+          error: null,
+        };
+
+        port.postMessage(res);
+        writer.prepare();
+
+        try {
+          for (const chunk of handler(task)) {
+            if (writer.write(chunk) === false) {
+              await writer.wait();
+            }
           }
-
-          const res = {
-            taskId,
-            kind: 1,
-            state: 1,
-            result: chunk,
-            error: null,
-          };
-
-          port.postMessage(res);
+          writer.end();
+        } catch (e) {
+          writer.destroy();
+          throw e
         }
+
         break;
       }
       default: {

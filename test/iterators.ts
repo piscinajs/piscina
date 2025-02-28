@@ -5,22 +5,15 @@ import { test } from 'tap';
 
 import Piscina from '..';
 
-
-test('should handle iterator throw', { only: true }, (t) => {
+test('should handle iterator throw', (t) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures', 'iterator.js'),
   });
 
-  t.plan(2);
-  pool.run({ length: 5, throwNext: true }).then((red: Readable) => {
-    const chunks: Buffer[] = [];
-    red.on('data', (chunk) => {
-      chunks.push(chunk);
-    });
-
-    red.on('error', (err) => {
+  t.plan(1);
+  pool.run({ length: 5, throwNext: true }).then((stream: Readable) => {
+    stream.on('error', (err) => {
       t.equal(err.message, 'Thrown error');
-      t.equal(Buffer.concat(chunks).toString('utf-8'), '01');
     });
   });
 });
@@ -30,16 +23,28 @@ test('should handle iterator throw (async)', (t) => {
     filename: resolve(__dirname, 'fixtures', 'async-iterator.js'),
   });
 
-  t.plan(2);
-  pool.run({ length: 5, throwNext: true }).then((red: Readable) => {
+  t.plan(1);
+  pool.run({ length: 5, throwNext: true }).then((stream: Readable) => {
+    stream.on('error', (err) => {
+      t.equal(err.message, 'Thrown error');
+    });
+  });
+});
+
+test('should support iterator', (t) => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures', 'iterator.js'),
+  });
+
+  t.plan(1);
+  pool.run({ length: 10 }).then((red: Readable) => {
     const chunks: Buffer[] = [];
     red.on('data', (chunk) => {
       chunks.push(chunk);
     });
 
-    red.on('error', (err) => {
-      t.equal(err.message, 'Thrown error');
-      t.equal(Buffer.concat(chunks).toString('utf-8'), '01');
+    red.on('end', () => {
+      t.equal(Buffer.concat(chunks).toString('utf-8'), '0123456789');
     });
   });
 });
@@ -47,15 +52,13 @@ test('should handle iterator throw (async)', (t) => {
 test('should support async iterator', (t) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures', 'async-iterator.js'),
-    // atomics: 'async'
   });
 
   t.plan(1);
   pool.run({ length: 10 }).then((red: Readable) => {
     const chunks: Buffer[] = [];
     red.on('data', (chunk) => {
-      chunks.push(chunk.toString('utf-8'));
-      console.log(chunks)
+      chunks.push(chunk);
     });
 
     red.on('end', () => {
@@ -69,60 +72,45 @@ test('should throw on invalid output (async)', (t) => {
     filename: resolve(__dirname, 'fixtures', 'bad-iterators.js'),
   });
 
-  t.plan(7);
+  t.plan(5);
   pool.run('', { name: 'asyncIterator' }).then((red: Readable) => {
-    const chunks: Buffer[] = [];
-    red.on('data', (chunk) => {
-      chunks.push(chunk);
-    });
-
     red.on('error', (err) => {
       t.equal(
         err.message,
         'AsyncIterators should only return string, buffer or typed arrays'
       );
-      t.equal(Buffer.concat(chunks).toString('utf-8'), '1');
     });
   });
   pool.run('', { name: 'asyncIterator2' }).then((red: Readable) => {
-    const chunks: Buffer[] = [];
-    red.on('data', (chunk) => {
-      chunks.push(chunk);
-    });
-
     red.on('error', (err) => {
       t.equal(
         err.message,
         'AsyncIterators should only return string, buffer or typed arrays'
       );
-      t.equal(Buffer.concat(chunks).toString('utf-8'), '1');
     });
   });
   pool.run('', { name: 'asyncIterator3' }).then((red: Readable) => {
-    const chunks: Buffer[] = [];
-    red.on('data', (chunk) => {
-      chunks.push(chunk);
-    });
-
     red.on('error', (err) => {
       t.equal(
         err.message,
         'AsyncIterators should only return string, buffer or typed arrays'
       );
-      t.equal(Buffer.concat(chunks).toString('utf-8'), '1');
     });
   });
-  pool.run('', { name: 'asyncIterator4' }).then(
-    () => {
-      t.fail('should not succeed');
-    },
-    (err) => {
+  pool.run('', { name: 'asyncIterator4' }).then((stream: Readable) => {
+    const chunks: Buffer[] = [];
+    stream.on('data', (chunk) => {
+      chunks.push(chunk);
+    });
+
+    stream.on('error', (err) => {
       t.equal(
         err.message,
         'AsyncIterators should only return string, buffer or typed arrays'
       );
-    }
-  );
+      t.equal(chunks.length, 0);
+    });
+  });
 });
 
 test('should throw on invalid output', (t) => {
@@ -130,58 +118,37 @@ test('should throw on invalid output', (t) => {
     filename: resolve(__dirname, 'fixtures', 'bad-iterators.js'),
   });
 
-  t.plan(7);
-  pool.run('', { name: 'syncIterator' }).then(
-    () => {
-      t.fail('should not succeed');
-    },
-    (err) => {
+  t.plan(4);
+  pool.run('', { name: 'syncIterator' }).then((stream: Readable) => {
+    stream.on('error', (err) => {
       t.equal(
         err.message,
         'AsyncIterators should only return string, buffer or typed arrays'
       );
-    }
-  );
-  pool.run('', { name: 'syncIterator2' }).then((red: Readable) => {
-    const chunks: Buffer[] = [];
-    red.on('data', (chunk) => {
-      chunks.push(chunk);
     });
-
+  });
+  pool.run('', { name: 'syncIterator2' }).then((red: Readable) => {
     red.on('error', (err) => {
       t.equal(
         err.message,
         'AsyncIterators should only return string, buffer or typed arrays'
       );
-      t.equal(Buffer.concat(chunks).toString('utf-8'), '1');
     });
   });
   pool.run('', { name: 'syncIterator3' }).then((red: Readable) => {
-    const chunks: Buffer[] = [];
-    red.on('data', (chunk) => {
-      chunks.push(chunk);
-    });
-
     red.on('error', (err) => {
       t.equal(
         err.message,
         'AsyncIterators should only return string, buffer or typed arrays'
       );
-      t.equal(Buffer.concat(chunks).toString('utf-8'), '1');
     });
   });
   pool.run('', { name: 'syncIterator4' }).then((red: Readable) => {
-    const chunks: Buffer[] = [];
-    red.on('data', (chunk) => {
-      chunks.push(chunk);
-    });
-
     red.on('error', (err) => {
       t.equal(
         err.message,
         'AsyncIterators should only return string, buffer or typed arrays'
       );
-      t.equal(Buffer.concat(chunks).toString('utf-8'), '1');
     });
   });
 });

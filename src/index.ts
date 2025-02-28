@@ -294,7 +294,7 @@ class ThreadPool {
         pool.publicInterface.emit('error', err);
         workerInfo.taskInfos.delete(taskId);
       } else {
-        // Iterator -- yield
+        // 1 = iterator
         if (message.kind === 1) {
           taskInfo.done(message.error, shared, message.state === 0)
         } else {
@@ -528,26 +528,35 @@ class ThreadPool {
             taskInfo.redeable = new WorkerStream(result as NonNullable<ResponseMessage['shared']>);
             resolve(taskInfo.redeable);
           }
-          
-          // taskInfo.redeable.push(result)
-          return;
-        } else if (done === true && taskInfo.redeable != null) {
-          if (err == null) taskInfo.redeable.push(null);
-          else taskInfo.redeable.destroy(err)
-        }
-
-        this.completed++;
-        if (taskInfo.started) {
-          this.histogram?.recordRunTime(performance.now() - taskInfo.started);
-        }
-
-        if (done === true) {
-          if (err !== null) {
-            reject(err);
-          } else {
-            resolve(result);
+        } else if (done === true) {
+          this.completed++;
+          if (taskInfo.started) {
+            this.histogram?.recordRunTime(performance.now() - taskInfo.started);
           }
+  
+          if (err != null) {
+            // TODO: abstract mark task as done in TaskInfo
+            if (taskInfo.redeable != null) {
+              queueMicrotask(() => {
+                taskInfo.redeable!.destroy(err)
+              });
+            } else {
+              reject(err);
+            }
+          } else {
+            if (taskInfo.redeable == null) {
+              resolve(result);
+            }
+          } 
         }
+
+        // if (done === true) {
+        //   if (err !== null) {
+        //     reject(err);
+        //   } else {
+        //     resolve(result);
+        //   }
+        // }
 
         this._maybeDrain();
       },

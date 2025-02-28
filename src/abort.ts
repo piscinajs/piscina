@@ -23,7 +23,6 @@ export type AbortSignalAny = AbortSignalEventTarget | AbortSignalEventEmitter;
 export class AbortError extends Error {
   constructor (reason?: AbortSignalEventTarget['reason']) {
     // TS does not recognizes the cause clause
-    // @ts-expect-error
     super('The task has been aborted', { cause: reason });
   }
 

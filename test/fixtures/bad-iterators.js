@@ -6,6 +6,9 @@ module.exports = {
   },
   asyncIterator2: async function* () {
     yield new Int8Array([0x31]);
+    yield new Int8Array([0x31]);
+    yield new Int8Array([0x31]);
+    yield new Int8Array([0x31]);
     yield {}
   },
   asyncIterator3: async function* () {
