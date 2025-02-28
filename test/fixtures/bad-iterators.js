@@ -1,4 +1,4 @@
-// eslint-disable-next-line no-eval
+ 
 module.exports = {
   asyncIterator: async function* () {
     yield Buffer.from('1');
