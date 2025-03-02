@@ -59,6 +59,7 @@ export class TaskInfo extends AsyncResource implements Task {
     started : number;
     redeable : WorkerStream | null = null;
     aborted = false;
+    bufferSize : number;
     _abortListener: (() => void) | null = null;
 
     constructor (
@@ -66,6 +67,7 @@ export class TaskInfo extends AsyncResource implements Task {
       transferList : TransferList,
       filename : string,
       name : string,
+      bufferSize : number,
       callback : TaskCallback,
       abortSignal : AbortSignalAny | null,
       triggerAsyncId : number) {
@@ -91,6 +93,7 @@ export class TaskInfo extends AsyncResource implements Task {
 
       this.filename = filename;
       this.name = name;
+      this.bufferSize = bufferSize;
       // TODO: This should not be global
       this.taskId = taskIdCounter++;
       this.abortSignal = abortSignal;

@@ -178,7 +178,7 @@ async function onMessage (
   sharedBuffer : Int32Array,
   message : RequestMessage) {
   currentTasks++;
-  const { taskId, task, filename, name } = message;
+  const { taskId, task, filename, name, bufferSize } = message;
   let response : ResponseMessage;
   let transferList : any[] = [];
   const start = message.histogramEnabled === 1 ? performance.now() : null;
@@ -216,7 +216,7 @@ async function onMessage (
       }
       case AsyncGeneratorConstructor: {
         const state = new SharedArrayBuffer(128);
-        const data = new SharedArrayBuffer(1024 * 1024);
+        const data = new SharedArrayBuffer(bufferSize);
         const writer = new WorkerStreamWriter(state, data);
         const res = {
           taskId,
@@ -247,7 +247,7 @@ async function onMessage (
       }
       case GeneratorFunctionConstructor: {
         const state = new SharedArrayBuffer(128);
-        const data = new SharedArrayBuffer(1024 * 1024);
+        const data = new SharedArrayBuffer(bufferSize);
         const writer = new WorkerStreamWriter(state, data);
 
         const res = {

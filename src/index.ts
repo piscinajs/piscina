@@ -102,7 +102,8 @@ interface RunOptions {
   transferList? : TransferList,
   filename? : string | null,
   signal? : AbortSignalAny | null,
-  name? : string | null
+  name? : string | null,
+  bufferSize? : number | null
 }
 
 interface FilledRunOptions extends RunOptions {
@@ -110,6 +111,7 @@ interface FilledRunOptions extends RunOptions {
   filename : string | null,
   signal : AbortSignalAny | null,
   name : string | null
+  bufferSize : number | null
 }
 
 interface CloseOptions {
@@ -137,7 +139,8 @@ const kDefaultRunOptions : FilledRunOptions = {
   transferList: undefined,
   filename: null,
   signal: null,
-  name: null
+  name: null,
+  bufferSize: null,
 };
 
 const kDefaultCloseOptions : Required<CloseOptions> = {
@@ -487,7 +490,8 @@ class ThreadPool {
     options : RunOptions) : Promise<any> {
     let {
       filename,
-      name
+      name,
+      bufferSize,
     } = options;
     const {
       transferList = []
@@ -497,6 +501,9 @@ class ThreadPool {
     }
     if (name == null) {
       name = this.options.name;
+    }
+    if (bufferSize == null) {
+      bufferSize = 1024 * 1024;
     }
     if (typeof filename !== 'string') {
       return Promise.reject(Errors.FilenameNotProvided());
@@ -517,11 +524,13 @@ class ThreadPool {
     let reject : (err : Error) => void;
     // eslint-disable-next-line
     const ret = new Promise((res, rej) => { resolve = res; reject = rej; });
+    // TODO: group args
     const taskInfo = new TaskInfo(
       task,
       transferList,
       filename,
       name,
+      bufferSize,
       (err, result, done) => {
         if (done === false) {
           if (taskInfo.redeable == null) {
@@ -830,7 +839,8 @@ export default class Piscina<T = any, R = any> extends EventEmitterAsyncResource
       transferList,
       filename,
       name,
-      signal
+      signal,
+      bufferSize
     } = options;
     if (transferList !== undefined && !Array.isArray(transferList)) {
       return Promise.reject(
@@ -847,8 +857,19 @@ export default class Piscina<T = any, R = any> extends EventEmitterAsyncResource
       return Promise.reject(
         new TypeError('signal argument must be an object'));
     }
+    if (bufferSize != null &&
+        (
+          typeof bufferSize !== 'number'||
+          !Number.isInteger(bufferSize) ||
+          !Number.isFinite(bufferSize) ||
+          bufferSize <= 0
+        )
+      ) {
+      return Promise.reject(
+        new TypeError('bufferSize argument must be a finite integer'));
+    }
 
-    return this.#pool.runTask(task, { transferList, filename, name, signal });
+    return this.#pool.runTask(task, { transferList, filename, name, signal, bufferSize });
   }
 
   async close (options : CloseOptions = kDefaultCloseOptions) {

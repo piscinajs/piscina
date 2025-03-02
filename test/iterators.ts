@@ -31,6 +31,38 @@ test('should handle iterator throw (async)', (t) => {
   });
 });
 
+test('should support iterator with custom buffer size', { only: true }, (t) => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures', 'iterator.js'),
+  });
+
+  t.plan(1);
+  pool.run({ length: 10 }, { bufferSize: 100 }).then((red: Readable) => {
+    const chunks: Buffer[] = [];
+    red.on('data', (chunk) => {
+      chunks.push(chunk);
+    });
+
+    red.on('end', () => {
+      t.equal(Buffer.concat(chunks).toString('utf-8'), '0123456789');
+    });
+  });
+});
+
+test('should throw with custom buffer size not valid', { only: true }, (t) => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures', 'iterator.js'),
+  });
+
+  t.plan(5);
+  t.rejects(pool.run({}, { bufferSize: Infinity }));
+  // @ts-expect-error
+  t.rejects(pool.run({}, { bufferSize: '1' }));
+  t.rejects(pool.run({}, { bufferSize: 0 }));
+  t.rejects(pool.run({}, { bufferSize: -1 }));
+  t.rejects(pool.run({}, { bufferSize: 0.1 }));
+});
+
 test('should support iterator', (t) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures', 'iterator.js'),

@@ -17,7 +17,8 @@ export interface RequestMessage {
   task: any
   filename: string
   name: string
-  histogramEnabled: number
+  histogramEnabled: number,
+  bufferSize: number,
 }
 
 export interface ReadyMessage {
