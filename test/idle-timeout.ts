@@ -75,4 +75,7 @@ test('idle timeout will not let go of threads if Infinity is used as the value',
 
   const lateThreadIds = await Promise.all(secondTasks);
   deepEqual(earlyThreadIds, lateThreadIds);
+
+  await Promise.all([pool.run([buffer, 6]), pool.run([buffer, 6]), pool.run([buffer, 6])]);
+  equal(pool.threads.length, 2);
 });
