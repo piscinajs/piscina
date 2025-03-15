@@ -37,6 +37,9 @@ This class extends [`EventEmitter`](https://nodejs.org/api/events.html) from Nod
     :::info
     The default `idleTimeout` can lead to some performance loss in the application because of the overhead involved with stopping and starting new worker threads. To improve performance, try setting the `idleTimeout` explicitly.
     :::
+    :::info
+    Be careful when when setting `idleTimeout` to `Infinity`, as this will prevent the worker from shutting down, even when idle, potentially leading to resource overuse.
+    :::
   - `maxQueue`: (`number` | `string`) The maximum number of tasks that may be
     scheduled to run, but not yet running due to lack of available threads, at
     a given time. By default, there is no limit. The special value `'auto'`
