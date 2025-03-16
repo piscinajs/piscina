@@ -1,0 +1,46 @@
+---
+id: Worker Options
+sidebar_position: 4
+---
+
+import { WorkerWrapperComponent } from "@site/src/components/WorkerWrapper.mdx";
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+
+Using workers and pooling within your application can greatly enhance performance and stability. The renderer is processed on the main thread, so any processor intensive tasks are going to cause hangups for users, either delivering a poor UX or in many cases, causing the dreaded `pthread_kill` and crashing the app.
+
+Implementing workers is relatively straight-forward in development, but you might run into some issues when packaging your build.
+
+## electron-vite
+NB: While Electron / electron-vite officially support ESM, with the way that rollup packages the worker, electron ends up not being able read the worker. You must be using CJS in electron to read the worker modules. Besides, the bytecode plugin for obfuscating your code only works with CJS too.
+
+In your main file, import the path to your worker (not the wrapper - no wrapper is needed because of rollup) by appending `\*?modulePath` to the end of the path.
+
+```typescript
+import workerPath from './worker?modulePath';
+```
+
+During compilation, rollup will now automatically create a separate file for the worker in your main folder output at the given path. The path above resolves, and we can now use this in Piscina at run time.
+
+Create a pool with Piscina, and use the imported path instead. 
+
+For those using TypeScript, the filename export referenced in the guide is not needed.
+
+```typescript title="index.ts"
+const pool = new Piscina({
+	filename: workerPath,
+	workerData: {
+		userPath: path.join(app.getPath("userData")),
+	},
+});
+```
+
+Electron-specific modules are NOT accessible inside workers.
+
+If you need access to information that electron provides, (e.g. `app.getPath("userData")`), you'll need to pass in that data as workerData.
+
+That's it! You can now use pool like normal in the Piscina docs.
+
+For further help, reference the worker section of the docs from electron-vite.
+
+https://electron-vite.org/guide/dev#worker-threads
