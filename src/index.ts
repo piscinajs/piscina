@@ -388,6 +388,11 @@ class ThreadPool {
       return;
     }
 
+    // If Infinity was sent as a parameter, we skip setting the Timeout that clears the worker
+    if (this.options.idleTimeout === Infinity) {
+      return;
+    }
+
     if (workerInfo.taskInfos.size === 0 &&
         this.workers.size > this.options.minThreads) {
       workerInfo.idleTimeout = setTimeout(() => {

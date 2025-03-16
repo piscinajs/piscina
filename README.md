@@ -343,7 +343,9 @@ This class extends [`EventEmitter`][] from Node.js.
     running for this thread pool. The default is the number provided by [`os.availableParallelism`](https://nodejs.org/api/os.html#osavailableparallelism) * 1.5.
   * `idleTimeout`: (`number`) A timeout in milliseconds that specifies how long
     a `Worker` is allowed to be idle, i.e. not handling any tasks, before it is
-    shut down. By default, this is immediate. **Tip**: *The default `idleTimeout`
+    shut down. By default, this is immediate. If `Infinity` is passed as the value, 
+    the `Worker` never shuts down. Be careful when using `Infinity`, 
+    as it can lead to resource overuse. **Tip**: *The default `idleTimeout`
     can lead to some performance loss in the application because of the overhead
     involved with stopping and starting new worker threads. To improve performance,
     try setting the `idleTimeout` explicitly.*
