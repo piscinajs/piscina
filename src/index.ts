@@ -388,7 +388,7 @@ class ThreadPool {
       return;
     }
 
-    //If Infinity was sent as a parameter, we skip setting the Timeout that clears the worker
+    // If Infinity was sent as a parameter, we skip setting the Timeout that clears the worker
     if (this.options.idleTimeout === Infinity) {
       return;
     }
