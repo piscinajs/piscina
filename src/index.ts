@@ -435,6 +435,11 @@ class ThreadPool {
       }
     }
 
+    //If Infinity was sent as a parameter, we skip setting the Timeout that clears the worker
+    if (this.options.idleTimeout === Infinity) {
+      return;
+    }
+
     // If more workers than minThreads, we can remove idle workers
     if (workerInfo.currentUsage() === 0 &&
         this.workers.size > this.options.minThreads) {
