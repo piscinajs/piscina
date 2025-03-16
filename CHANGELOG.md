@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [5.0.0-alpha.2](https://github.com/piscinajs/piscina/compare/v5.0.0-alpha.1...v5.0.0-alpha.2) (2025-03-16)
+
+
+### Features
+
+* Allow long-running threads ([#757](https://github.com/piscinajs/piscina/issues/757)) ([f0f4fd3](https://github.com/piscinajs/piscina/commit/f0f4fd39d50dac47b411a2a7aee1ac2d744f0e2f))
+
 ## [5.0.0-alpha.1](https://github.com/piscinajs/piscina/compare/v5.0.0-alpha.0...v5.0.0-alpha.1) (2025-01-10)
 
 
