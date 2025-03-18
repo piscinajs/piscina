@@ -6,6 +6,7 @@ on:
 
 jobs:
   build:
+    if: github.event.base_ref == 'refs/heads/current'
     permissions:
       contents: read
     name: Build
@@ -38,6 +39,7 @@ jobs:
           path: docs/build
 
   deploy:
+    if: github.event.base_ref == 'refs/heads/current'
     permissions:
       pages: write
       id-token: write
