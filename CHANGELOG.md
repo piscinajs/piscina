@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [5.0.0](https://github.com/piscinajs/piscina/compare/v5.0.0-alpha.2...v5.0.0) (2025-05-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* drop v18 (#782)
+
+* drop v18 ([#782](https://github.com/piscinajs/piscina/issues/782)) ([7a87d6b](https://github.com/piscinajs/piscina/commit/7a87d6b16844943ebb237de6bd8285baa81bba0b))
+
 ## [5.0.0-alpha.2](https://github.com/piscinajs/piscina/compare/v5.0.0-alpha.1...v5.0.0-alpha.2) (2025-03-16)
 
 
