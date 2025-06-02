@@ -84,6 +84,8 @@ You can also check out this example on [github](https://github.com/piscinajs/pis
 
 Starting with Node.js 23.6.0+, you can run TypeScript files directly using Node.js's [experimental TypeScript support](https://nodejs.org/api/typescript.html). This eliminates the need for external TypeScript compilers or build steps.
 
+For Node.js versions 22.6.0 to 23.5.0, you need to explicitly enable the `--experimental-strip-types` flag. However, starting from Node.js 23.6.0+, type stripping is enabled by default.
+
 ```typescript title='worker.ts'
 
 interface Inputs {
@@ -110,4 +112,3 @@ const piscina = new Piscina({
 })();
 ```
 
-For Node.js versions 22.6.0 to 23.5.0, you need to explicitly enable the `--experimental-strip-types` flag. However, starting from Node.js 23.6.0+, type stripping is enabled by default.
