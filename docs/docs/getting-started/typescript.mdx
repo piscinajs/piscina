@@ -112,3 +112,32 @@ const piscina = new Piscina({
 })();
 ```
 
+## Using generics
+
+You can use generics to the types for the worker function:
+
+```typescript title='worker.ts'
+
+interface Inputs {
+  a: number;
+  b: number;
+}
+
+export default function addNumbers({ a, b }: Inputs): number {
+  return a + b;
+}
+```
+
+```typescript title='main.ts'
+
+import Piscina from 'piscina';
+
+const piscina = new Piscina<typeof import("./worker.ts")>({
+  filename: new URL("./worker.ts", import.meta.url).href,
+});
+
+(async () => {
+  const result = await piscina.run({ a: 2, b: 3 });
+  console.log('Result:', result);
+})();
+```

@@ -50,6 +50,7 @@
     "bench-node": "^0.7.0",
     "concat-stream": "^2.0.0",
     "eslint": "^9.16.0",
+    "expect-type": "^1.2.1",
     "gen-esm-wrapper": "^1.1.1",
     "glob": "^11.0.2",
     "neostandard": "^0.12.0",
