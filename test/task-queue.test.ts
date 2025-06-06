@@ -1,6 +1,6 @@
-import Piscina, { PiscinaTask, TaskQueue } from '..';
-import { test } from 'tap';
 import { resolve } from 'path';
+import Piscina, { PiscinaTask, TaskQueue } from 'piscina';
+import { test } from 'tap';
 
 test('will put items into a task queue until they can run', async ({ equal }) => {
   const pool = new Piscina({

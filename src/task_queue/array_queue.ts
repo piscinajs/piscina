@@ -1,6 +1,6 @@
 import assert from 'node:assert';
 
-import type { TaskQueue, Task } from '.';
+import type { TaskQueue, Task } from './index.js';
 
 export class ArrayTaskQueue implements TaskQueue {
   tasks: Task[] = []

@@ -1,7 +1,7 @@
 import type { MessagePort, Worker } from 'node:worker_threads';
 
-import type { READY } from './common';
-import type { kTransferable, kValue } from './symbols';
+import type { READY } from './common.js';
+import type { kTransferable, kValue } from './symbols.js';
 
 export interface StartupMessage {
   filename: string | null

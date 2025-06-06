@@ -1,7 +1,7 @@
-import Piscina from '..';
-import { test } from 'tap';
 import { resolve } from 'path';
-import { type PiscinaWorker } from '../dist/worker_pool';
+import Piscina from 'piscina';
+import { test } from 'tap';
+import { type PiscinaWorker } from 'piscina/worker_pool';
 
 test('pool will maintain run and wait time histograms by default', async ({ equal, ok }) => {
   const pool = new Piscina({

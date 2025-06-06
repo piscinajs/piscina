@@ -1,6 +1,6 @@
-import Piscina from '..';
-import { test } from 'tap';
 import { resolve } from 'path';
+import Piscina from 'piscina';
+import { test } from 'tap';
 
 function wait () {
   return new Promise((resolve) => setTimeout(resolve, 1500));

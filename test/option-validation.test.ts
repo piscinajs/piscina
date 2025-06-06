@@ -1,4 +1,4 @@
-import Piscina from '..';
+import Piscina from 'piscina';
 import { test } from 'tap';
 
 test('filename cannot be non-null/non-string', async ({ throws }) => {

@@ -1,4 +1,4 @@
-import * as Piscina from './index';
+import * as Piscina from './index.js';
 
 export default Piscina.Piscina;
-export * from './index';
+export * from './index.js';

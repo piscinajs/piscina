@@ -1,12 +1,11 @@
 {
   "compilerOptions": {
     "target": "ESNext",
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "lib": ["ES2019"],
     "declaration": true,
     "sourceMap": true,
-
     "downlevelIteration": true,
     "strict": true,
 

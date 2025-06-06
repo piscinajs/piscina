@@ -2,7 +2,7 @@ import { resolve } from 'node:path';
 
 import { test } from 'tap';
 
-import Piscina from '..';
+import Piscina from 'piscina';
 
 test('workerCreate/workerDestroy should be emitted while managing worker lifecycle', async t => {
   let index = 0;

@@ -2,15 +2,15 @@ import { AsyncResource } from 'node:async_hooks';
 import { performance } from 'node:perf_hooks';
 import type { MessagePort } from 'node:worker_threads';
 
-import type { AbortSignalAny, AbortSignalEventEmitter } from '../abort';
-import { isMovable } from '../common';
-import { kQueueOptions, kTransferable, kValue } from '../symbols';
-import type { WorkerInfo } from '../worker_pool';
+import type { AbortSignalAny, AbortSignalEventEmitter } from '../abort.js';
+import { isMovable } from '../common.js';
+import { kQueueOptions, kTransferable, kValue } from '../symbols.js';
+import type { WorkerInfo } from '../worker_pool/index.js';
 
-import type { PiscinaTask, Task, TaskQueue } from './common';
+import type { PiscinaTask, Task, TaskQueue } from './common.js';
 
-export { ArrayTaskQueue } from './array_queue';
-export { FixedQueue } from './fixed_queue';
+export { ArrayTaskQueue } from './array_queue.js';
+export { FixedQueue } from './fixed_queue.js';
 
 export type TaskCallback = (err: Error, result: any) => void
 // Grab the type of `transferList` off `MessagePort`. At the time of writing,

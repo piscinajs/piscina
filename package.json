@@ -3,10 +3,12 @@
   "version": "5.0.0",
   "description": "A fast, efficient Node.js Worker Thread Pool implementation",
   "type": "module",
-  "main": "./dist/index.js",
   "exports": {
     "./package.json": "./package.json",
-    ".": "./dist/index.js"
+    ".": "./dist/index.js",
+    "./symbols": "./dist/symbols.js",
+    "./worker_pool": "./dist/worker_pool/index.js",
+    "./common": "./dist/common.js"
   },
   "engines": {
     "node": ">=20.x"

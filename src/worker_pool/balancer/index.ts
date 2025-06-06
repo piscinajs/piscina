@@ -1,5 +1,5 @@
-import type { PiscinaTask } from '../../task_queue';
-import type { PiscinaWorker } from '..';
+import type { PiscinaTask } from '../../task_queue/index.js';
+import type { PiscinaWorker } from '../index.js';
 
 export type PiscinaLoadBalancer = (
   task: PiscinaTask,

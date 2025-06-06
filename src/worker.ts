@@ -7,18 +7,18 @@ import type {
   RequestMessage,
   ResponseMessage,
   StartupMessage
-} from './types';
+} from './types.js';
 import {
   kResponseCountField,
   kRequestCountField,
   kTransferable,
   kValue
-} from './symbols';
+} from './symbols.js';
 import {
   READY,
   commonState,
   isMovable
-} from './common';
+} from './common.js';
 
 commonState.isWorkerThread = true;
 commonState.workerData = workerData;

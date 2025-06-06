@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
-import Piscina from '..';
-import { test } from 'tap';
 import { resolve } from 'path';
+import Piscina from 'piscina';
+import { test } from 'tap';
 
 test('tasks can be aborted through AbortController while running', async ({ equal, rejects }) => {
   const pool = new Piscina({

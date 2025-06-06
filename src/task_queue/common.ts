@@ -1,4 +1,4 @@
-import type { kQueueOptions } from '../symbols';
+import type { kQueueOptions } from '../symbols.js';
 
 export interface TaskQueue {
     readonly size: number;

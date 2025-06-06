@@ -1,7 +1,7 @@
-import { fileURLToPath, URL } from 'node:url';
 import { availableParallelism } from 'node:os';
+import { fileURLToPath, URL } from 'node:url';
 
-import { kMovable, kTransferable, kValue } from './symbols';
+import { kMovable, kTransferable, kValue } from './symbols.js';
 
 // States wether the worker is ready to receive tasks
 export const READY = '_WORKER_READY';

@@ -1,6 +1,6 @@
-import Piscina from '..';
-import { test } from 'tap';
 import { resolve } from 'path';
+import Piscina from 'piscina';
+import { test } from 'tap';
 
 test('can destroy pool while tasks are running', async ({ rejects }) => {
   const pool = new Piscina({

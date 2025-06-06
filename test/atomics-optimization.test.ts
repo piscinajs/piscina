@@ -2,7 +2,7 @@ import { resolve } from 'node:path';
 
 import { test } from 'tap';
 
-import Piscina from '..';
+import Piscina from 'piscina';
 
 test('coverage test for Atomics optimization (sync mode)', async ({ equal }) => {
   const pool = new Piscina({

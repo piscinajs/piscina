@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 
 import { test } from 'tap';
 
-import Piscina from '..';
+import Piscina from 'piscina';
 
 test('close()', async (t) => {
   t.test('no pending tasks', async (t) => {
