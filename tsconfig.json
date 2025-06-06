@@ -21,5 +21,7 @@
     "paths": {
       "tap": ["./test/bap.ts"]
     }
-  }
+  },
+  "include": ["src", "test"],
+  "exclude": ["dist", "node_modules"]
 }
