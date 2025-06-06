@@ -8,7 +8,15 @@ interface TapTestOptions {
   only?: boolean;
 }
 
-type Typeofs = "string" | "number" | "bigint" | "boolean" | "symbol" | "undefined" | "object" | "function";
+type Typeofs =
+  | "string"
+  | "number"
+  | "bigint"
+  | "boolean"
+  | "symbol"
+  | "undefined"
+  | "object"
+  | "function";
 
 interface TapMatchers {
   test: typeof test;
@@ -27,17 +35,14 @@ interface TapMatchers {
 
   throws: (a: () => unknown, expectMessage?: string | RegExp | Error) => void;
 
-  resolves: (
-    a: ResolvesOrRejects,
-    message?: string,
-  ) => Promise<void>;
+  resolves: (a: ResolvesOrRejects, message?: string) => Promise<void>;
   rejects: (
     a: ResolvesOrRejects,
     expectMessage?: string | RegExp | Error,
     asMessage?: string,
   ) => Promise<void>;
 
-  fail: (message: string) => never;
+  fail: (message: string) => void;
   pass: (message: string) => void;
 }
 
@@ -217,22 +222,22 @@ function createScopedMatchers(label: string) {
 
     rejects: async (a, message) => {
       incrementTestCount();
-      bt.expect(a instanceof Function ? a : () => a).rejects.toThrow(message);
+      bt.expect(Promise.try(() => a)).rejects.toThrow(message);
     },
 
     resolves: async (a, message) => {
       incrementTestCount();
-      bt.expect(a instanceof Function ? a : () => a).resolves.pass(message);
+      bt.expect(Promise.try(() => a)).resolves.not.toThrow(message);
     },
 
     fail: (message) => {
       incrementTestCount();
-      throw new TapInstantFailureError(message);
+      bt.expect().fail(message);
     },
 
     pass: (message) => {
       incrementTestCount();
-      console.log(message);
+      bt.expect().pass(message);
     },
   };
 
