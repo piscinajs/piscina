@@ -6,9 +6,7 @@
   "exports": {
     "./package.json": "./package.json",
     ".": "./dist/index.js",
-    "./symbols": "./dist/symbols.js",
-    "./worker_pool": "./dist/worker_pool/index.js",
-    "./common": "./dist/common.js"
+    "./types": "./dist/*"
   },
   "engines": {
     "node": ">=20.x"
