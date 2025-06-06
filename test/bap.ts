@@ -53,6 +53,18 @@ type TapTestFn = (matchers: TapMatchers) => void | Promise<void>;
 
 const testPlans = new Map<symbol, TestPlan>();
 
+const seenLabelNames = new Map<string, number>();
+function dedupeLabelName(label: string) {
+  const count = seenLabelNames.get(label) ?? 0;
+  if (count > 0) {
+    seenLabelNames.set(label, count + 1);
+    return dedupeLabelName(label + " (" + count + ")");
+  } else {
+    seenLabelNames.set(label, 1);
+  }
+  return label;
+}
+
 /**
  * Run a test with options
  * @param label - The name of the test.
@@ -73,9 +85,10 @@ export function test(
 export function test(label: string, fn: TapTestFn): void;
 
 export function test(
-  label: string,
+  user_label: string,
   ...args: [fn: TapTestFn] | [options: TapTestOptions, fn: TapTestFn]
 ) {
+  const label = dedupeLabelName(user_label);
   const fn = args.length === 2 ? args[1] : args[0];
   const options = args.length === 2 ? args[0] : {};
 
