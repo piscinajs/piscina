@@ -128,6 +128,16 @@ export function test(
   }
 }
 
+class BapTestTestError extends Error {
+  public readonly arguments: unknown[];
+
+  constructor(message: string, args: unknown[]) {
+    super(message);
+    this.name = "BapTestTestError";
+    this.arguments = args;
+  }
+}
+
 function createScopedMatchers(label: string) {
   const key = Symbol(label);
 
@@ -146,7 +156,12 @@ function createScopedMatchers(label: string) {
   }
 
   const matchers: TapMatchers = {
-    test,
+    test: (...args) => {
+      throw new BapTestTestError(
+        "calling test.test() is not supported by bap yet",
+        args,
+      );
+    },
 
     type: (a, b) => {
       incrementTestCount();
@@ -232,9 +247,11 @@ function createScopedMatchers(label: string) {
       if (message instanceof Error) {
         bt.expect(a).rejects.toMatchObject(message);
       } else if (message) {
-        bt.expect(a).rejects.toMatchObject(bt.expect.objectContaining({
-          message: bt.expect.stringMatching(message)
-        }));
+        bt.expect(a).rejects.toMatchObject(
+          bt.expect.objectContaining({
+            message: bt.expect.stringMatching(message),
+          }),
+        );
       } else {
         bt.expect(a).rejects.pass();
       }
