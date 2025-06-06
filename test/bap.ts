@@ -1,9 +1,10 @@
 import * as bt from "bun:test";
+import assert from "node:assert";
 
 type ResolvesOrRejects = PromiseLike<unknown> | (() => PromiseLike<unknown>);
 
 interface TapTestOptions {
-  skip?: boolean;
+  skip?: boolean | string;
   only?: boolean;
 }
 
@@ -78,12 +79,7 @@ export function test(
   const skip = options?.skip ?? false;
   const only = options?.only ?? false;
 
-  if (!fn) {
-    throw new Error(
-      "No test function provided. Got arguments: " +
-        [...arguments].map((arg) => arg.constructor.name).join(", "),
-    );
-  }
+  assert(fn, "No test function provided");
 
   const run = async () => {
     using matchers = createScopedMatchers(label);
