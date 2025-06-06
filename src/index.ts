@@ -993,8 +993,8 @@ export const workerData = Piscina.workerData;
 
 export {
   Piscina,
-  PiscinaTask,
-  TaskQueue,
+  type PiscinaTask,
+  type TaskQueue,
   kTransferable as transferableSymbol,
   kValue as valueSymbol,
   kQueueOptions as queueOptionsSymbol,

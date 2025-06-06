@@ -1,13 +1,13 @@
-import type { MessagePort } from 'node:worker_threads';
-import { performance } from 'node:perf_hooks';
 import { AsyncResource } from 'node:async_hooks';
+import { performance } from 'node:perf_hooks';
+import type { MessagePort } from 'node:worker_threads';
 
-import type { WorkerInfo } from '../worker_pool';
 import type { AbortSignalAny, AbortSignalEventEmitter } from '../abort';
 import { isMovable } from '../common';
-import { kTransferable, kValue, kQueueOptions } from '../symbols';
+import { kQueueOptions, kTransferable, kValue } from '../symbols';
+import type { WorkerInfo } from '../worker_pool';
 
-import type { Task, TaskQueue, PiscinaTask } from './common';
+import type { PiscinaTask, Task, TaskQueue } from './common';
 
 export { ArrayTaskQueue } from './array_queue';
 export { FixedQueue } from './fixed_queue';
@@ -145,4 +145,4 @@ export class TaskInfo extends AsyncResource implements Task {
     }
 }
 
-export { Task, TaskQueue, PiscinaTask };
+export type { PiscinaTask, Task, TaskQueue };

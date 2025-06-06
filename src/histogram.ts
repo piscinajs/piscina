@@ -1,4 +1,4 @@
-import { RecordableHistogram, createHistogram } from 'node:perf_hooks';
+import { type RecordableHistogram, createHistogram } from 'node:perf_hooks';
 
 export type PiscinaHistogramSummary = {
   average: number;

@@ -1,13 +1,13 @@
 import { Worker, MessagePort, receiveMessageOnPort } from 'node:worker_threads';
-import { createHistogram, RecordableHistogram } from 'node:perf_hooks';
+import { createHistogram, type RecordableHistogram } from 'node:perf_hooks';
 import assert from 'node:assert';
 
-import { RequestMessage, ResponseMessage } from '../types';
+import type { RequestMessage, ResponseMessage } from '../types';
 import { Errors } from '../errors';
 
 import { TaskInfo } from '../task_queue';
 import { kFieldCount, kRequestCountField, kResponseCountField, kWorkerData } from '../symbols';
-import { PiscinaHistogramHandler, PiscinaHistogramSummary } from '../histogram';
+import { PiscinaHistogramHandler, type PiscinaHistogramSummary } from '../histogram';
 
 import { AsynchronouslyCreatedResource, AsynchronouslyCreatedResourcePool } from './base';
 export * from './balancer';
