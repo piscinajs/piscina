@@ -38,15 +38,13 @@ interface TapMatchers {
   resolves: (a: ResolvesOrRejects, message?: string) => Promise<void>;
   rejects: (
     a: ResolvesOrRejects,
-    expectMessage?: string | RegExp | Error,
+    expectMessage: string | RegExp | Error,
     asMessage?: string,
   ) => Promise<void>;
 
   fail: (message: string) => void;
   pass: (message: string) => void;
 }
-
-class TapInstantFailureError extends Error {}
 
 interface TestPlan {
   expected: number;
@@ -149,7 +147,7 @@ function createScopedMatchers(label: string) {
 
     type: (a, b) => {
       incrementTestCount();
-      bt.expect(typeof a).toBe(b);
+      bt.expect(typeof a).toBeTypeOf(b);
     },
 
     match: (a, b) => {
@@ -222,12 +220,23 @@ function createScopedMatchers(label: string) {
 
     rejects: async (a, message) => {
       incrementTestCount();
-      bt.expect(Promise.try(() => a)).rejects.toThrow(message);
+
+      if (message instanceof Error) {
+        bt.expect(a).rejects.toMatchObject(message);
+      } else {
+        bt.expect(a).rejects.toMatchObject(bt.expect.objectContaining({
+          message: bt.expect.stringMatching(message)
+        }));
+      }
     },
 
     resolves: async (a, message) => {
       incrementTestCount();
-      bt.expect(Promise.try(() => a)).resolves.not.toThrow(message);
+      if (message !== undefined) {
+        bt.expect(a).resolves.pass(message);
+      } else {
+        bt.expect(a).resolves.pass();
+      }
     },
 
     fail: (message) => {
