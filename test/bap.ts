@@ -12,6 +12,7 @@ interface TapMatchers {
 
   plan: (n: number, comment?: string) => void;
 
+  match: (a: unknown, b: object | string | null | RegExp | Error) => void;
   ok: (a: unknown) => void;
   notOk: (a: unknown) => void;
   same: (a: unknown, b: unknown) => void;
@@ -132,6 +133,16 @@ function createScopedMatchers(label: string) {
 
   const matchers: TapMatchers = {
     test,
+
+    match: (a, b) => {
+      if (typeof b === "string" || b instanceof RegExp) {
+        bt.expect(a).toMatch(b);
+      } else if (typeof b === "object" && b !== null) {
+        bt.expect(a).toMatchObject(b);
+      } else {
+        bt.expect(a).toBe(b);
+      }
+    },
 
     plan: (n, comment) => {
       if (testPlans.has(key)) {
