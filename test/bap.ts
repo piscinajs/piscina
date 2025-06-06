@@ -1,4 +1,5 @@
-/// <reference path="../node_modules/bun-types/test.d.ts" />
+// @ts-nocheck
+
 import * as bt from "bun:test";
 import assert from "node:assert";
 
