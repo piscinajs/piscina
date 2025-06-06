@@ -28,8 +28,7 @@ interface TapMatchers {
 
   resolves: (
     a: ResolvesOrRejects,
-    expectMessage?: string | RegExp | Error,
-    asMessage?: string,
+    message?: string,
   ) => Promise<void>;
   rejects: (
     a: ResolvesOrRejects,
@@ -212,12 +211,12 @@ function createScopedMatchers(label: string) {
 
     rejects: async (a, message) => {
       incrementTestCount();
-      bt.expect(a).rejects.toThrow(message);
+      bt.expect(a instanceof Function ? a : () => a).rejects.toThrow(message);
     },
 
     resolves: async (a, message) => {
       incrementTestCount();
-      bt.expect(a).resolves.toBe(message);
+      bt.expect(a instanceof Function ? a : () => a).resolves.pass(message);
     },
 
     fail: (message) => {
