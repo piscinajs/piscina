@@ -33,7 +33,7 @@ interface TapMatchers {
   not: (a: unknown, b: unknown) => void;
   strictNotSame: (a: unknown, b: unknown) => void;
   strictSame: (a: unknown, b: unknown) => void;
-  equal: (a: unknown, b: unknown) => void;
+  equal: (a: unknown, b: unknown, message?: string) => void;
   deepEqual: (a: unknown, b: unknown) => void;
 
   throws: (a: () => unknown, expectMessage?: string | RegExp | Error) => void;
