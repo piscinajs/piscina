@@ -17,8 +17,12 @@
     "noFallthroughCasesInSwitch": true,
     "esModuleInterop": true,
 
-    "resolveJsonModule": true,                /* Include modules imported with '.json' extension */
-    "forceConsistentCasingInFileNames": true  /* Disallow inconsistently-cased references to the same file. */
+    "resolveJsonModule": true /* Include modules imported with '.json' extension */,
+    "forceConsistentCasingInFileNames": true /* Disallow inconsistently-cased references to the same file. */,
+
+    "paths": {
+      "tap": ["./tap-harness.ts"]
+    }
   },
-  "include": ["src"],
+  "include": ["src", "test"]
 }

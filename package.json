@@ -68,5 +68,8 @@
   "directories": {
     "example": "examples",
     "test": "test"
+  },
+  "dependencies": {
+    "@types/bun": "^1.2.15"
   }
 }
