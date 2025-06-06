@@ -1,17 +1,59 @@
 {
   "name": "piscina",
   "version": "5.0.0",
-  "description": "A fast, efficient Node.js Worker Thread Pool implementation",
+  "author": "James M Snell <jasnell@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/piscinajs/piscina.git"
+  },
   "main": "./dist/main.js",
-  "types": "./dist/index.d.ts",
+  "devDependencies": {
+    "@types/node": "^22.4.1",
+    "abort-controller": "^3.0.0",
+    "bun-types": "^1.2.15",
+    "c8": "^10.1.2",
+    "concat-stream": "^2.0.0",
+    "eslint": "^9.16.0",
+    "gen-esm-wrapper": "^1.1.1",
+    "neostandard": "^0.12.0",
+    "prettier": "^3.5.3",
+    "tap": "^16.3.7",
+    "tinybench": "^4.0.1",
+    "ts-node": "^10.9.2",
+    "typescript": "5.8.3"
+  },
+  "optionalDependencies": {
+    "@napi-rs/nice": "^1.0.1"
+  },
   "exports": {
     "types": "./dist/index.d.ts",
     "import": "./dist/esm-wrapper.mjs",
     "require": "./dist/main.js"
   },
+  "bugs": {
+    "url": "https://github.com/piscinajs/piscina/issues"
+  },
+  "contributors": [
+    "Anna Henningsen <anna@addaleax.net>",
+    "Matteo Collina <matteo.collina@gmail.com>",
+    "Carlos Fuentes <me@metcoder.dev>"
+  ],
+  "description": "A fast, efficient Node.js Worker Thread Pool implementation",
+  "directories": {
+    "example": "examples",
+    "test": "test"
+  },
   "engines": {
     "node": ">=20.x"
   },
+  "homepage": "https://github.com/piscinajs/piscina#readme",
+  "keywords": [
+    "fast",
+    "worker threads",
+    "thread pool",
+    "wade wilson"
+  ],
+  "license": "MIT",
   "scripts": {
     "build": "tsc -p tsconfig.build.json && gen-esm-wrapper . dist/esm-wrapper.mjs",
     "lint": "eslint",
@@ -28,49 +70,5 @@
     "benchmark:queue:fixed": "node benchmark/simple-benchmark-fixed-queue.js",
     "benchmark:queue:comparison": "node benchmark/queue-comparison.js"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/piscinajs/piscina.git"
-  },
-  "keywords": [
-    "fast",
-    "worker threads",
-    "thread pool",
-    "wade wilson"
-  ],
-  "author": "James M Snell <jasnell@gmail.com>",
-  "contributors": [
-    "Anna Henningsen <anna@addaleax.net>",
-    "Matteo Collina <matteo.collina@gmail.com>",
-    "Carlos Fuentes <me@metcoder.dev>"
-  ],
-  "license": "MIT",
-  "devDependencies": {
-    "@types/node": "^22.4.1",
-    "abort-controller": "^3.0.0",
-    "c8": "^10.1.2",
-    "concat-stream": "^2.0.0",
-    "eslint": "^9.16.0",
-    "gen-esm-wrapper": "^1.1.1",
-    "neostandard": "^0.12.0",
-    "prettier": "^3.5.3",
-    "tap": "^16.3.7",
-    "tinybench": "^4.0.1",
-    "ts-node": "^10.9.2",
-    "typescript": "5.8.3"
-  },
-  "optionalDependencies": {
-    "@napi-rs/nice": "^1.0.1"
-  },
-  "bugs": {
-    "url": "https://github.com/piscinajs/piscina/issues"
-  },
-  "homepage": "https://github.com/piscinajs/piscina#readme",
-  "directories": {
-    "example": "examples",
-    "test": "test"
-  },
-  "dependencies": {
-    "@types/bun": "^1.2.15"
-  }
+  "types": "./dist/index.d.ts"
 }

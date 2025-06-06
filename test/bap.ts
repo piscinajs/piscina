@@ -1,3 +1,4 @@
+/// <reference path="../node_modules/bun-types/test.d.ts" />
 import * as bt from "bun:test";
 import assert from "node:assert";
 
@@ -32,6 +33,7 @@ interface TapMatchers {
   strictNotSame: (a: unknown, b: unknown) => void;
   strictSame: (a: unknown, b: unknown) => void;
   equal: (a: unknown, b: unknown) => void;
+  deepEqual: (a: unknown, b: unknown) => void;
 
   throws: (a: () => unknown, expectMessage?: string | RegExp | Error) => void;
 
@@ -148,6 +150,11 @@ function createScopedMatchers(label: string) {
     type: (a, b) => {
       incrementTestCount();
       bt.expect(typeof a).toBeTypeOf(b);
+    },
+
+    deepEqual: (a, b) => {
+      incrementTestCount();
+      bt.expect(a).toStrictEqual(b);
     },
 
     match: (a, b) => {
