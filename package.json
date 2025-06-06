@@ -13,7 +13,7 @@
     "node": ">=20.x"
   },
   "scripts": {
-    "build": "tsc && gen-esm-wrapper . dist/esm-wrapper.mjs",
+    "build": "tsc -p tsconfig.build.json && gen-esm-wrapper . dist/esm-wrapper.mjs",
     "lint": "eslint",
     "test": "c8 tap",
     "test:ci": "npm run lint && npm run build && npm run test:coverage",
