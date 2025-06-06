@@ -2,22 +2,35 @@ import * as bt from "bun:test";
 
 type ResolvesOrRejects = PromiseLike<unknown> | (() => PromiseLike<unknown>);
 
+interface TapTestOptions {
+  skip?: boolean;
+  only?: boolean;
+}
+
 interface TapMatchers {
   test: typeof test;
 
   plan: (n: number, comment?: string) => void;
-  equal: (a: any, b: any) => Promise<void>;
-  ok: (a: any) => Promise<void>;
+
+  ok: (a: unknown) => void;
+  notOk: (a: unknown) => void;
+  same: (a: unknown, b: unknown) => void;
+  strictNotSame: (a: unknown, b: unknown) => void;
+  equal: (a: unknown, b: unknown) => void;
+
+  throws: (a: () => unknown, expectMessage?: string | RegExp | Error) => void;
+
   resolves: (
     a: ResolvesOrRejects,
-    expectMessage?: string | RegExp,
+    expectMessage?: string | RegExp | Error,
     asMessage?: string,
-  ) => Promise<void>;
+  ) => void;
   rejects: (
     a: ResolvesOrRejects,
-    expectMessage?: string | RegExp,
+    expectMessage?: string | RegExp | Error,
     asMessage?: string,
-  ) => Promise<void>;
+  ) => void;
+
   fail: (message: string) => never;
   pass: (message: string) => void;
 }
@@ -30,13 +43,48 @@ interface TestPlan {
   comment?: string;
 }
 
+type TapTestFn = (matchers: TapMatchers) => void | Promise<void>;
+
 const testPlans = new Map<symbol, TestPlan>();
+
+/**
+ * Run a test with options
+ * @param label - The name of the test.
+ * @param options - The options for the test.
+ * @param fn - The test function.
+ */
+export function test(
+  label: string,
+  options: TapTestOptions,
+  fn: TapTestFn,
+): void;
+
+/**
+ * Run a test without options
+ * @param label - The name of the test.
+ * @param fn - The test function.
+ */
+export function test(label: string, fn: TapTestFn): void;
 
 export function test(
   label: string,
-  fn: (matchers: TapMatchers) => Promise<void> | void,
+  fnOrOptions: TapTestFn | TapTestOptions,
+  fnReal?: TapTestFn,
 ) {
-  return bt.test(label, async () => {
+  const options = typeof fnOrOptions === "function" ? {} : fnOrOptions;
+  const fn = typeof fnOrOptions === "function" ? fnOrOptions : fnReal;
+
+  if (!fn) {
+    throw new Error(
+      "No test function provided. Got arguments: " +
+        [...arguments].map((arg) => arg.constructor.name).join(", "),
+    );
+  }
+
+  const skip = options?.skip ?? false;
+  const only = options?.only ?? false;
+
+  const doIt = async () => {
     using matchers = createScopedMatchers(label);
 
     try {
@@ -54,7 +102,15 @@ export function test(
     } finally {
       testPlans.delete(matchers.key);
     }
-  });
+  };
+
+  if (skip) {
+    bt.test.skip(label, doIt);
+  } else if (only) {
+    bt.test.only(label, doIt);
+  } else {
+    bt.test(label, doIt);
+  }
 }
 
 function createScopedMatchers(label: string) {
@@ -95,22 +151,42 @@ function createScopedMatchers(label: string) {
       }
     },
 
-    equal: async (a, b) => {
+    same: (a, b) => {
+      incrementTestCount();
+      bt.expect(a).toStrictEqual(b);
+    },
+
+    strictNotSame: (a, b) => {
+      incrementTestCount();
+      bt.expect(a).not.toBe(b);
+    },
+
+    notOk: (a) => {
+      incrementTestCount();
+      bt.expect(a).toBeFalsy();
+    },
+
+    throws: (a, message) => {
+      incrementTestCount();
+      bt.expect(a).toThrow(message);
+    },
+
+    equal: (a, b) => {
       incrementTestCount();
       bt.expect(a).toBe(b);
     },
 
-    ok: async (a) => {
+    ok: (a) => {
       incrementTestCount();
       bt.expect(a).toBeTruthy();
     },
 
-    rejects: async (a, message) => {
+    rejects: (a, message) => {
       incrementTestCount();
       bt.expect(a).rejects.toThrow(message);
     },
 
-    resolves: async (a, message) => {
+    resolves: (a, message) => {
       incrementTestCount();
       bt.expect(a).resolves.toBe(message);
     },
