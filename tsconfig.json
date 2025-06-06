@@ -21,7 +21,7 @@
     "forceConsistentCasingInFileNames": true /* Disallow inconsistently-cased references to the same file. */,
 
     "paths": {
-      "tap": ["./tap-harness.ts"]
+      "tap": ["./bap.ts"]
     }
   },
   "include": ["src", "test"]
