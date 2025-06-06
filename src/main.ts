@@ -1,4 +1,4 @@
-import Piscina from './index';
+import * as Piscina from './index';
 
-// Used as the require() entry point to maintain existing behavior
-export default Piscina;
+export default Piscina.Piscina;
+export * from './index';

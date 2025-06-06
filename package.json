@@ -2,19 +2,16 @@
   "name": "piscina",
   "version": "5.0.0",
   "description": "A fast, efficient Node.js Worker Thread Pool implementation",
-  "main": "./dist/main.js",
-  "types": "./dist/index.d.ts",
   "type": "module",
   "exports": {
-    "types": "./dist/index.d.ts",
-    "import": "./dist/esm-wrapper.mjs",
-    "require": "./dist/main.js"
+    "./package.json": "./package.json",
+    ".": "./dist/index.js"
   },
   "engines": {
     "node": ">=20.x"
   },
   "scripts": {
-    "build": "tsc && gen-esm-wrapper . dist/esm-wrapper.mjs",
+    "build": "tsc",
     "lint": "eslint",
     "test": "c8 tap",
     "test:ci": "npm run lint && npm run build && npm run test:coverage",
