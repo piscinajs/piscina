@@ -21,30 +21,30 @@ import {
   kWorkerData
 } from './symbols';
 import {
-  TaskQueue,
+  type TaskQueue,
   isTaskQueue,
   ArrayTaskQueue,
   FixedQueue,
   TaskInfo,
-  PiscinaTask,
-  TransferList,
-  TransferListItem
+  type PiscinaTask,
+  type TransferList,
+  type TransferListItem
 } from './task_queue';
 import {
   WorkerInfo,
   AsynchronouslyCreatedResourcePool,
-  PiscinaLoadBalancer,
-  PiscinaWorker,
+  type PiscinaLoadBalancer,
+  type PiscinaWorker,
   LeastBusyBalancer
 } from './worker_pool';
 import {
-  AbortSignalAny,
-  AbortSignalEventTarget,
+  type AbortSignalAny,
+  type AbortSignalEventTarget,
   AbortError,
   onabort
 } from './abort';
 import {
-  PiscinaHistogram,
+  type PiscinaHistogram,
   PiscinaHistogramHandler,
 } from './histogram';
 import { Errors } from './errors';

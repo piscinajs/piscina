@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
     "target": "es2019",
-    "module": "commonjs",
-    "moduleResolution": "node",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
     "lib": ["es2019"],
     "outDir": "dist",
     "rootDir": "./src",
@@ -16,6 +16,7 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "esModuleInterop": true,
+    "verbatimModuleSyntax": true,
 
     "resolveJsonModule": true /* Include modules imported with '.json' extension */,
     "forceConsistentCasingInFileNames": true /* Disallow inconsistently-cased references to the same file. */,

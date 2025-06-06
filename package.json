@@ -4,6 +4,7 @@
   "description": "A fast, efficient Node.js Worker Thread Pool implementation",
   "main": "./dist/main.js",
   "types": "./dist/index.d.ts",
+  "type": "module",
   "exports": {
     "types": "./dist/index.d.ts",
     "import": "./dist/esm-wrapper.mjs",

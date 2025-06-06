@@ -1,5 +1,5 @@
 import Piscina from '..';
-import { getCurrentProcessPriority, WindowsThreadPriority } from '@napi-rs/nice';
+import { getCurrentProcessPriority, type WindowsThreadPriority } from '@napi-rs/nice';
 import { resolve } from 'path';
 import { test } from 'tap';
 
