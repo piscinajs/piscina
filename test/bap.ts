@@ -8,11 +8,14 @@ interface TapTestOptions {
   only?: boolean;
 }
 
+type Typeofs = "string" | "number" | "bigint" | "boolean" | "symbol" | "undefined" | "object" | "function";
+
 interface TapMatchers {
   test: typeof test;
 
   plan: (n: number, comment?: string) => void;
 
+  type: (a: unknown, b: Typeofs) => void;
   match: (a: unknown, b: object | string | null | RegExp | Error) => void;
   ok: (a: unknown) => void;
   notOk: (a: unknown) => void;
@@ -125,6 +128,11 @@ function createScopedMatchers(label: string) {
 
   const matchers: TapMatchers = {
     test,
+
+    type: (a, b) => {
+      incrementTestCount();
+      bt.expect(typeof a).toBe(b);
+    },
 
     match: (a, b) => {
       if (typeof b === "string" || b instanceof RegExp) {
