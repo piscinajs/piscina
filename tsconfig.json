@@ -1,9 +1,9 @@
 {
   "compilerOptions": {
-    "target": "es2019",
+    "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "lib": ["es2019"],
+    "lib": ["ES2019"],
     "outDir": "dist",
     "rootDir": "./src",
     "declaration": true,
@@ -15,15 +15,10 @@
     "noUnusedParameters": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "esModuleInterop": true,
     "verbatimModuleSyntax": true,
 
-    "resolveJsonModule": true /* Include modules imported with '.json' extension */,
-    "forceConsistentCasingInFileNames": true /* Disallow inconsistently-cased references to the same file. */,
-
-    "paths": {
-      "tap": ["./bap.ts"]
-    }
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true
   },
   "include": ["src"]
 }

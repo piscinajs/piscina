@@ -1,7 +1,10 @@
 {
   "extends": "../tsconfig.json",
   "compilerOptions": {
-    "rootDir": "."
+    "rootDir": ".",
+    "paths": {
+      "tap": ["../bap.ts"]
+    }
   },
-  "include": ["./**/*.ts"]
+  "include": ["./**/*.ts", "../bap.ts"]
 }
