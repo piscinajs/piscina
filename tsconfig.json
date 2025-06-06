@@ -25,5 +25,5 @@
       "tap": ["./bap.ts"]
     }
   },
-  "include": ["src", "test"]
+  "include": ["src"]
 }
