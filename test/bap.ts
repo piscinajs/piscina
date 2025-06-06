@@ -16,6 +16,7 @@ interface TapMatchers {
   ok: (a: unknown) => void;
   notOk: (a: unknown) => void;
   same: (a: unknown, b: unknown) => void;
+  not: (a: unknown, b: unknown) => void;
   strictNotSame: (a: unknown, b: unknown) => void;
   equal: (a: unknown, b: unknown) => void;
 
@@ -25,12 +26,12 @@ interface TapMatchers {
     a: ResolvesOrRejects,
     expectMessage?: string | RegExp | Error,
     asMessage?: string,
-  ) => void;
+  ) => Promise<void>;
   rejects: (
     a: ResolvesOrRejects,
     expectMessage?: string | RegExp | Error,
     asMessage?: string,
-  ) => void;
+  ) => Promise<void>;
 
   fail: (message: string) => never;
   pass: (message: string) => void;
@@ -69,11 +70,13 @@ export function test(label: string, fn: TapTestFn): void;
 
 export function test(
   label: string,
-  fnOrOptions: TapTestFn | TapTestOptions,
-  fnReal?: TapTestFn,
+  ...args: [fn: TapTestFn] | [options: TapTestOptions, fn: TapTestFn]
 ) {
-  const options = typeof fnOrOptions === "function" ? {} : fnOrOptions;
-  const fn = typeof fnOrOptions === "function" ? fnOrOptions : fnReal;
+  const fn = args.length === 2 ? args[1] : args[0];
+  const options = args.length === 2 ? args[0] : {};
+
+  const skip = options?.skip ?? false;
+  const only = options?.only ?? false;
 
   if (!fn) {
     throw new Error(
@@ -81,9 +84,6 @@ export function test(
         [...arguments].map((arg) => arg.constructor.name).join(", "),
     );
   }
-
-  const skip = options?.skip ?? false;
-  const only = options?.only ?? false;
 
   const run = async () => {
     using matchers = createScopedMatchers(label);
@@ -163,6 +163,11 @@ function createScopedMatchers(label: string) {
       bt.expect(a).toStrictEqual(b);
     },
 
+    not: (a, b) => {
+      incrementTestCount();
+      bt.expect(a).not.toBe(b);
+    },
+
     strictNotSame: (a, b) => {
       incrementTestCount();
       bt.expect(a).not.toBe(b);
@@ -188,12 +193,12 @@ function createScopedMatchers(label: string) {
       bt.expect(a).toBeTruthy();
     },
 
-    rejects: (a, message) => {
+    rejects: async (a, message) => {
       incrementTestCount();
       bt.expect(a).rejects.toThrow(message);
     },
 
-    resolves: (a, message) => {
+    resolves: async (a, message) => {
       incrementTestCount();
       bt.expect(a).resolves.toBe(message);
     },
