@@ -1,8 +1,8 @@
 import { once } from 'node:events';
 import { cpus } from 'node:os';
 import { resolve } from 'node:path';
-import Piscina from 'piscina';
 import { test } from 'tap';
+import Piscina from '..';
 
 test('will start with minThreads and max out at maxThreads', { only: true }, async ({ equal, rejects }) => {
   const pool = new Piscina({

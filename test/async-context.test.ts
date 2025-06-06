@@ -1,7 +1,7 @@
 import { createHook, executionAsyncId } from 'async_hooks';
 import { resolve } from 'path';
-import Piscina from 'piscina';
 import { test } from 'tap';
+import Piscina from '..';
 
 test('postTask() calls the correct async hooks', async ({ equal }) => {
   let taskId;

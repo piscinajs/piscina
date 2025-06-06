@@ -1,7 +1,7 @@
 import { once } from 'events';
 import { resolve } from 'path';
-import Piscina from 'piscina';
 import { test } from 'tap';
+import Piscina from '..';
 
 test('Pool receive message from workers', async ({ equal }) => {
   const pool = new Piscina({

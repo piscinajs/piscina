@@ -54,8 +54,7 @@ import {
   getAvailableParallelism,
   maybeFileURLToPath
 } from './common.js';
-import packageJson from '../package.json' with { type: 'json' };
-const { version } = packageJson;
+import { version } from '../package.json';
 
 const cpuParallelism : number = getAvailableParallelism();
 

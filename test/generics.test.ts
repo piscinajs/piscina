@@ -1,6 +1,6 @@
 import { resolve } from 'path';
-import Piscina from 'piscina';
 import { test } from 'tap';
+import Piscina from '..';
 
 test('Piscina<T , R> works', async ({ equal }) => {
   const worker = new Piscina<string, number>({

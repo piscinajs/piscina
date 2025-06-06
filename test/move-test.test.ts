@@ -1,13 +1,13 @@
 import { resolve } from 'path';
-import Piscina from 'piscina';
 import {
-  isMovable,
-  isTransferable,
-  markMovable
-} from 'piscina/common';
+    isMovable,
+    isTransferable,
+    markMovable
+} from '../dist/common';
 import { test } from 'tap';
 import { types } from 'util';
 import { MessageChannel, MessagePort } from 'worker_threads';
+import Piscina from '..';
 
 const {
   transferableSymbol,

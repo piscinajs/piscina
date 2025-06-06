@@ -1,8 +1,8 @@
 import { EventEmitter } from 'events';
 import { resolve } from 'path';
-import Piscina from 'piscina';
 import { test } from 'tap';
 import { pathToFileURL } from 'url';
+import Piscina from '..';
 import { version } from '../package.json';
 
 test('Piscina is exposed on export', async ({ equal }) => {

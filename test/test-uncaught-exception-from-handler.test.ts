@@ -1,7 +1,7 @@
 import { once } from 'events';
 import { resolve } from 'path';
-import Piscina from 'piscina';
 import { test } from 'tap';
+import Piscina from '..';
 
 test('uncaught exception resets Worker', async ({ rejects }) => {
   const pool = new Piscina({
