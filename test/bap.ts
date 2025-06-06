@@ -22,6 +22,7 @@ interface TapMatchers {
   same: (a: unknown, b: unknown) => void;
   not: (a: unknown, b: unknown) => void;
   strictNotSame: (a: unknown, b: unknown) => void;
+  strictSame: (a: unknown, b: unknown) => void;
   equal: (a: unknown, b: unknown) => void;
 
   throws: (a: () => unknown, expectMessage?: string | RegExp | Error) => void;
@@ -172,6 +173,11 @@ function createScopedMatchers(label: string) {
           console.log(`# SKIP ${comment}`);
         }
       }
+    },
+
+    strictSame: (a, b) => {
+      incrementTestCount();
+      bt.expect(a).toBe(b);
     },
 
     same: (a, b) => {
