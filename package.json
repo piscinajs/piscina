@@ -12,7 +12,7 @@
     "node": ">=20.x"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
     "lint": "eslint",
     "test": "c8 tap",
     "test:ci": "npm run lint && npm run build && npm run test:coverage",

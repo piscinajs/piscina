@@ -85,32 +85,28 @@ export function test(
   const skip = options?.skip ?? false;
   const only = options?.only ?? false;
 
-  const doIt = async () => {
+  const run = async () => {
     using matchers = createScopedMatchers(label);
 
-    try {
-      await fn(matchers.getMatchers());
+    await fn(matchers.getMatchers());
 
-      const plan = testPlans.get(matchers.key);
+    const plan = matchers.getPlan();
 
-      if (plan && plan.actual !== plan.expected) {
-        throw new Error(
-          `Planned for ${plan.expected} tests but ran ${plan.actual} tests${
-            plan.comment ? ` (${plan.comment})` : ""
-          }`,
-        );
-      }
-    } finally {
-      testPlans.delete(matchers.key);
+    if (plan && plan.actual !== plan.expected) {
+      throw new Error(
+        `Planned for ${plan.expected} tests but ran ${plan.actual} tests${
+          plan.comment ? ` (${plan.comment})` : ""
+        }`,
+      );
     }
   };
 
   if (skip) {
-    bt.test.skip(label, doIt);
+    bt.test.skip(label, run);
   } else if (only) {
-    bt.test.only(label, doIt);
+    bt.test.only(label, run);
   } else {
-    bt.test(label, doIt);
+    bt.test(label, run);
   }
 }
 
@@ -215,6 +211,7 @@ function createScopedMatchers(label: string) {
 
   return Object.freeze({
     key,
+    getPlan: () => testPlans.get(key),
     getMatchers: () => matchers,
     [Symbol.dispose]: () => {
       testPlans.delete(key);

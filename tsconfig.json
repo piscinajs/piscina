@@ -4,8 +4,6 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "lib": ["ES2019"],
-    "outDir": "dist",
-    "rootDir": "./src",
     "declaration": true,
     "sourceMap": true,
 
@@ -18,7 +16,10 @@
     "verbatimModuleSyntax": true,
 
     "resolveJsonModule": true,
-    "forceConsistentCasingInFileNames": true
-  },
-  "include": ["src"]
+    "forceConsistentCasingInFileNames": true,
+
+    "paths": {
+      "tap": ["./test/bap.ts"]
+    }
+  }
 }
