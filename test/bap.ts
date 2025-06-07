@@ -8,6 +8,7 @@ type ResolvesOrRejects = PromiseLike<unknown> | (() => PromiseLike<unknown>);
 interface TapTestOptions {
   skip?: boolean | string;
   only?: boolean;
+  timeout?: number;
 }
 
 type Typeofs =
@@ -160,11 +161,11 @@ export function test(
   };
 
   if (skip) {
-    bt.test.skip(label, run);
+    bt.test.skip(label, run, options.timeout !== undefined ? { timeout: options.timeout } : {});
   } else if (only) {
-    bt.test.only(label, run);
+    bt.test.only(label, run, options.timeout !== undefined ? { timeout: options.timeout } : {});
   } else {
-    bt.test(label, run);
+    bt.test(label, run, options.timeout !== undefined ? { timeout: options.timeout } : {});
   }
 }
 
