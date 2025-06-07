@@ -48,6 +48,7 @@
   "devDependencies": {
     "@types/node": "^22.4.1",
     "abort-controller": "^3.0.0",
+    "bun-types": "^1.2.15",
     "c8": "^10.1.2",
     "concat-stream": "^2.0.0",
     "eslint": "^9.16.0",
