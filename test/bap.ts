@@ -1,7 +1,7 @@
-// @ts-nocheck
+/// <reference path="../node_modules/bun-types/test.d.ts" />
 
-import * as bt from "bun:test";
 import assert from "node:assert";
+import { join } from "node:path";
 
 type ResolvesOrRejects = PromiseLike<unknown> | (() => PromiseLike<unknown>);
 
@@ -71,6 +71,44 @@ function dedupeLabelName(label: string) {
   return label;
 }
 
+declare namespace Bun {
+  function jest(sourceFile: string): typeof import("bun:test");
+}
+
+const getBunTestForFile = (() => {
+  const cache = new Map<string, typeof import("bun:test")>();
+
+  return (file: string) => {
+    const mod = cache.get(file);
+    if (mod) return mod;
+    const next = Bun.jest(file);
+    cache.set(file, next);
+    return next;
+  };
+})();
+
+function getCurrentFile() {
+  const stack = new Error().stack;
+  assert(stack, "No stack trace");
+
+  const lines = stack.split("\n").map((line) => line.trim());
+
+  const relevantLine = lines[4];
+  assert(relevantLine, "No relevant line in stack trace");
+
+  const fileNameWithLineNumberAtEnd = relevantLine.split(" ")[1];
+  assert(fileNameWithLineNumberAtEnd, "No file name in stack trace");
+
+  const fileName = fileNameWithLineNumberAtEnd.split(":")[0];
+  assert(fileName, "No file name in stack trace");
+
+  return join(process.cwd(), fileName);
+}
+
+function getBunTestForCurrentFile() {
+  return getBunTestForFile(getCurrentFile());
+}
+
 /**
  * Run a test with options
  * @param label - The name of the test.
@@ -103,8 +141,10 @@ export function test(
 
   assert(fn, "No test function provided");
 
+  const bt = getBunTestForCurrentFile();
+
   const run = async () => {
-    using matchers = createScopedMatchers(label);
+    using matchers = createScopedMatchers(label, bt);
 
     await fn(matchers.getMatchers());
 
@@ -138,7 +178,7 @@ class BapTestTestError extends Error {
   }
 }
 
-function createScopedMatchers(label: string) {
+function createScopedMatchers(label: string, bt: typeof import("bun:test")) {
   const key = Symbol(label);
 
   function incrementTestCount() {
@@ -156,10 +196,10 @@ function createScopedMatchers(label: string) {
   }
 
   const matchers: TapMatchers = {
-    test: (...args) => {
+    test: () => {
       throw new BapTestTestError(
         "calling test.test() is not supported by bap yet",
-        args,
+        Array.from(arguments),
       );
     },
 
