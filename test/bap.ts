@@ -205,7 +205,7 @@ function createScopedMatchers(label: string, bt: typeof import("bun:test")) {
 
     type: (a, b) => {
       incrementTestCount();
-      bt.expect(typeof a).toBeTypeOf(b);
+      bt.expect(a).toBeTypeOf(b);
     },
 
     deepEqual: (a, b) => {
