@@ -1,3 +1,7 @@
+// These tests are skipped in this fork because we've modified how the package
+// is built and the tests are checking for an esm from cjs wrapper that the
+// original package builds
+
 import { test } from 'tap';
 
 const importESM : (specifier : string) => Promise<any> =
