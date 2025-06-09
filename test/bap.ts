@@ -1,5 +1,11 @@
 /// <reference path="../node_modules/bun-types/test.d.ts" />
 
+/////////////////////////////////////////////////////////////////////////////////
+// bap.ts is a `tap`-like test harness that actually just wraps bun:test. We've
+// added this so we can run Piscina's test suite without any changes to the
+// original test suite.
+/////////////////////////////////////////////////////////////////////////////////
+
 import assert from "node:assert";
 import { join } from "node:path";
 
@@ -130,10 +136,10 @@ export function test(
 export function test(label: string, fn: TapTestFn): void;
 
 export function test(
-  user_label: string,
+  userLabel: string,
   ...args: [fn: TapTestFn] | [options: TapTestOptions, fn: TapTestFn]
 ) {
-  const label = dedupeLabelName(user_label);
+  const label = dedupeLabelName(userLabel);
   const fn = args.length === 2 ? args[1] : args[0];
   const options = args.length === 2 ? args[0] : {};
 
@@ -161,11 +167,23 @@ export function test(
   };
 
   if (skip) {
-    bt.test.skip(label, run, options.timeout !== undefined ? { timeout: options.timeout } : {});
+    bt.test.skip(
+      label,
+      run,
+      options.timeout !== undefined ? { timeout: options.timeout } : {},
+    );
   } else if (only) {
-    bt.test.only(label, run, options.timeout !== undefined ? { timeout: options.timeout } : {});
+    bt.test.only(
+      label,
+      run,
+      options.timeout !== undefined ? { timeout: options.timeout } : {},
+    );
   } else {
-    bt.test(label, run, options.timeout !== undefined ? { timeout: options.timeout } : {});
+    bt.test(
+      label,
+      run,
+      options.timeout !== undefined ? { timeout: options.timeout } : {},
+    );
   }
 }
 
