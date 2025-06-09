@@ -7,6 +7,7 @@ on:
 
 jobs:
   build:
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/v5'
     permissions:
       contents: read
     name: Build
