@@ -1,5 +1,5 @@
 .nyc_output
-.vscode
+.vscode/*
 !.vscode/launch.json
 !.vscode/settings.json
 !.vscode/tasks.json
