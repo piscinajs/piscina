@@ -1,0 +1,35 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug Test File",
+      "type": "lldb",
+      "request": "launch",
+      "program": "/Users/ali/code/bun/build/debug/bun-debug",
+      "args": ["test", "${file}"],
+      "env": {
+        "BUN_DEBUG_QUIET_LOGS": "1",
+        "BUN_DEBUG_jest": "1",
+        "BUN_GARBAGE_COLLECTOR_LEVEL": "1"
+      },
+      "cwd": "${workspaceFolder}",
+      "console": "internalConsole",
+      "stopOnEntry": false
+    },
+    {
+      "name": "Debug All Tests",
+      "type": "lldb",
+      "request": "launch",
+      "program": "/Users/ali/code/bun/build/debug/bun-debug",
+      "args": ["test"],
+      "env": {
+        "BUN_DEBUG_QUIET_LOGS": "1",
+        "BUN_DEBUG_jest": "1",
+        "BUN_GARBAGE_COLLECTOR_LEVEL": "1"
+      },
+      "cwd": "${workspaceFolder}",
+      "console": "internalConsole",
+      "stopOnEntry": false
+    }
+  ]
+}
