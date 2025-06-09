@@ -52,8 +52,8 @@ interface TapMatchers {
     asMessage?: string,
   ) => Promise<void>;
 
-  fail: (message: string) => void;
-  pass: (message: string) => void;
+  fail: (message?: string) => void;
+  pass: (message?: string) => void;
 }
 
 interface TestPlan {
@@ -327,12 +327,20 @@ function createScopedMatchers(label: string, bt: typeof import("bun:test")) {
 
     fail: (message) => {
       incrementTestCount();
-      bt.expect().fail(message);
+      if (message) {
+        bt.expect().fail(message);
+      } else {
+        bt.expect().fail();
+      }
     },
 
     pass: (message) => {
       incrementTestCount();
-      bt.expect().pass(message);
+      if (message) {
+        bt.expect().pass(message);
+      } else {
+        bt.expect().pass();
+      }
     },
   };
 
