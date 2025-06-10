@@ -1,5 +1,3 @@
-/// <reference path="../node_modules/bun-types/test.d.ts" />
-
 /////////////////////////////////////////////////////////////////////////////////
 // bap.ts is a `tap`-like test harness that actually just wraps bun:test. We've
 // added this so we can run Piscina's test suite without any changes to the
@@ -59,6 +57,8 @@ interface TapMatchers {
 interface TestPlan {
   expected: number;
   actual: number;
+  promise: Promise<void>;
+  resolve: () => void;
   comment?: string;
 }
 
@@ -157,13 +157,17 @@ export function test(
 
     const plan = scope.getPlan();
 
-    if (plan && plan.actual !== plan.expected) {
-      throw new Error(
-        `Planned for ${plan.expected} tests but ran ${plan.actual} tests${
-          plan.comment ? ` (${plan.comment})` : ""
-        }`,
-      );
+    if (plan) {
+      await plan.promise;
     }
+
+    // if (plan && plan.actual !== plan.expected) {
+    //   throw new Error(
+    //     `Planned for ${plan.expected} tests but ran ${plan.actual} tests${
+    //       plan.comment ? ` (${plan.comment})` : ""
+    //     }`,
+    //   );
+    // }
   };
 
   if (skip) {
@@ -229,6 +233,8 @@ async function createTestScope(label: string, bt: typeof import("bun:test")) {
         throw new Error(
           `Test count exceeds plan: expected ${plan.expected}, but running test #${plan.actual}${plan.comment ? ` (${plan.comment})` : ""}`,
         );
+      } else if (plan.actual === plan.expected) {
+        plan.resolve();
       }
     }
   }
@@ -270,7 +276,15 @@ async function createTestScope(label: string, bt: typeof import("bun:test")) {
         throw new TypeError("plan must be a non-negative number");
       }
 
-      testPlans.set(key, { expected: n, actual: 0, comment });
+      const { promise, resolve } = Promise.withResolvers<void>();
+
+      testPlans.set(key, {
+        expected: n,
+        actual: 0,
+        comment,
+        promise,
+        resolve,
+      });
 
       if (n === 0) {
         if (comment) {

@@ -1,8 +1,8 @@
-import { resolve } from 'path';
-import { getAvailableParallelism } from '../dist/common';
-import { test } from 'tap';
 import { MessageChannel } from 'worker_threads';
+import { getAvailableParallelism } from '../dist/common';
 import Piscina from '..';
+import { test } from 'tap';
+import { resolve } from 'path';
 
 test('postTask() can transfer ArrayBuffer instances', async ({ equal }) => {
   const pool = new Piscina({

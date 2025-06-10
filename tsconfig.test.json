@@ -4,5 +4,5 @@
     "strict": false,
     "noImplicitAny": false,
   },
-  "include": ["src"]
+  "include": ["src", "./bun.d.ts"],
 }

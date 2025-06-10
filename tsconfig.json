@@ -23,6 +23,6 @@
       "tap": ["./test/bap.ts"]
     }
   },
-  "include": ["src", "test"],
+  "include": ["src", "test", "./bun.d.ts"],
   "exclude": ["dist", "node_modules"]
 }
