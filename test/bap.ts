@@ -151,11 +151,11 @@ export function test(
   const bt = getBunTestForCurrentFile();
 
   const run = async () => {
-    using matchers = createScopedMatchers(label, bt);
+    using scope = await createTestScope(label, bt);
 
-    await fn(matchers.getMatchers());
+    await fn(scope.getMatchers());
 
-    const plan = matchers.getPlan();
+    const plan = scope.getPlan();
 
     if (plan && plan.actual !== plan.expected) {
       throw new Error(
@@ -197,8 +197,26 @@ class BapTestTestError extends Error {
   }
 }
 
-function createScopedMatchers(label: string, bt: typeof import("bun:test")) {
+function createTestScopeWaitTasks() {
+  const tasks = new Set<PromiseLike<void>>();
+
+  const disposable: AsyncDisposable = {
+    [Symbol.asyncDispose]: async () => {
+      await Promise.all(tasks);
+    },
+  };
+
+  return {
+    ...disposable,
+    add: (task: PromiseLike<void>) => {
+      tasks.add(task);
+    },
+  };
+}
+
+async function createTestScope(label: string, bt: typeof import("bun:test")) {
   const key = Symbol(label);
+  await using scope = createTestScopeWaitTasks();
 
   function incrementTestCount() {
     const plan = testPlans.get(key);
@@ -303,26 +321,47 @@ function createScopedMatchers(label: string, bt: typeof import("bun:test")) {
     rejects: async (a, message) => {
       incrementTestCount();
 
-      if (message instanceof Error) {
-        bt.expect(a).rejects.toMatchObject(message);
-      } else if (message) {
-        bt.expect(a).rejects.toMatchObject(
-          bt.expect.objectContaining({
-            message: bt.expect.stringMatching(message),
-          }),
-        );
-      } else {
-        bt.expect(a).rejects.pass();
-      }
+      const promise = "then" in a ? a : a();
+
+      const p = promise.then(
+        () => {
+          throw new Error("should have rejected");
+        },
+        (e) => {
+          if (message instanceof Error) {
+            bt.expect(e).toMatchObject(message);
+          } else if (message) {
+            bt.expect(e).toMatchObject({
+              message: bt.expect.stringMatching(message),
+            });
+          } else {
+            bt.expect(e).pass();
+          }
+        },
+      );
+
+      scope.add(p);
     },
 
     resolves: async (a, message) => {
       incrementTestCount();
-      if (message !== undefined) {
-        bt.expect(a).resolves.pass(message);
-      } else {
-        bt.expect(a).resolves.pass();
-      }
+
+      const promise = "then" in a ? a : a();
+
+      const p = promise.then(
+        () => {
+          if (message !== undefined) {
+            bt.expect(a).pass(message);
+          } else {
+            bt.expect(a).pass();
+          }
+        },
+        () => {
+          throw new Error("should have resolved");
+        },
+      );
+
+      scope.add(p);
     },
 
     fail: (message) => {
