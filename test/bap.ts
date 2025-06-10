@@ -208,8 +208,9 @@ function createTestScopeWaitTasks() {
 
   return {
     ...disposable,
-    add: (task: PromiseLike<void>) => {
+    add: async (task: PromiseLike<void>) => {
       tasks.add(task);
+      await task;
     },
   };
 }
@@ -340,7 +341,7 @@ async function createTestScope(label: string, bt: typeof import("bun:test")) {
         },
       );
 
-      scope.add(p);
+      await scope.add(p);
     },
 
     resolves: async (a, message) => {
@@ -361,7 +362,7 @@ async function createTestScope(label: string, bt: typeof import("bun:test")) {
         },
       );
 
-      scope.add(p);
+      await scope.add(p);
     },
 
     fail: (message) => {
