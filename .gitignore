@@ -1,5 +1,8 @@
 .nyc_output
-.vscode
+.vscode/*
+!.vscode/launch.json
+!.vscode/settings.json
+!.vscode/tasks.json
 node_modules
 dist
 coverage

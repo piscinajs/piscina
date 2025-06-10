@@ -1,6 +1,6 @@
-import Piscina from '..';
-import { test } from 'tap';
 import { resolve } from 'path';
+import { test } from 'tap';
+import Piscina from '..';
 
 test('pool will maintain run and wait time histograms', async ({
   equal,

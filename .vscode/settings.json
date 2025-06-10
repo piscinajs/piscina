@@ -1,0 +1,10 @@
+{
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "editor.formatOnSave": false,
+
+  "[typescript]": {
+    "editor.codeActionsOnSave": {
+      "organizeImports": "never"
+    }
+  }
+}

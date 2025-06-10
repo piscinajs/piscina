@@ -1,7 +1,7 @@
-import Piscina from '..';
-import { test } from 'tap';
 import { resolve } from 'path';
+import { test } from 'tap';
 import { promisify } from 'util';
+import Piscina from '..';
 
 const delay = promisify(setTimeout);
 

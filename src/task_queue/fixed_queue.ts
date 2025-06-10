@@ -4,8 +4,8 @@
  * Source: https://github.com/nodejs/node/blob/de7b37880f5a541d5f874c1c2362a65a4be76cd0/lib/internal/fixed_queue.js
  */
 import assert from 'node:assert';
-import type { Task } from './common';
-import { TaskQueue } from '.';
+import type { Task } from './common.js';
+import type { TaskQueue } from './index.js';
 // Currently optimal queue size, tested on V8 6.0 - 6.6. Must be power of two.
 const kSize = 2048;
 const kMask = kSize - 1;

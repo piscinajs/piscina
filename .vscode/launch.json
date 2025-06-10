@@ -1,0 +1,17 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug Test File",
+      "type": "bun",
+      "request": "launch",
+      "runtime": "bun",
+      "runtimeArgs": ["test", "${file}"],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "BUN_DEBUG_QUIET_LOGS": "1",
+        "BUN_GARBAGE_COLLECTOR_LEVEL": "2"
+      }
+    }
+  ]
+}

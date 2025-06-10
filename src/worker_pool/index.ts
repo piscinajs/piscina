@@ -1,16 +1,16 @@
 import { Worker, MessagePort, receiveMessageOnPort } from 'node:worker_threads';
-import { createHistogram, RecordableHistogram } from 'node:perf_hooks';
+import { createHistogram, type RecordableHistogram } from 'node:perf_hooks';
 import assert from 'node:assert';
 
-import { RequestMessage, ResponseMessage } from '../types';
-import { Errors } from '../errors';
+import type { RequestMessage, ResponseMessage } from '../types.js';
+import { Errors } from '../errors.js';
 
-import { TaskInfo } from '../task_queue';
-import { kFieldCount, kRequestCountField, kResponseCountField, kWorkerData } from '../symbols';
-import { PiscinaHistogramHandler, PiscinaHistogramSummary } from '../histogram';
+import { TaskInfo } from '../task_queue/index.js';
+import { kFieldCount, kRequestCountField, kResponseCountField, kWorkerData } from '../symbols.js';
+import { PiscinaHistogramHandler, type PiscinaHistogramSummary } from '../histogram.js';
 
-import { AsynchronouslyCreatedResource, AsynchronouslyCreatedResourcePool } from './base';
-export * from './balancer';
+import { AsynchronouslyCreatedResource, AsynchronouslyCreatedResourcePool } from './base.js';
+export * from './balancer/index.js';
 
 type ResponseCallback = (response : ResponseMessage) => void;
 

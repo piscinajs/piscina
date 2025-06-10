@@ -1,7 +1,7 @@
-import Piscina from '..';
 import { getCurrentProcessPriority, WindowsThreadPriority } from '@napi-rs/nice';
 import { resolve } from 'path';
 import { test } from 'tap';
+import Piscina from '..';
 
 test('niceness - Linux:', { skip: process.platform !== 'linux' }, scope => {
   scope.plan(2);

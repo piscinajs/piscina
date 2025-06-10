@@ -5,49 +5,47 @@ import { inspect, types } from 'node:util';
 import { performance } from 'node:perf_hooks';
 import { setTimeout as sleep } from 'node:timers/promises';
 import assert from 'node:assert';
-
-import { version } from '../package.json';
 import type {
   ResponseMessage,
   StartupMessage,
   Transferable,
   ResourceLimits,
   EnvSpecifier,
-} from './types';
+} from './types.js';
 import {
   kQueueOptions,
   kTransferable,
   kValue,
   kWorkerData
-} from './symbols';
+} from './symbols.js';
 import {
-  TaskQueue,
+  type TaskQueue,
   isTaskQueue,
   ArrayTaskQueue,
   FixedQueue,
   TaskInfo,
-  PiscinaTask,
-  TransferList,
-  TransferListItem
-} from './task_queue';
+  type PiscinaTask,
+  type TransferList,
+  type TransferListItem
+} from './task_queue/index.js';
 import {
   WorkerInfo,
   AsynchronouslyCreatedResourcePool,
-  PiscinaLoadBalancer,
-  PiscinaWorker,
+  type PiscinaLoadBalancer,
+  type PiscinaWorker,
   LeastBusyBalancer
-} from './worker_pool';
+} from './worker_pool/index.js';
 import {
-  AbortSignalAny,
-  AbortSignalEventTarget,
+  type AbortSignalAny,
+  type AbortSignalEventTarget,
   AbortError,
   onabort
-} from './abort';
+} from './abort.js';
 import {
-  PiscinaHistogram,
+  type PiscinaHistogram,
   PiscinaHistogramHandler,
-} from './histogram';
-import { Errors } from './errors';
+} from './histogram.js';
+import { Errors } from './errors.js';
 import {
   READY,
   commonState,
@@ -55,7 +53,9 @@ import {
   markMovable,
   getAvailableParallelism,
   maybeFileURLToPath
-} from './common';
+} from './common.js';
+import { version } from '../package.json';
+
 const cpuParallelism : number = getAvailableParallelism();
 
 interface Options {
@@ -993,8 +993,8 @@ export const workerData = Piscina.workerData;
 
 export {
   Piscina,
-  PiscinaTask,
-  TaskQueue,
+  type PiscinaTask,
+  type TaskQueue,
   kTransferable as transferableSymbol,
   kValue as valueSymbol,
   kQueueOptions as queueOptionsSymbol,

@@ -1,7 +1,7 @@
-import Piscina from '..';
-import { test } from 'tap';
 import { resolve } from 'path';
-import { PiscinaWorker } from '../dist/worker_pool';
+import { test } from 'tap';
+import Piscina from '..';
+import { type PiscinaWorker } from '../dist/worker_pool';
 
 test('pool will maintain run and wait time histograms by default', async ({ equal, ok }) => {
   const pool = new Piscina({
@@ -69,7 +69,7 @@ test('pool does not maintain run and wait time histograms when recordTiming is f
   notOk(pool.histogram.runTime);
 });
 
-test('workers has histogram', async t => {
+test('workers has histogram', { timeout: 10_000 }, async t => {
   let index = 0;
   let list: PiscinaWorker[];
   // Its expected to have one task get balanced twice due to the load balancer distribution

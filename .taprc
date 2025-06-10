@@ -5,7 +5,7 @@ coverage-report:
   - lcovonly
 color: true
 jobs: 2
-test-env: TS_NODE_PROJECT=test/tsconfig.json
+test-env: TS_NODE_PROJECT=tsconfig.test.json
 test-ignore: $.
 test-regex: ((\/|^)(test?|__test?__)\/.*|\.(tests?|spec)|^\/?tests?)\.([mc]js|ts)$
 timeout: 60

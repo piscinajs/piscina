@@ -1,6 +1,6 @@
-import Piscina from '..';
-import { test } from 'tap';
 import { resolve } from 'path';
+import { test } from 'tap';
+import Piscina from '..';
 
 test('resourceLimits causes task to reject', async ({ equal, rejects }) => {
   const worker = new Piscina({

@@ -1,24 +1,28 @@
 {
   "compilerOptions": {
-    "target": "es2019",
+    "target": "ESNext",
     "module": "commonjs",
-    "moduleResolution": "node",
-    "lib": ["es2019"],
-    "outDir": "dist",
-    "rootDir": "./src",
+    "moduleResolution": "node10",
+    "lib": ["ES2019"],
     "declaration": true,
     "sourceMap": true,
-
+    "downlevelIteration": true,
     "strict": true,
 
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "esModuleInterop": true,
+    // "verbatimModuleSyntax": true,
 
-    "resolveJsonModule": true,                /* Include modules imported with '.json' extension */
-    "forceConsistentCasingInFileNames": true  /* Disallow inconsistently-cased references to the same file. */
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true,
+
+    "paths": {
+      "tap": ["./test/bap.ts"]
+    }
   },
-  "include": ["src"],
+  "include": ["src", "test"],
+  "exclude": ["dist", "node_modules"]
 }

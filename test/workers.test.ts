@@ -2,7 +2,7 @@ import { resolve } from 'node:path';
 
 import { test } from 'tap';
 
-import Piscina from '../dist';
+import Piscina from '..';
 
 test('workers are marked as destroyed if destroyed', async t => {
   let index = 0;
