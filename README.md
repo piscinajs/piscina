@@ -1,3 +1,12 @@
+> [!NOTE]  
+> This is a fork of piscina with minimal changes except for the test suite. It
+> uses a custom implementation of `tap` ([see `test/bap.ts`](./test/bap.ts))
+> that runs in Bun's test runner. This repository exists to help us (Bun
+> engineers) support Piscina in Bun and work towards our goal of achieving
+> Node.js compatibility.
+
+---
+
 ![Piscina Logo](https://avatars1.githubusercontent.com/u/65627548?s=200&v=4)
 
 # piscina - the node.js worker pool
