@@ -7,8 +7,6 @@
 import assert from "node:assert";
 import { join } from "node:path";
 
-type ResolvesOrRejects = PromiseLike<unknown> | (() => PromiseLike<unknown>);
-
 interface TapTestOptions {
   skip?: boolean | string;
   only?: boolean;
@@ -43,9 +41,9 @@ interface TapMatchers {
 
   throws: (a: () => unknown, expectMessage?: string | RegExp | Error) => void;
 
-  resolves: (a: ResolvesOrRejects, message?: string) => Promise<void>;
+  resolves: (a: PromiseLike<unknown>, message?: string) => Promise<void>;
   rejects: (
-    a: ResolvesOrRejects,
+    a: PromiseLike<unknown>,
     expectMessage?: string | RegExp | Error,
     asMessage?: string,
   ) => Promise<void>;
@@ -333,10 +331,8 @@ async function createTestScope(label: string, bt: typeof import("bun:test")) {
       bt.expect(a).toBeTruthy();
     },
 
-    rejects: async (a, message) => {
+    rejects: async (promise, message) => {
       incrementTestCount();
-
-      const promise = "then" in a ? a : a();
 
       const p = promise.then(
         () => {
@@ -358,17 +354,15 @@ async function createTestScope(label: string, bt: typeof import("bun:test")) {
       await scope.add(p);
     },
 
-    resolves: async (a, message) => {
+    resolves: async (promise, message) => {
       incrementTestCount();
 
-      const promise = "then" in a ? a : a();
-
       const p = promise.then(
-        () => {
+        (value) => {
           if (message !== undefined) {
-            bt.expect(a).pass(message);
+            bt.expect(value).pass(message);
           } else {
-            bt.expect(a).pass();
+            bt.expect(value).pass();
           }
         },
         () => {
