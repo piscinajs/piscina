@@ -4,6 +4,8 @@ import { test } from 'node:test';
 import type { TestContext } from 'node:test';
 import { resolve } from 'path';
 
+const TIMEOUT_MAX = 2 ** 31 - 1;
+
 test('tasks can be aborted through AbortController while running', async (t: TestContext) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/notify-then-sleep.ts')
@@ -133,18 +135,18 @@ test('abortable tasks will not share workers (destroy workers)', async (t: TestC
     concurrentTasksPerWorker: 2
   });
 
-  // Task 1 will sleep 100 ms then complete,
-  // Task 2 will sleep 300 ms then complete.
+  // Task 1 will sleep 0 ms then complete,
+  // Task 2 will sleep indefinitely (TIMEOUT_MAX) then complete.
   // Abortable task 3 should still be in the queue
   // when Task 1 completes, but should not be selected
   // until after Task 2 completes because it is abortable.
 
-  pool.run({ time: 100, a: 1 }).then(() => {
+  pool.run({ time: 0, a: 1 }).then(() => {
     pool.destroy();
   });
 
-  t.assert.rejects(pool.run({ time: 300, a: 2 }), /Terminating worker thread/);
-  t.assert.rejects(pool.run({ time: 100, a: 3 }, { signal: new EventEmitter() }),
+  t.assert.rejects(pool.run({ time: TIMEOUT_MAX, a: 2 }), /Terminating worker thread/);
+  t.assert.rejects(pool.run({ time: TIMEOUT_MAX, a: 3 }, { signal: new EventEmitter() }),
     /Terminating worker thread/);
 });
 
