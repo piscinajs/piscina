@@ -15,9 +15,9 @@
   "scripts": {
     "build": "tsc && gen-esm-wrapper . dist/esm-wrapper.mjs",
     "lint": "eslint",
-    "test": "c8 tap",
+    "test": "c8 node --import=tsx --test test/*test.ts",
     "test:ci": "npm run lint && npm run build && npm run test:coverage",
-    "test:coverage": "c8 --reporter=lcov tap --cov",
+    "test:coverage": "c8 --reporter=lcov node --import=tsx --test test/*test.ts",
     "prepack": "npm run build",
     "benchmark": "npm run benchmark:queue && npm run benchmark:piscina",
     "benchmark:piscina": "npm run benchmark:default && npm run benchmark:queue:fixed && npm run benchmark:default:comparison",
@@ -56,6 +56,7 @@
     "tap": "^16.3.7",
     "tinybench": "^4.0.1",
     "ts-node": "^10.9.2",
+    "tsx": "^4.19.4",
     "typescript": "5.8.3"
   },
   "optionalDependencies": {

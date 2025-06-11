@@ -1,5 +1,5 @@
 import { resolve } from 'path';
-import Piscina from '..';
+import Piscina from '../dist';
 import { test } from 'tap';
 
 test('Piscina<T , R> works', async ({ equal }) => {
