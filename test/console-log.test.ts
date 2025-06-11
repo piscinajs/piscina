@@ -1,8 +1,10 @@
-import { resolve } from 'node:path';
 import { spawn } from 'node:child_process';
+import { resolve } from 'node:path';
 
 import concat from 'concat-stream';
 import { test } from 'tap';
+
+const bunEnv: NodeJS.ProcessEnv = process.versions.bun ? { BUN_DEBUG_QUIET_LOGS: '1' } : {};
 
 test('console.log() calls are not blocked by Atomics.wait() (sync mode)', async ({ equal }) => {
   const proc = spawn(process.execPath, [
@@ -10,7 +12,8 @@ test('console.log() calls are not blocked by Atomics.wait() (sync mode)', async 
   ], {
     stdio: ['inherit', 'pipe', 'pipe'],
     env: {
-      PISCINA_ENABLE_ASYNC_ATOMICS: '0'
+      PISCINA_ENABLE_ASYNC_ATOMICS: '0',
+      ...bunEnv,
     }
   });
 
