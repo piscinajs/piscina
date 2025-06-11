@@ -4,10 +4,10 @@ import { resolve } from 'path';
 import { test } from 'node:test';
 import type { TestContext } from 'node:test';
 
-test('niceness - Linux:', { skip: process.platform !== 'linux' }, scope => {
+test('niceness - Linux:', { skip: process.platform !== 'linux' }, async scope => {
   scope.plan(2);
 
-  scope.test('can set niceness for threads on Linux', async (t: TestContext) => {
+  await scope.test('can set niceness for threads on Linux', async (t: TestContext) => {
     const worker = new Piscina({
       filename: resolve(__dirname, 'fixtures/eval.js'),
       niceIncrement: 5
@@ -22,7 +22,7 @@ test('niceness - Linux:', { skip: process.platform !== 'linux' }, scope => {
     t.assert.strictEqual(result, expected);
   });
 
-  scope.test('setting niceness never does anything bad', async (t: TestContext) => {
+  await scope.test('setting niceness never does anything bad', async (t: TestContext) => {
     const worker = new Piscina({
       filename: resolve(__dirname, 'fixtures/eval.js'),
       niceIncrement: 5
