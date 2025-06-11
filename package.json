@@ -15,9 +15,9 @@
   "scripts": {
     "build": "tsc && gen-esm-wrapper . dist/esm-wrapper.mjs",
     "lint": "eslint",
-    "test": "node scripts/run-tests.js",
+    "test": "node scripts/run-tests.js --pattern='test/**/*test.ts'",
     "test:ci": "npm run lint && npm run build && npm run test:coverage",
-    "test:coverage": "node scripts/run-tests.js --coverage",
+    "test:coverage": "node scripts/run-tests.js --coverage --pattern='test/**/*test.ts'",
     "prepack": "npm run build",
     "benchmark": "npm run benchmark:queue && npm run benchmark:piscina",
     "benchmark:piscina": "npm run benchmark:default && npm run benchmark:queue:fixed && npm run benchmark:default:comparison",

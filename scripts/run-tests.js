@@ -6,13 +6,42 @@
 
 const { spawnSync } = require('child_process');
 const { globSync } = require('glob');
+const { parseArgs } = require('node:util');
 
-const testFiles = globSync('test/**/*test.ts', { absolute: true });
-const isCoverage = process.argv.includes('--coverage');
+const options = {
+  pattern: {
+    type: 'string',
+    short: 'p',
+    description: 'Glob pattern to match test files',
+    default: 'test/**/*test.ts',
+  },
+  coverage: {
+    type: 'boolean',
+    short: 'c',
+    description: 'Run tests with coverage',
+    default: false,
+  },
+  concurrency: {
+    type: 'string',
+    short: 'n',
+    description: 'Number of test files to run concurrently',
+    default: '2',
+  },
+};
+
+const {
+  values,
+} = parseArgs({ args: process.argv.slice(2), options });
+
+const pattern = values.pattern;
+const isCoverage = values.coverage;
+const concurrency = Number(values.concurrency);
+
+const testFiles = globSync(pattern, { absolute: true });
 
 const args = [
   '--import=tsx',
-  '--test-concurrency=2',
+  `--test-concurrency=${concurrency}`,
   '--test',
   ...testFiles
 ];
