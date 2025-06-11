@@ -1,12 +1,13 @@
 import Piscina from '..';
 import { getCurrentProcessPriority, WindowsThreadPriority } from '@napi-rs/nice';
 import { resolve } from 'path';
-import { test } from 'tap';
+import { test } from 'node:test';
+import type { TestContext } from 'node:test';
 
 test('niceness - Linux:', { skip: process.platform !== 'linux' }, scope => {
   scope.plan(2);
 
-  scope.test('can set niceness for threads on Linux', async ({ equal }) => {
+  scope.test('can set niceness for threads on Linux', async (t: TestContext) => {
     const worker = new Piscina({
       filename: resolve(__dirname, 'fixtures/eval.js'),
       niceIncrement: 5
@@ -18,17 +19,17 @@ test('niceness - Linux:', { skip: process.platform !== 'linux' }, scope => {
     const result = await worker.run('require("@napi-rs/nice").getCurrentProcessPriority()');
     // niceness is capped to 19 on Linux.
     const expected = Math.min(currentNiceness + 5, 19);
-    equal(result, expected);
+    t.assert.strictEqual(result, expected);
   });
 
-  scope.test('setting niceness never does anything bad', async ({ equal }) => {
+  scope.test('setting niceness never does anything bad', async (t: TestContext) => {
     const worker = new Piscina({
       filename: resolve(__dirname, 'fixtures/eval.js'),
       niceIncrement: 5
     });
 
     const result = await worker.run('42');
-    equal(result, 42);
+    t.assert.strictEqual(result, 42);
   });
 });
 
@@ -36,7 +37,7 @@ test('niceness - Windows', {
   skip: process.platform !== 'win32'
 }, scope => {
   scope.plan(1);
-  scope.test('can set niceness for threads on Windows', async ({ equal }) => {
+  scope.test('can set niceness for threads on Windows', async (t: TestContext) => {
     const worker = new Piscina({
       filename: resolve(__dirname, 'fixtures/eval.js'),
       niceIncrement: WindowsThreadPriority.ThreadPriorityAboveNormal
@@ -44,6 +45,6 @@ test('niceness - Windows', {
 
     const result = await worker.run('require("@napi-rs/nice").getCurrentProcessPriority()');
 
-    equal(result, WindowsThreadPriority.ThreadPriorityAboveNormal);
+    t.assert.strictEqual(result, WindowsThreadPriority.ThreadPriorityAboveNormal);
   });
 });

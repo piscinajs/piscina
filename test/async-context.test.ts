@@ -1,9 +1,10 @@
 import { createHook, executionAsyncId } from 'async_hooks';
 import Piscina from '..';
-import { test } from 'tap';
+import { test } from 'node:test';
+import type { TestContext } from 'node:test';
 import { resolve } from 'path';
 
-test('postTask() calls the correct async hooks', async ({ equal }) => {
+test('postTask() calls the correct async hooks', async (t: TestContext) => {
   let taskId;
   let initCalls = 0;
   let beforeCalls = 0;
@@ -36,8 +37,8 @@ test('postTask() calls the correct async hooks', async ({ equal }) => {
   await pool.run('42');
 
   hook.disable();
-  equal(initCalls, 1);
-  equal(beforeCalls, 1);
-  equal(afterCalls, 1);
-  equal(resolveCalls, 1);
+  t.assert.strictEqual(initCalls, 1);
+  t.assert.strictEqual(beforeCalls, 1);
+  t.assert.strictEqual(afterCalls, 1);
+  t.assert.strictEqual(resolveCalls, 1);
 });

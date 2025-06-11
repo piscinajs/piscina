@@ -1,4 +1,5 @@
-import { test } from 'tap';
+import { test } from 'node:test';
+import type { TestContext } from 'node:test';
 import { kQueueOptions } from '../dist/symbols';
 import { Piscina, FixedQueue, PiscinaTask as Task } from '..';
 import { resolve } from 'node:path';
@@ -10,59 +11,59 @@ class QueueTask implements Task {
   }
 }
 
-test('queue length', async ({ equal }) => {
+test('queue length', async (t: TestContext) => {
   const queue = new FixedQueue();
 
-  equal(queue.size, 0);
+  t.assert.strictEqual(queue.size, 0);
 
   queue.push(new QueueTask());
 
-  equal(queue.size, 1);
+  t.assert.strictEqual(queue.size, 1);
 
   queue.shift();
 
-  equal(queue.size, 0);
+  t.assert.strictEqual(queue.size, 0);
 });
 
-test('queue length should not become negative', async ({ equal }) => {
+test('queue length should not become negative', async (t: TestContext) => {
   const queue = new FixedQueue();
 
-  equal(queue.size, 0);
+  t.assert.strictEqual(queue.size, 0);
 
   queue.shift();
 
-  equal(queue.size, 0);
+  t.assert.strictEqual(queue.size, 0);
 });
 
-test('queue remove', async ({ equal }) => {
+test('queue remove', async (t: TestContext) => {
   const queue = new FixedQueue();
 
   const task = new QueueTask();
 
-  equal(queue.size, 0, 'should be empty on start');
+  t.assert.strictEqual(queue.size, 0, 'should be empty on start');
 
   queue.push(task);
 
-  equal(queue.size, 1, 'should contain single task after push');
+  t.assert.strictEqual(queue.size, 1, 'should contain single task after push');
 
   queue.remove(task);
 
-  equal(queue.size, 0, 'should be empty after task removal');
+  t.assert.strictEqual(queue.size, 0, 'should be empty after task removal');
 });
 
-test('remove not queued task should not lead to errors', async ({ equal }) => {
+test('remove not queued task should not lead to errors', async (t: TestContext) => {
   const queue = new FixedQueue();
 
   const task = new QueueTask();
 
-  equal(queue.size, 0, 'should be empty on start');
+  t.assert.strictEqual(queue.size, 0, 'should be empty on start');
 
   queue.remove(task);
 
-  equal(queue.size, 0, 'should be empty after task removal');
+  t.assert.strictEqual(queue.size, 0, 'should be empty after task removal');
 });
 
-test('removing elements from intermediate CircularBuffer should not lead to issues', async ({ equal, same }) => {
+test('removing elements from intermediate CircularBuffer should not lead to issues', async (t: TestContext) => {
   /*
       The test intends to check following scenario:
       1) We fill the queue with 3 full circular buffers amount of items.
@@ -86,12 +87,12 @@ test('removing elements from intermediate CircularBuffer should not lead to issu
   for (const task of tasks) {
     queue.push(task);
   }
-  equal(queue.size, tasks.length, `should contain ${batchSize} * 3 items`);
+  t.assert.strictEqual(queue.size, tasks.length, `should contain ${batchSize} * 3 items`);
 
   let size = queue.size;
   for (const task of secondBatch) {
     queue.remove(task);
-    equal(queue.size, --size, `should contain ${size} items`);
+    t.assert.strictEqual(queue.size, --size, `should contain ${size} items`);
   }
 
   const expected = firstBatch.concat(thirdBatch);
@@ -100,10 +101,10 @@ test('removing elements from intermediate CircularBuffer should not lead to issu
     const task = queue.shift();
     actual.push(task);
   }
-  same(actual, expected);
+  t.assert.deepEqual(actual, expected);
 });
 
-test('removing elements from first CircularBuffer should not lead to issues', async ({ equal, same }) => {
+test('removing elements from first CircularBuffer should not lead to issues', async (t: TestContext) => {
   /*
       The test intends to check following scenario:
       1) We fill the queue with 3 full circular buffers amount of items.
@@ -126,12 +127,12 @@ test('removing elements from first CircularBuffer should not lead to issues', as
   for (const task of tasks) {
     queue.push(task);
   }
-  equal(queue.size, tasks.length, `should contain ${batchSize} * 3 items`);
+  t.assert.strictEqual(queue.size, tasks.length, `should contain ${batchSize} * 3 items`);
 
   let size = queue.size;
   for (const task of firstBatch) {
     queue.remove(task);
-    equal(queue.size, --size, `should contain ${size} items`);
+    t.assert.strictEqual(queue.size, --size, `should contain ${size} items`);
   }
 
   const expected = secondBatch.concat(thirdBatch);
@@ -140,10 +141,10 @@ test('removing elements from first CircularBuffer should not lead to issues', as
     const task = queue.shift();
     actual.push(task);
   }
-  same(actual, expected);
+  t.assert.deepEqual(actual, expected);
 });
 
-test('removing elements from last CircularBuffer should not lead to issues', async ({ equal, same }) => {
+test('removing elements from last CircularBuffer should not lead to issues', async (t: TestContext) => {
   /*
       The test intends to check following scenario:
       1) We fill the queue with 3 full circular buffers amount of items.
@@ -166,12 +167,12 @@ test('removing elements from last CircularBuffer should not lead to issues', asy
   for (const task of tasks) {
     queue.push(task);
   }
-  equal(queue.size, tasks.length, `should contain ${batchSize} * 3 items`);
+  t.assert.strictEqual(queue.size, tasks.length, `should contain ${batchSize} * 3 items`);
 
   let size = queue.size;
   for (const task of thirdBatch) {
     queue.remove(task);
-    equal(queue.size, --size, `should contain ${size} items`);
+    t.assert.strictEqual(queue.size, --size, `should contain ${size} items`);
   }
 
   const expected = firstBatch.concat(secondBatch);
@@ -180,10 +181,10 @@ test('removing elements from last CircularBuffer should not lead to issues', asy
     const task = queue.shift();
     actual.push(task);
   }
-  same(actual, expected);
+  t.assert.deepEqual(actual, expected);
 });
 
-test('simple integraion with Piscina', async ({ equal }) => {
+test('simple integraion with Piscina', async (t: TestContext) => {
   const queue = new FixedQueue();
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/simple-isworkerthread-named-import.ts'),
@@ -191,10 +192,10 @@ test('simple integraion with Piscina', async ({ equal }) => {
   });
 
   const result = await pool.run(null);
-  equal(result, 'done');
+  t.assert.strictEqual(result, 'done');
 });
 
-test('concurrent calls with Piscina', async ({ same }) => {
+test('concurrent calls with Piscina', async (t: TestContext) => {
   const queue = new FixedQueue();
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval-async.js'),
@@ -206,5 +207,5 @@ test('concurrent calls with Piscina', async ({ same }) => {
   // eslint-disable-next-line
   const expected = tasks.map(eval);
 
-  same(results, expected);
+  t.assert.deepEqual(results, expected);
 });

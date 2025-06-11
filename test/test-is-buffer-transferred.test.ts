@@ -1,12 +1,13 @@
 import Piscina from '..';
-import { test } from 'tap';
+import { test } from 'node:test';
+import type { TestContext } from 'node:test';
 import { resolve } from 'path';
 
 function wait () {
   return new Promise((resolve) => setTimeout(resolve, 1500));
 }
 
-test('transferable objects must be transferred', async ({ equal }) => {
+test('transferable objects must be transferred', async (t: TestContext) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/send-buffer-then-get-length.js'),
     atomics: 'disabled'
@@ -14,12 +15,10 @@ test('transferable objects must be transferred', async ({ equal }) => {
   await pool.run({}, { name: 'send' });
   await wait();
   const after = await pool.run({}, { name: 'get' });
-  equal(after, 0);
+  t.assert.strictEqual(after, 0);
 });
 
-test('objects that implement transferable must be transferred', async ({
-  equal
-}) => {
+test('objects that implement transferable must be transferred', async (t: TestContext) => {
   const pool = new Piscina({
     filename: resolve(
       __dirname,
@@ -30,5 +29,5 @@ test('objects that implement transferable must be transferred', async ({
   await pool.run({}, { name: 'send' });
   await wait();
   const after = await pool.run({}, { name: 'get' });
-  equal(after, 0);
+  t.assert.strictEqual(after, 0);
 });

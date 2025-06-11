@@ -1,16 +1,17 @@
 import Piscina, { PiscinaTask, TaskQueue } from '..';
-import { test } from 'tap';
+import { test } from 'node:test';
+import type { TestContext } from 'node:test';
 import { resolve } from 'path';
 
-test('will put items into a task queue until they can run', async ({ equal }) => {
+test('will put items into a task queue until they can run', async (t: TestContext) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/wait-for-notify.ts'),
     minThreads: 2,
     maxThreads: 3
   });
 
-  equal(pool.threads.length, 2);
-  equal(pool.queueSize, 0);
+  t.assert.strictEqual(pool.threads.length, 2);
+  t.assert.strictEqual(pool.queueSize, 0);
 
   const buffers = [
     new Int32Array(new SharedArrayBuffer(4)),
@@ -22,20 +23,20 @@ test('will put items into a task queue until they can run', async ({ equal }) =>
   const results = [];
 
   results.push(pool.run(buffers[0]));
-  equal(pool.threads.length, 2);
-  equal(pool.queueSize, 0);
+  t.assert.strictEqual(pool.threads.length, 2);
+  t.assert.strictEqual(pool.queueSize, 0);
 
   results.push(pool.run(buffers[1]));
-  equal(pool.threads.length, 2);
-  equal(pool.queueSize, 0);
+  t.assert.strictEqual(pool.threads.length, 2);
+  t.assert.strictEqual(pool.queueSize, 0);
 
   results.push(pool.run(buffers[2]));
-  equal(pool.threads.length, 3);
-  equal(pool.queueSize, 0);
+  t.assert.strictEqual(pool.threads.length, 3);
+  t.assert.strictEqual(pool.queueSize, 0);
 
   results.push(pool.run(buffers[3]));
-  equal(pool.threads.length, 3);
-  equal(pool.queueSize, 1);
+  t.assert.strictEqual(pool.threads.length, 3);
+  t.assert.strictEqual(pool.queueSize, 1);
 
   for (const buffer of buffers) {
     Atomics.store(buffer, 0, 1);
@@ -43,12 +44,12 @@ test('will put items into a task queue until they can run', async ({ equal }) =>
   }
 
   await results[0];
-  equal(pool.queueSize, 0);
+  t.assert.strictEqual(pool.queueSize, 0);
 
   await Promise.all(results);
 });
 
-test('will reject items over task queue limit', async ({ equal, rejects }) => {
+test('will reject items over task queue limit', async (t: TestContext) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js'),
     minThreads: 0,
@@ -56,26 +57,26 @@ test('will reject items over task queue limit', async ({ equal, rejects }) => {
     maxQueue: 2
   });
 
-  equal(pool.threads.length, 0);
-  equal(pool.queueSize, 0);
+  t.assert.strictEqual(pool.threads.length, 0);
+  t.assert.strictEqual(pool.queueSize, 0);
 
-  rejects(pool.run('while (true) {}'), /Terminating worker thread/);
-  equal(pool.threads.length, 1);
-  equal(pool.queueSize, 0);
+  t.assert.rejects(pool.run('while (true) {}'), /Terminating worker thread/);
+  t.assert.strictEqual(pool.threads.length, 1);
+  t.assert.strictEqual(pool.queueSize, 0);
 
-  rejects(pool.run('while (true) {}'), /Terminating worker thread/);
-  equal(pool.threads.length, 1);
-  equal(pool.queueSize, 1);
+  t.assert.rejects(pool.run('while (true) {}'), /Terminating worker thread/);
+  t.assert.strictEqual(pool.threads.length, 1);
+  t.assert.strictEqual(pool.queueSize, 1);
 
-  rejects(pool.run('while (true) {}'), /Terminating worker thread/);
-  equal(pool.threads.length, 1);
-  equal(pool.queueSize, 2);
+  t.assert.rejects(pool.run('while (true) {}'), /Terminating worker thread/);
+  t.assert.strictEqual(pool.threads.length, 1);
+  t.assert.strictEqual(pool.queueSize, 2);
 
-  rejects(pool.run('while (true) {}'), /Task queue is at limit/);
+  t.assert.rejects(pool.run('while (true) {}'), /Task queue is at limit/);
   await pool.destroy();
 });
 
-test('will reject items when task queue is unavailable', async ({ equal, rejects }) => {
+test('will reject items when task queue is unavailable', async (t: TestContext) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js'),
     minThreads: 0,
@@ -83,18 +84,18 @@ test('will reject items when task queue is unavailable', async ({ equal, rejects
     maxQueue: 0
   });
 
-  equal(pool.threads.length, 0);
-  equal(pool.queueSize, 0);
+  t.assert.strictEqual(pool.threads.length, 0);
+  t.assert.strictEqual(pool.queueSize, 0);
 
-  rejects(pool.run('while (true) {}'), /Terminating worker thread/);
-  equal(pool.threads.length, 1);
-  equal(pool.queueSize, 0);
+  t.assert.rejects(pool.run('while (true) {}'), /Terminating worker thread/);
+  t.assert.strictEqual(pool.threads.length, 1);
+  t.assert.strictEqual(pool.queueSize, 0);
 
-  rejects(pool.run('while (true) {}'), /No task queue available and all Workers are busy/);
+  t.assert.rejects(pool.run('while (true) {}'), /No task queue available and all Workers are busy/);
   await pool.destroy();
 });
 
-test('will reject items when task queue is unavailable (fixed thread count)', async ({ equal, rejects }) => {
+test('will reject items when task queue is unavailable (fixed thread count)', async (t: TestContext) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js'),
     minThreads: 1,
@@ -102,18 +103,18 @@ test('will reject items when task queue is unavailable (fixed thread count)', as
     maxQueue: 0
   });
 
-  equal(pool.threads.length, 1);
-  equal(pool.queueSize, 0);
+  t.assert.strictEqual(pool.threads.length, 1);
+  t.assert.strictEqual(pool.queueSize, 0);
 
-  rejects(pool.run('while (true) {}'), /Terminating worker thread/);
-  equal(pool.threads.length, 1);
-  equal(pool.queueSize, 0);
+  t.assert.rejects(pool.run('while (true) {}'), /Terminating worker thread/);
+  t.assert.strictEqual(pool.threads.length, 1);
+  t.assert.strictEqual(pool.queueSize, 0);
 
-  rejects(pool.run('while (true) {}'), /No task queue available and all Workers are busy/);
+  t.assert.rejects(pool.run('while (true) {}'), /No task queue available and all Workers are busy/);
   await pool.destroy();
 });
 
-test('tasks can share a Worker if requested (both tests blocking)', async ({ equal, rejects }) => {
+test('tasks can share a Worker if requested (both tests blocking)', async (t: TestContext) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/wait-for-notify.ts'),
     minThreads: 0,
@@ -122,21 +123,21 @@ test('tasks can share a Worker if requested (both tests blocking)', async ({ equ
     concurrentTasksPerWorker: 2
   });
 
-  equal(pool.threads.length, 0);
-  equal(pool.queueSize, 0);
+  t.assert.strictEqual(pool.threads.length, 0);
+  t.assert.strictEqual(pool.queueSize, 0);
 
-  rejects(pool.run(new Int32Array(new SharedArrayBuffer(4))));
-  equal(pool.threads.length, 1);
-  equal(pool.queueSize, 0);
+  t.assert.rejects(pool.run(new Int32Array(new SharedArrayBuffer(4))));
+  t.assert.strictEqual(pool.threads.length, 1);
+  t.assert.strictEqual(pool.queueSize, 0);
 
-  rejects(pool.run(new Int32Array(new SharedArrayBuffer(4))));
-  equal(pool.threads.length, 1);
-  equal(pool.queueSize, 0);
+  t.assert.rejects(pool.run(new Int32Array(new SharedArrayBuffer(4))));
+  t.assert.strictEqual(pool.threads.length, 1);
+  t.assert.strictEqual(pool.queueSize, 0);
 
   await pool.destroy();
 });
 
-test('tasks can share a Worker if requested (one test finishes)', async ({ equal, rejects }) => {
+test('tasks can share a Worker if requested (one test finishes)', async (t: TestContext) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/wait-for-notify.js'),
     minThreads: 0,
@@ -150,31 +151,31 @@ test('tasks can share a Worker if requested (one test finishes)', async ({ equal
     new Int32Array(new SharedArrayBuffer(4))
   ];
 
-  equal(pool.threads.length, 0);
-  equal(pool.queueSize, 0);
+  t.assert.strictEqual(pool.threads.length, 0);
+  t.assert.strictEqual(pool.queueSize, 0);
 
   const firstTask = pool.run(buffers[0]);
-  equal(pool.threads.length, 1);
-  equal(pool.queueSize, 0);
+  t.assert.strictEqual(pool.threads.length, 1);
+  t.assert.strictEqual(pool.queueSize, 0);
 
-  rejects(pool.run(
+  t.assert.rejects(pool.run(
     'new Promise((resolve) => setTimeout(resolve, 1000000))',
     { filename: resolve(__dirname, 'fixtures/eval.js') })
   , /Terminating worker thread/);
-  equal(pool.threads.length, 1);
-  equal(pool.queueSize, 0);
+  t.assert.strictEqual(pool.threads.length, 1);
+  t.assert.strictEqual(pool.queueSize, 0);
 
   Atomics.store(buffers[0], 0, 1);
   Atomics.notify(buffers[0], 0, 1);
 
   await firstTask;
-  equal(pool.threads.length, 1);
-  equal(pool.queueSize, 0);
+  t.assert.strictEqual(pool.threads.length, 1);
+  t.assert.strictEqual(pool.queueSize, 0);
 
   await pool.destroy();
 });
 
-test('tasks can share a Worker if requested (both tests finish)', async ({ equal }) => {
+test('tasks can share a Worker if requested (both tests finish)', async (t: TestContext) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/wait-for-notify.ts'),
     minThreads: 1,
@@ -188,16 +189,16 @@ test('tasks can share a Worker if requested (both tests finish)', async ({ equal
     new Int32Array(new SharedArrayBuffer(4))
   ];
 
-  equal(pool.threads.length, 1);
-  equal(pool.queueSize, 0);
+  t.assert.strictEqual(pool.threads.length, 1);
+  t.assert.strictEqual(pool.queueSize, 0);
 
   const firstTask = pool.run(buffers[0]);
-  equal(pool.threads.length, 1);
-  equal(pool.queueSize, 0);
+  t.assert.strictEqual(pool.threads.length, 1);
+  t.assert.strictEqual(pool.queueSize, 0);
 
   const secondTask = pool.run(buffers[1]);
-  equal(pool.threads.length, 1);
-  equal(pool.queueSize, 0);
+  t.assert.strictEqual(pool.threads.length, 1);
+  t.assert.strictEqual(pool.queueSize, 0);
 
   Atomics.store(buffers[0], 0, 1);
   Atomics.store(buffers[1], 0, 1);
@@ -207,15 +208,15 @@ test('tasks can share a Worker if requested (both tests finish)', async ({ equal
   Atomics.wait(buffers[1], 0, 1);
 
   await firstTask;
-  equal(buffers[0][0], -1);
+  t.assert.strictEqual(buffers[0][0], -1);
   await secondTask;
-  equal(buffers[1][0], -1);
+  t.assert.strictEqual(buffers[1][0], -1);
 
-  equal(pool.threads.length, 1);
-  equal(pool.queueSize, 0);
+  t.assert.strictEqual(pool.threads.length, 1);
+  t.assert.strictEqual(pool.queueSize, 0);
 });
 
-test('custom task queue works', async ({ equal, ok }) => {
+test('custom task queue works', async (t: TestContext) => {
   let sizeCalled : boolean = false;
   let shiftCalled : boolean = false;
   let pushCalled : boolean = false;
@@ -237,11 +238,11 @@ test('custom task queue works', async ({ equal, ok }) => {
       pushCalled = true;
       this.tasks.push(task);
 
-      ok(Piscina.queueOptionsSymbol in task);
+      t.assert.ok(Piscina.queueOptionsSymbol in task);
       if ((task as any).task.a === 3) {
-        equal(task[Piscina.queueOptionsSymbol], null);
+        t.assert.strictEqual(task[Piscina.queueOptionsSymbol], null);
       } else {
-        equal(task[Piscina.queueOptionsSymbol].option,
+        t.assert.strictEqual(task[Piscina.queueOptionsSymbol].option,
           (task as any).task.a);
       }
     }
@@ -270,11 +271,11 @@ test('custom task queue works', async ({ equal, ok }) => {
     pool.run({ a: 3 }) // No queueOptionsSymbol attached
   ]);
 
-  equal(ret[0].a, 1);
-  equal(ret[1].a, 2);
-  equal(ret[2].a, 3);
+  t.assert.strictEqual(ret[0].a, 1);
+  t.assert.strictEqual(ret[1].a, 2);
+  t.assert.strictEqual(ret[2].a, 3);
 
-  ok(sizeCalled);
-  ok(pushCalled);
-  ok(shiftCalled);
+  t.assert.ok(sizeCalled);
+  t.assert.ok(pushCalled);
+  t.assert.ok(shiftCalled);
 });
