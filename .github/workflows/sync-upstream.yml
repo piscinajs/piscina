@@ -1,0 +1,149 @@
+name: Sync with Upstream
+
+on:
+  schedule:
+    - cron: '0 0 * * *'   # Daily at midnight UTC
+  workflow_dispatch:      # Allow manual trigger
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/piscinajs/piscina.git || true
+          git fetch upstream
+
+      - name: Check for existing sync PRs
+        id: check_pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Look for existing open PRs with sync title
+          PR_NUMBER=$(gh pr list --state open --search "Sync with upstream" --json number --jq '.[0].number // empty')
+          echo "existing_pr=$PR_NUMBER" >> $GITHUB_OUTPUT
+          
+          if [ ! -z "$PR_NUMBER" ]; then
+            echo "Found existing sync PR #$PR_NUMBER"
+          else
+            echo "No existing sync PR found"
+          fi
+
+      - name: Get current branch and upstream changes
+        id: check_changes
+        run: |
+          CURRENT_BRANCH=$(git branch --show-current)
+          echo "current_branch=$CURRENT_BRANCH" >> $GITHUB_OUTPUT
+          
+          # Check if there are new commits in upstream
+          BEHIND_COUNT=$(git rev-list --count HEAD..upstream/$CURRENT_BRANCH 2>/dev/null || echo "0")
+          echo "behind_count=$BEHIND_COUNT" >> $GITHUB_OUTPUT
+          
+          if [ "$BEHIND_COUNT" -gt 0 ]; then
+            echo "Repository is $BEHIND_COUNT commits behind upstream"
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "Repository is up to date with upstream"
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Attempt fast-forward merge
+        if: steps.check_changes.outputs.has_changes == 'true' && steps.check_pr.outputs.existing_pr == ''
+        id: merge_attempt
+        run: |
+          CURRENT_BRANCH="${{ steps.check_changes.outputs.current_branch }}"
+          
+          # Try to merge upstream changes
+          if git merge upstream/$CURRENT_BRANCH --ff-only; then
+            echo "merge_success=true" >> $GITHUB_OUTPUT
+            echo "Successfully merged upstream changes"
+          else
+            echo "merge_success=false" >> $GITHUB_OUTPUT
+            echo "Fast-forward merge failed, conflicts detected"
+            git merge --abort || true
+          fi
+
+      - name: Push successful merge
+        if: steps.merge_attempt.outputs.merge_success == 'true'
+        run: |
+          CURRENT_BRANCH="${{ steps.check_changes.outputs.current_branch }}"
+          git push origin $CURRENT_BRANCH
+          echo "Successfully pushed merged changes to origin"
+
+      - name: Create or update PR for conflicts
+        if: steps.check_changes.outputs.has_changes == 'true' && (steps.merge_attempt.outputs.merge_success == 'false' || steps.check_pr.outputs.existing_pr != '')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          CURRENT_BRANCH="${{ steps.check_changes.outputs.current_branch }}"
+          SYNC_BRANCH="sync-upstream-$(date +%Y%m%d)"
+          
+          # If there's an existing PR, update it
+          if [ ! -z "${{ steps.check_pr.outputs.existing_pr }}" ]; then
+            echo "Updating existing PR #${{ steps.check_pr.outputs.existing_pr }}"
+            
+            # Get the branch name of the existing PR
+            EXISTING_BRANCH=$(gh pr view ${{ steps.check_pr.outputs.existing_pr }} --json headRefName --jq '.headRefName')
+            
+            # Switch to the existing branch and update it
+            git checkout $EXISTING_BRANCH 2>/dev/null || git checkout -b $EXISTING_BRANCH
+            git fetch upstream
+            git reset --hard upstream/$CURRENT_BRANCH
+            git push origin $EXISTING_BRANCH --force
+            
+            # Update PR description
+            gh pr edit ${{ steps.check_pr.outputs.existing_pr }} --body "This PR syncs the fork with the upstream repository.
+
+            **Updated:** $(date -u)
+            **Behind by:** ${{ steps.check_changes.outputs.behind_count }} commits
+
+            Please review and merge when ready. If there are conflicts, resolve them manually."
+            
+          else
+            echo "Creating new PR for sync"
+            
+            # Create sync branch with upstream changes
+            git checkout -b $SYNC_BRANCH
+            git fetch upstream
+            git reset --hard upstream/$CURRENT_BRANCH
+            git push origin $SYNC_BRANCH
+            
+            # Create PR
+            gh pr create \
+              --title "Sync with upstream" \
+              --body "This PR syncs the fork with the upstream repository.
+
+            **Created:** $(date -u)
+            **Behind by:** ${{ steps.check_changes.outputs.behind_count }} commits
+
+            Please review and merge when ready. If there are conflicts, resolve them manually." \
+              --base $CURRENT_BRANCH \
+              --head $SYNC_BRANCH
+          fi
+
+      - name: Summary
+        run: |
+          if [ "${{ steps.check_changes.outputs.has_changes }}" == "false" ]; then
+            echo "✅ Repository is up to date with upstream"
+          elif [ "${{ steps.merge_attempt.outputs.merge_success }}" == "true" ]; then
+            echo "✅ Successfully merged and pushed ${{ steps.check_changes.outputs.behind_count }} commits from upstream"
+          elif [ ! -z "${{ steps.check_pr.outputs.existing_pr }}" ]; then
+            echo "🔄 Updated existing sync PR #${{ steps.check_pr.outputs.existing_pr }}"
+          else
+            echo "🔀 Created new PR for upstream sync (conflicts require manual resolution)"
+          fi
