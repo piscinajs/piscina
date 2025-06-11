@@ -96,17 +96,18 @@ test('Piscina emits drain', async (t: TestContext) => {
   t.assert.ok(!needsDrain);
 });
 
-test('Piscina exposes/emits needsDrain to true when capacity is exceeded', (t: TestContext) => {
+test('Piscina exposes/emits needsDrain to true when capacity is exceeded', (t: TestContext, done) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js'),
     maxQueue: 3,
     maxThreads: 1
   });
 
-  t.plan(3, { wait: true });
+  t.plan(3);
 
   pool.once('drain', () => {
     t.assert.ok(true);
+    done();
   });
   pool.once('needsDrain', () => {
     t.assert.ok(true);
