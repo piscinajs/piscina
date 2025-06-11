@@ -108,7 +108,7 @@ test('workers has histogram', { timeout: 10_000 }, async t => {
   t.type(histogram?.min, 'number');
 });
 
-test('workers does not have histogram if disabled', async t => {
+test('workers does not have histogram if disabled', { timeout: 10_000 }, async t => {
   let index = 0;
   // After each task the balancer is called to distribute the next task
   // The first task is distributed, the second is enqueued, once the first is done, the second is distributed and normalizes
