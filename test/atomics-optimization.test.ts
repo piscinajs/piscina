@@ -68,7 +68,7 @@ function popcount8 (v : number) : number {
   return v;
 }
 
-test('avoids unbounded recursion', { timeout: 10_000 }, async () => {
+test('avoids unbounded recursion', async () => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/simple-isworkerthread.ts'),
     minThreads: 2,
