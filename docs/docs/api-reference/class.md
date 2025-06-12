@@ -118,7 +118,7 @@ result in the `Piscina` worker threads being unusable.
     **Note on Explicit Resource Management**: Piscina does has support for `Symbol.dispose` and `Symbol.asyncDispose` for explicit resource management for its usage with the `using` keyword.
     This is only avaiable on Node.js 24 and higher.
 
-    For more information, see the [Explicit Resource Management]([../advanced-topics/explicit-resource-management.mdx](https://github.com/tc39/proposal-explicit-resource-management)).
+    For more information, see the [Explicit Resource Management](https://github.com/tc39/proposal-explicit-resource-management).
     :::
 **
 
