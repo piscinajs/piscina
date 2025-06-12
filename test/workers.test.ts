@@ -1,38 +1,40 @@
 import { resolve } from 'node:path';
 
-import { test } from 'tap';
+import { test } from 'node:test';
+import type { TestContext } from 'node:test';
 
 import Piscina from '../dist';
 
-test('workerCreate/workerDestroy should be emitted while managing worker lifecycle', async t => {
+test('workers are marked as destroyed if destroyed', async (t: TestContext) => {
   let index = 0;
   // Its expected to have one task get balanced twice due to the load balancer distribution
   // first task enters, its distributed; second is enqueued, once first is done, second is distributed and normalizes
-  t.plan(2);
-  let newWorkers = 0;
-  let destroyedWorkers = 0;
+  t.plan(4);
+  let workersFirstRound = [];
+  let workersSecondRound = [];
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js'),
-    maxThreads: 3,
-    minThreads: 3,
+    minThreads: 2,
+    maxThreads: 2,
     concurrentTasksPerWorker: 1,
     loadBalancer (_task, workers) {
+      if (workersFirstRound.length === 0) {
+        workersFirstRound = workers;
+        workersSecondRound = workers;
+      } else if (
+        workersFirstRound[0].id !== workers[0].id
+      ) {
+        workersSecondRound = workers;
+      }
       // Verify distribution to properly test this feature
       const candidate = workers[index++ % workers.length];
-      if (candidate != null && candidate.currentUsage >= 1) {
+
+      if (candidate.currentUsage !== 0 && !candidate.isRunningAbortableTask) {
         return null;
       }
 
       return candidate;
     }
-  });
-
-  pool.on('workerCreate', () => {
-    newWorkers++;
-  });
-
-  pool.on('workerDestroy', () => {
-    destroyedWorkers++;
   });
 
   const tasks = [];
@@ -42,13 +44,14 @@ test('workerCreate/workerDestroy should be emitted while managing worker lifecyc
     signal
   }));
 
-  for (let n = 0; n < 10; n++) {
+  for (let n = 0; n < 5; n++) {
     tasks.push(pool.run('new Promise(resolve => setTimeout(resolve, 500))'));
   }
 
   controller.abort();
   await Promise.allSettled(tasks);
-  await pool.close();
-  t.equal(destroyedWorkers, 4);
-  t.equal(newWorkers, 4);
+  t.assert.notStrictEqual(workersFirstRound, workersSecondRound);
+  t.assert.strictEqual(workersFirstRound.length, 2);
+  t.assert.ok(workersFirstRound[0].destroyed);
+  t.assert.ok(!workersFirstRound[0].terminating);
 });

@@ -1,27 +1,28 @@
 import Piscina from '..';
-import { test } from 'tap';
+import { test } from 'node:test';
+import type { TestContext } from 'node:test';
 import { resolve } from 'path';
 import { once } from 'events';
 
-test('uncaught exception resets Worker', async ({ rejects }) => {
+test('uncaught exception resets Worker', async (t: TestContext)=> {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js')
   });
-  await rejects(pool.run('throw new Error("not_caught")'), /not_caught/);
+  await t.assert.rejects(pool.run('throw new Error("not_caught")'), /not_caught/);
 });
 
-test('uncaught exception in immediate resets Worker', async ({ rejects }) => {
+test('uncaught exception in immediate resets Worker', async (t: TestContext)=> {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js')
   });
-  await rejects(
+  await t.assert.rejects(
     pool.run(`
       setImmediate(() => { throw new Error("not_caught") });
       new Promise(() => {}) /* act as if we were doing some work */
     `), /not_caught/);
 });
 
-test('uncaught exception in immediate after task yields error event', async ({ equal }) => {
+test('uncaught exception in immediate after task yields error event', async (t: TestContext) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js'),
     maxThreads: 1,
@@ -35,28 +36,28 @@ test('uncaught exception in immediate after task yields error event', async ({ e
     42
   `);
 
-  equal(await taskResult, 42);
+  t.assert.strictEqual(await taskResult, 42);
 
   // Hack a bit to make sure we get the 'exit'/'error' events.
-  equal(pool.threads.length, 1);
+  t.assert.strictEqual(pool.threads.length, 1);
   pool.threads[0].ref();
 
   // This is the main assertion here.
-  equal((await errorEvent)[0].message, 'not_caught');
+  t.assert.strictEqual((await errorEvent)[0].message, 'not_caught');
 });
 
-test('exiting process resets worker', async ({ not, rejects }) => {
+test('exiting process resets worker', async (t: TestContext) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js'),
     minThreads: 1
   });
   const originalThreadId = pool.threads[0].threadId;
-  await rejects(pool.run('process.exit(1);'), /worker exited with code: 1/);
+  await t.assert.rejects(pool.run('process.exit(1);'), /worker exited with code: 1/);
   const newThreadId = pool.threads[0].threadId;
-  not(originalThreadId, newThreadId);
+  t.assert.notStrictEqual(originalThreadId, newThreadId);
 });
 
-test('exiting process in immediate after task errors next task and resets worker', async ({ equal, not, rejects }) => {
+test('exiting process in immediate after task errors next task and resets worker', async (t: TestContext) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval-async.js'),
     minThreads: 1
@@ -67,9 +68,9 @@ test('exiting process in immediate after task errors next task and resets worker
     setTimeout(() => { process.exit(1); }, 50);
     42
   `);
-  equal(taskResult, 42);
+  t.assert.strictEqual(taskResult, 42);
 
-  await rejects(pool.run(`
+  await t.assert.rejects(pool.run(`
   'use strict';
 
   const { promisify } = require('util');
@@ -82,5 +83,5 @@ test('exiting process in immediate after task errors next task and resets worker
   `), /worker exited with code: 1/);
   const secondThreadId = pool.threads[0].threadId;
 
-  not(originalThreadId, secondThreadId);
+  t.assert.notStrictEqual(originalThreadId, secondThreadId);
 });
