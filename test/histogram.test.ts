@@ -35,6 +35,49 @@ test('pool will maintain run and wait time histograms by default', async (t: Tes
   t.assert.strictEqual(typeof histogram.resetWaitTime, 'function');
 });
 
+test('pool will maintain reset histograms upon call', async (t: TestContext) => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js')
+  });
+
+  const tasks = [];
+  for (let n = 0; n < 10; n++) {
+    tasks.push(pool.run('42'));
+  }
+  await Promise.all(tasks);
+
+  const histogram = pool.histogram;
+  let waitTime = histogram.waitTime;
+  t.assert.ok(waitTime);
+  t.assert.strictEqual(typeof waitTime.average, 'number');
+  t.assert.strictEqual(typeof waitTime.mean, 'number');
+  t.assert.strictEqual(typeof waitTime.stddev, 'number');
+  t.assert.ok(waitTime.min > 0);
+  t.assert.ok(waitTime.max > 0);
+
+  let runTime = histogram.runTime;
+  t.assert.ok(runTime);
+  t.assert.strictEqual(typeof runTime.average, 'number');
+  t.assert.strictEqual(typeof runTime.mean, 'number');
+  t.assert.strictEqual(typeof runTime.stddev, 'number');
+  t.assert.ok(runTime.min > 0);
+  t.assert.ok(runTime.max > 0);
+
+  histogram.resetRunTime();
+  runTime = histogram.runTime;
+  t.assert.ok(Number.isNaN(runTime.average));
+  t.assert.ok(Number.isNaN(runTime.mean));
+  t.assert.ok(Number.isNaN(runTime.stddev));
+  t.assert.strictEqual(runTime.max, 0);
+  
+  histogram.resetWaitTime();
+  waitTime = histogram.waitTime;
+  t.assert.ok(Number.isNaN(waitTime.average));
+  t.assert.ok(Number.isNaN(waitTime.mean));
+  t.assert.ok(Number.isNaN(waitTime.stddev));
+  t.assert.strictEqual(waitTime.max, 0);
+});
+
 test('pool will maintain run and wait time histograms when recordTiming is true', async (t: TestContext) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js'),

@@ -51,10 +51,6 @@ export class PiscinaHistogramHandler {
     return this.#runTime.count;
   }
 
-  get waitTimeCount(): number {
-    return this.#waitTime.count;
-  }
-
   recordRunTime(value: number) {
     this.#runTime.record(PiscinaHistogramHandler.toHistogramIntegerNano(value));
   }
