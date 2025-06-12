@@ -455,7 +455,7 @@ class ThreadPool {
   _distributeTask (task: TaskInfo, workers: PiscinaWorker[]): boolean {
     // We need to verify if the task is aborted already or not
     // otherwise we might be distributing aborted tasks to workers
-    if (task.aborted) return false;
+    if (task.aborted) return true;
 
     const candidate = this.balancer(task.interface, workers);
 
