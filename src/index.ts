@@ -616,10 +616,10 @@ class ThreadPool {
 
     if (maxCapacity === currentUsage) {
       this._needsDrain = true;
-      this.publicInterface.emit('needsDrain');
+      queueMicrotask(() => this.publicInterface.emit('needsDrain'));
     } else if (maxCapacity > currentUsage && this._needsDrain) {
       this._needsDrain = false;
-      this.publicInterface.emit('drain');
+      queueMicrotask(() => this.publicInterface.emit('drain'));
     }
   }
 
