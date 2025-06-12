@@ -1,9 +1,12 @@
 import { resolve } from 'node:path';
-
 import { test } from 'node:test';
+import { once } from 'node:events';
+
 import type { TestContext } from 'node:test';
 
 import Piscina from '../dist';
+
+const nodeVersion = Number(process.versions.node.split('.')[0])
 
 test('workerCreate/workerDestroy should be emitted while managing worker lifecycle', async (t: TestContext) => {
   let index = 0;
@@ -53,3 +56,51 @@ test('workerCreate/workerDestroy should be emitted while managing worker lifecyc
   t.assert.strictEqual(destroyedWorkers, 4);
   t.assert.strictEqual(newWorkers, 4);
 });
+
+test('Explicit resource management (dispose)', { skip: nodeVersion !== 24 }, async (t: TestContext) => {
+  const piscina = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js'),
+    maxThreads: 1,
+    minThreads: 1,
+    concurrentTasksPerWorker: 1,
+  });
+  
+  {
+    using pool = piscina;
+    const tasks = [];
+
+    t.plan(1);
+    pool.once('close', () => {
+      t.assert.ok(true)
+    });
+
+    for (let n = 0; n < 10; n++) {
+      tasks.push(pool.run('new Promise(resolve => setTimeout(resolve, 500))'));
+    }
+  }
+
+  await once(piscina, 'close');
+})
+
+test('Explicit resource management (asyncDispose)', { skip: nodeVersion !== 24 }, async (t: TestContext) => {
+  const piscina = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js'),
+    maxThreads: 1,
+    minThreads: 1,
+    concurrentTasksPerWorker: 1,
+  });
+
+  {
+    await using pool = piscina;
+    const tasks = [];
+
+    t.plan(1);
+    pool.once('close', () => {
+      t.assert.ok(true)
+    });
+
+    for (let n = 0; n < 10; n++) {
+      tasks.push(pool.run('new Promise(resolve => setTimeout(resolve, 500))'));
+    }
+  }
+})
