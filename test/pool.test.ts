@@ -53,3 +53,29 @@ test('workerCreate/workerDestroy should be emitted while managing worker lifecyc
   t.assert.strictEqual(destroyedWorkers, 4);
   t.assert.strictEqual(newWorkers, 4);
 });
+
+test('#805 - Concurrent Aborts', async (t: TestContext) => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js'),
+    maxThreads: 1,
+    minThreads: 1,
+    concurrentTasksPerWorker: 1,
+  });
+
+  t.after(() => pool.close());
+  
+  t.plan(2);
+  const tasks = [];
+  const controller = new AbortController();
+  const controller2 = new AbortController();
+
+  tasks.push(t.assert.rejects(pool.run('new Promise(resolve => setTimeout(resolve, 1500))', { signal: controller.signal })));
+  tasks.push(t.assert.rejects(pool.run('new Promise(resolve => setTimeout(resolve, 1500))', { signal: controller2.signal })));
+  tasks.push(pool.run('new Promise(resolve => setTimeout(resolve, 1000))'));
+
+  
+  controller.abort();
+  controller2.abort();
+
+  await Promise.all(tasks);
+});
