@@ -1,10 +1,11 @@
 import { resolve } from 'node:path';
 
-import { test } from 'tap';
+import { test } from 'node:test';
+import type { TestContext } from 'node:test';
 
 import Piscina from '..';
 
-test('workerCreate/workerDestroy should be emitted while managing worker lifecycle', async t => {
+test('workerCreate/workerDestroy should be emitted while managing worker lifecycle', async (t: TestContext) => {
   let index = 0;
   // Its expected to have one task get balanced twice due to the load balancer distribution
   // first task enters, its distributed; second is enqueued, once first is done, second is distributed and normalizes
@@ -49,6 +50,6 @@ test('workerCreate/workerDestroy should be emitted while managing worker lifecyc
   controller.abort();
   await Promise.allSettled(tasks);
   await pool.close();
-  t.equal(destroyedWorkers, 4);
-  t.equal(newWorkers, 4);
+  t.assert.strictEqual(destroyedWorkers, 4);
+  t.assert.strictEqual(newWorkers, 4);
 });

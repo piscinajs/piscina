@@ -1,9 +1,10 @@
-import { resolve } from 'path';
-import { test } from 'tap';
 import Piscina from '..';
+import { test } from 'node:test';
+import type { TestContext } from 'node:test';
+import { resolve } from 'path';
 import { type PiscinaWorker } from '../dist/worker_pool';
 
-test('pool will maintain run and wait time histograms by default', async ({ equal, ok }) => {
+test('pool will maintain run and wait time histograms by default', async (t: TestContext) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js')
   });
@@ -16,25 +17,68 @@ test('pool will maintain run and wait time histograms by default', async ({ equa
 
   const histogram = pool.histogram;
   const waitTime = histogram.waitTime;
-  ok(waitTime);
-  equal(typeof waitTime.average, 'number');
-  equal(typeof waitTime.mean, 'number');
-  equal(typeof waitTime.stddev, 'number');
-  equal(typeof waitTime.min, 'number');
-  equal(typeof waitTime.max, 'number');
+  t.assert.ok(waitTime);
+  t.assert.strictEqual(typeof waitTime.average, 'number');
+  t.assert.strictEqual(typeof waitTime.mean, 'number');
+  t.assert.strictEqual(typeof waitTime.stddev, 'number');
+  t.assert.strictEqual(typeof waitTime.min, 'number');
+  t.assert.strictEqual(typeof waitTime.max, 'number');
 
   const runTime = histogram.runTime;
-  ok(runTime);
-  equal(typeof runTime.average, 'number');
-  equal(typeof runTime.mean, 'number');
-  equal(typeof runTime.stddev, 'number');
-  equal(typeof runTime.min, 'number');
-  equal(typeof runTime.max, 'number');
-  equal(typeof histogram.resetRunTime, 'function');
-  equal(typeof histogram.resetWaitTime, 'function');
+  t.assert.ok(runTime);
+  t.assert.strictEqual(typeof runTime.average, 'number');
+  t.assert.strictEqual(typeof runTime.mean, 'number');
+  t.assert.strictEqual(typeof runTime.stddev, 'number');
+  t.assert.strictEqual(typeof runTime.min, 'number');
+  t.assert.strictEqual(typeof runTime.max, 'number');
+  t.assert.strictEqual(typeof histogram.resetRunTime, 'function');
+  t.assert.strictEqual(typeof histogram.resetWaitTime, 'function');
 });
 
-test('pool will maintain run and wait time histograms when recordTiming is true', async ({ ok }) => {
+test('pool will maintain reset histograms upon call', async (t: TestContext) => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js')
+  });
+
+  const tasks = [];
+  for (let n = 0; n < 10; n++) {
+    tasks.push(pool.run('42'));
+  }
+  await Promise.all(tasks);
+
+  const histogram = pool.histogram;
+  let waitTime = histogram.waitTime;
+  t.assert.ok(waitTime);
+  t.assert.strictEqual(typeof waitTime.average, 'number');
+  t.assert.strictEqual(typeof waitTime.mean, 'number');
+  t.assert.strictEqual(typeof waitTime.stddev, 'number');
+  t.assert.ok(waitTime.min > 0);
+  t.assert.ok(waitTime.max > 0);
+
+  let runTime = histogram.runTime;
+  t.assert.ok(runTime);
+  t.assert.strictEqual(typeof runTime.average, 'number');
+  t.assert.strictEqual(typeof runTime.mean, 'number');
+  t.assert.strictEqual(typeof runTime.stddev, 'number');
+  t.assert.ok(runTime.min > 0);
+  t.assert.ok(runTime.max > 0);
+
+  histogram.resetRunTime();
+  runTime = histogram.runTime;
+  t.assert.ok(Number.isNaN(runTime.average));
+  t.assert.ok(Number.isNaN(runTime.mean));
+  t.assert.ok(Number.isNaN(runTime.stddev));
+  t.assert.strictEqual(runTime.max, 0);
+  
+  histogram.resetWaitTime();
+  waitTime = histogram.waitTime;
+  t.assert.ok(Number.isNaN(waitTime.average));
+  t.assert.ok(Number.isNaN(waitTime.mean));
+  t.assert.ok(Number.isNaN(waitTime.stddev));
+  t.assert.strictEqual(waitTime.max, 0);
+});
+
+test('pool will maintain run and wait time histograms when recordTiming is true', async (t: TestContext) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js'),
     recordTiming: true
@@ -47,13 +91,13 @@ test('pool will maintain run and wait time histograms when recordTiming is true'
   await Promise.all(tasks);
 
   const waitTime = pool.histogram.waitTime;
-  ok(waitTime);
+  t.assert.ok(waitTime);
 
   const runTime = pool.histogram.runTime;
-  ok(runTime);
+  t.assert.ok(runTime);
 });
 
-test('pool does not maintain run and wait time histograms when recordTiming is false', async ({ notOk }) => {
+test('pool does not maintain run and wait time histograms when recordTiming is false', async (t: TestContext) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js'),
     recordTiming: false
@@ -65,11 +109,11 @@ test('pool does not maintain run and wait time histograms when recordTiming is f
   }
   await Promise.all(tasks);
 
-  notOk(pool.histogram.waitTime);
-  notOk(pool.histogram.runTime);
+  t.assert.ok(!pool.histogram.waitTime);
+  t.assert.ok(!pool.histogram.runTime);
 });
 
-test('workers has histogram', { timeout: 10_000 }, async t => {
+test('workers has histogram', { timeout: 10_000 }, async (t: TestContext) => {
   let index = 0;
   let list: PiscinaWorker[];
   // Its expected to have one task get balanced twice due to the load balancer distribution
@@ -102,13 +146,13 @@ test('workers has histogram', { timeout: 10_000 }, async t => {
   }
   await Promise.all(tasks);
   const histogram = list[0].histogram;
-  t.type(histogram?.average, 'number');
-  t.type(histogram?.max, 'number');
-  t.type(histogram?.mean, 'number');
-  t.type(histogram?.min, 'number');
+  t.assert.ok(typeof histogram?.average, 'number');
+  t.assert.ok(typeof histogram?.max, 'number');
+  t.assert.ok(typeof histogram?.mean, 'number');
+  t.assert.ok(typeof histogram?.min, 'number');
 });
 
-test('workers does not have histogram if disabled', { timeout: 10_000 }, async t => {
+test('workers does not have histogram if disabled', { timeout: 10_000 }, async (t: TestContext) => {
   let index = 0;
   // After each task the balancer is called to distribute the next task
   // The first task is distributed, the second is enqueued, once the first is done, the second is distributed and normalizes
@@ -122,7 +166,7 @@ test('workers does not have histogram if disabled', { timeout: 10_000 }, async t
       // Verify distribution to properly test this feature
       const candidate = workers[index++ % workers.length];
       const histogram = candidate.histogram;
-      t.notOk(histogram);
+      t.assert.ok(!histogram);
 
       if (candidate.currentUsage !== 0) {
         return null;
@@ -139,10 +183,10 @@ test('workers does not have histogram if disabled', { timeout: 10_000 }, async t
   await Promise.all(tasks);
 });
 
-test('opts.workerHistogram should be a boolean value', t => {
+test('opts.workerHistogram should be a boolean value', (t: TestContext) => {
   let index = 0;
   t.plan(1);
-  t.throws(() => {
+  t.assert.throws(() => {
     // eslint-disable-next-line no-new
     new Piscina({
       filename: resolve(__dirname, 'fixtures/eval.js'),
@@ -155,7 +199,7 @@ test('opts.workerHistogram should be a boolean value', t => {
         const candidate = workers[index++ % workers.length];
         const histogram = candidate.histogram;
 
-        t.notOk(histogram);
+        t.assert.ok(!histogram);
 
         if (candidate.currentUsage !== 0) {
           return null;
@@ -164,5 +208,7 @@ test('opts.workerHistogram should be a boolean value', t => {
         return candidate;
       }
     });
-  }, 'options.workerHistogram must be a boolean');
+  }, {
+    message: 'options.workerHistogram must be a boolean'
+  });
 });

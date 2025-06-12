@@ -1,10 +1,11 @@
 import { resolve } from 'node:path';
 
-import { test } from 'tap';
+import { test } from 'node:test';
+import type { TestContext } from 'node:test';
 
 import Piscina from '..';
 
-test('workers are marked as destroyed if destroyed', async t => {
+test('workers are marked as destroyed if destroyed', async (t: TestContext) => {
   let index = 0;
   // Its expected to have one task get balanced twice due to the load balancer distribution
   // first task enters, its distributed; second is enqueued, once first is done, second is distributed and normalizes
@@ -49,8 +50,8 @@ test('workers are marked as destroyed if destroyed', async t => {
 
   controller.abort();
   await Promise.allSettled(tasks);
-  t.strictNotSame(workersFirstRound, workersSecondRound);
-  t.equal(workersFirstRound.length, 2);
-  t.ok(workersFirstRound[0].destroyed);
-  t.notOk(workersFirstRound[0].terminating);
+  t.assert.notStrictEqual(workersFirstRound, workersSecondRound);
+  t.assert.strictEqual(workersFirstRound.length, 2);
+  t.assert.ok(workersFirstRound[0].destroyed);
+  t.assert.ok(!workersFirstRound[0].terminating);
 });

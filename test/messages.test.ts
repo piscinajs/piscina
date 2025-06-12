@@ -1,9 +1,10 @@
-import { once } from 'events';
-import { resolve } from 'path';
-import { test } from 'tap';
 import Piscina from '..';
+import { test } from 'node:test';
+import type { TestContext } from 'node:test';
+import { resolve } from 'path';
+import { once } from 'events';
 
-test('Pool receive message from workers', async ({ equal }) => {
+test('Pool receive message from workers', async (t: TestContext) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js')
   });
@@ -14,6 +15,6 @@ test('Pool receive message from workers', async ({ equal }) => {
         require('worker_threads').parentPort.postMessage("some message");
         42
     `);
-  equal(await taskResult, 42);
-  equal((await messagePromise)[0], 'some message');
+  t.assert.strictEqual(await taskResult, 42);
+  t.assert.strictEqual((await messagePromise)[0], 'some message');
 });

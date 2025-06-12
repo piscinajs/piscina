@@ -23,6 +23,7 @@ import {
 commonState.isWorkerThread = true;
 commonState.workerData = workerData;
 
+/* c8 ignore next*/
 function noop (): void {}
 
 const handlerCache : Map<string, Function> = new Map();
@@ -70,6 +71,7 @@ async function getHandler (filename : string, name : string) : Promise<Function 
 
   // Limit the handler cache size. This should not usually be an issue and is
   // only provided for pathological cases.
+  /* c8 ignore next */
   if (handlerCache.size > 1000) {
     const [[key]] = handlerCache;
     handlerCache.delete(key);
@@ -132,6 +134,7 @@ function atomicsWaitLoop (port : MessagePort, sharedBuffer : Int32Array) {
     const { async, value } = Atomics.waitAsync(sharedBuffer, kRequestCountField, lastSeenRequestCount);
 
     // We do not check for result
+    /* c8 ignore start */
     return async === true && value.then(() => {
       lastSeenRequestCount = Atomics.load(sharedBuffer, kRequestCountField);
 
@@ -142,6 +145,7 @@ function atomicsWaitLoop (port : MessagePort, sharedBuffer : Int32Array) {
         onMessage(port, sharedBuffer, entry.message);
       }
     });
+    /* c8 ignore stop */
   }
 
   while (currentTasks === 0) {
@@ -231,5 +235,5 @@ async function onMessage (
 }
 
 function throwInNextTick (error : Error) {
-  process.nextTick((e: Error) => { throw e; }, error);
+  queueMicrotask(() => { throw error; });
 }
