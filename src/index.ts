@@ -845,6 +845,14 @@ export default class Piscina<T = any, R = any> extends EventEmitterAsyncResource
     return this.#pool.destroy();
   }
 
+  [Symbol.dispose]() {
+    this.close();
+  }
+
+  [Symbol.asyncDispose]() {
+    return this.close();
+  }
+
   get maxThreads (): number {
     return this.#pool.options.maxThreads;
   }
