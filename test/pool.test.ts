@@ -119,10 +119,11 @@ test('#805 - Concurrent Aborts', async (t: TestContext) => {
   const tasks = [];
   const controller = new AbortController();
   const controller2 = new AbortController();
+  const controller3 = new AbortController();
 
   tasks.push(t.assert.rejects(pool.run('new Promise(resolve => setTimeout(resolve, 1500))', { signal: controller.signal })));
   tasks.push(t.assert.rejects(pool.run('new Promise(resolve => setTimeout(resolve, 1500))', { signal: controller2.signal })));
-  tasks.push(pool.run('new Promise(resolve => setTimeout(resolve, 1000))'));
+  tasks.push(pool.run('new Promise(resolve => setTimeout(resolve, 1000))', { signal: controller3.signal }));
 
 
   controller.abort();
