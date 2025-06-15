@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [5.1.0](https://github.com/piscinajs/piscina/compare/v5.0.0...v5.1.0) (2025-06-15)
+
+
+### Features
+
+* add explicit resource management support ([#810](https://github.com/piscinajs/piscina/issues/810)) ([d625bba](https://github.com/piscinajs/piscina/commit/d625bbaf17536ba0a5654383206e4126b01db557))
+
+
+### Bug Fixes
+
+* **#805:** Fix handling of aborted tasks ([#807](https://github.com/piscinajs/piscina/issues/807)) ([5608520](https://github.com/piscinajs/piscina/commit/5608520bd7d812b253a0373d50572005ab863195))
+
 ## [5.0.0](https://github.com/piscinajs/piscina/compare/v5.0.0-alpha.2...v5.0.0) (2025-05-02)
 
 
