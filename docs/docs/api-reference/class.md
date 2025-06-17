@@ -114,6 +114,14 @@ Use caution when setting resource limits. Setting limits that are too low may
 result in the `Piscina` worker threads being unusable.
 :::
 
+**  :::info
+    **Note on Explicit Resource Management**: Piscina does has support for `Symbol.dispose` and `Symbol.asyncDispose` for explicit resource management for its usage with the `using` keyword.
+    This is only avaiable on Node.js 24 and higher.
+
+    For more information, see the [Explicit Resource Management](https://github.com/tc39/proposal-explicit-resource-management).
+    :::
+**
+
 ## `PiscinaHistogram`
 
 The `PiscinaHistogram` allows you to access the histogram data for the pool of worker threads.
