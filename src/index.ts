@@ -443,8 +443,7 @@ class ThreadPool {
     // If more workers than minThreads, we can remove idle workers
     if (workerInfo.currentUsage() === 0 &&
         this.workers.size > this.options.minThreads) {
-      workerInfo.idleTimeout = setTimeout(() => {
-        assert.strictEqual(workerInfo.currentUsage(), 0);
+      workerInfo.idleTimeout = setTimeout(() => {        
         if (this.workers.size > this.options.minThreads) {
           this._removeWorker(workerInfo);
         }
