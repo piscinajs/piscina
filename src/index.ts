@@ -4,7 +4,6 @@ import { resolve } from 'node:path';
 import { inspect, types } from 'node:util';
 import { performance } from 'node:perf_hooks';
 import { setTimeout as sleep } from 'node:timers/promises';
-import assert from 'node:assert';
 
 import { version } from '../package.json';
 import type {
