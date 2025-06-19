@@ -1,15 +1,12 @@
-import { resolve } from 'node:path';
-
+import assert from 'node:assert';
 import { test } from 'node:test';
-import type { TestContext } from 'node:test';
-
+import { resolve } from 'node:path';
 import Piscina from '../dist';
 
-test('workers are marked as destroyed if destroyed', async (t: TestContext) => {
+test('workers are marked as destroyed if destroyed', async () => {
   let index = 0;
   // Its expected to have one task get balanced twice due to the load balancer distribution
   // first task enters, its distributed; second is enqueued, once first is done, second is distributed and normalizes
-  t.plan(4);
   let workersFirstRound = [];
   let workersSecondRound = [];
   const pool = new Piscina({
@@ -45,13 +42,13 @@ test('workers are marked as destroyed if destroyed', async (t: TestContext) => {
   }));
 
   for (let n = 0; n < 5; n++) {
-    tasks.push(pool.run('new Promise(resolve => setTimeout(resolve, 500))'));
+    tasks.push(pool.run('new Promise(resolve => setTimeout(resolve, 5))'));
   }
 
   controller.abort();
   await Promise.allSettled(tasks);
-  t.assert.notStrictEqual(workersFirstRound, workersSecondRound);
-  t.assert.strictEqual(workersFirstRound.length, 2);
-  t.assert.ok(workersFirstRound[0].destroyed);
-  t.assert.ok(!workersFirstRound[0].terminating);
+  assert.notStrictEqual(workersFirstRound, workersSecondRound);
+  assert.strictEqual(workersFirstRound.length, 2);
+  assert.ok(workersFirstRound[0].destroyed);
+  assert.ok(!workersFirstRound[0].terminating);
 });

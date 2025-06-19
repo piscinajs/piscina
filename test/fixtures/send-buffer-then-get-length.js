@@ -9,7 +9,7 @@ module.exports = {
     try {
       return Piscina.move(data);
     } finally {
-      setTimeout(() => { time = data.byteLength; }, 1000);
+      setTimeout(() => { time = data.byteLength; }, 5);
     }
   },
   get: () => {

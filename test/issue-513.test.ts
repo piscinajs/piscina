@@ -1,17 +1,17 @@
-import Piscina from '..';
+import assert from 'node:assert';
 import { test } from 'node:test';
-import type { TestContext } from 'node:test';
-import { resolve } from 'path';
+import { resolve } from 'node:path';
+import Piscina from '..';
 
-test('pool will maintain run and wait time histograms', async (t: TestContext) => {
+test('pool will maintain run and wait time histograms', async () => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/vm.js')
   });
 
   try {
     await pool.run({ payload: 'throw new Error("foo")' });
-    t.assert.fail('Expected an error');
+    assert.fail('Expected an error');
   } catch (error) {
-    t.assert.strictEqual(error.message, 'foo');
+    assert.strictEqual(error.message, 'foo');
   }
 });

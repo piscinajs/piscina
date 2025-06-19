@@ -1,5 +1,5 @@
+import assert from 'node:assert';
 import Piscina from '../..';
-import assert from 'assert';
 
 assert.strictEqual(Piscina.isWorkerThread, true);
 
