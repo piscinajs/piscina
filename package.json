@@ -17,7 +17,6 @@
     "lint": "eslint",
     "test": "node scripts/run-tests.js --pattern='test/**/*test.ts'",
     "test:ci": "npm run lint && npm run build && npm run test:coverage",
-    "test:unit": "node scripts/run-tests.js --pattern='test/unit/**/*test.ts'",
     "test:coverage": "node scripts/run-tests.js --coverage --pattern='test/**/*test.ts'",
     "prepack": "npm run build",
     "benchmark": "npm run benchmark:queue && npm run benchmark:piscina",
