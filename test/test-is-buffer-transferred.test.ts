@@ -4,7 +4,10 @@ import { resolve } from 'node:path';
 import Piscina from '..';
 
 function wait () {
-  return new Promise((resolve) => setTimeout(resolve, 5));
+  // Timeout here should be little bit longer
+  // than in the worker timeout
+  // to ensure there are no flaky tests
+  return new Promise((resolve) => setTimeout(resolve, 10));
 }
 
 test('transferable objects must be transferred', async () => {
