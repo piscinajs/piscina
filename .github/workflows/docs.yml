@@ -21,18 +21,18 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 'lts/*'
-          cache: 'yarn'
+          cache: 'npm'
           cache-dependency-path: docs/package.json
 
       - name: Install Dependencies
         run: |
           cd docs
-          yarn install --frozen-lockfile
+          npm ci
 
       - name: build
         run: |
           cd docs
-          yarn build
+          npm run build
 
       - name: Upload Build Artifact
         uses: actions/upload-pages-artifact@v3
