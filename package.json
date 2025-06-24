@@ -48,7 +48,6 @@
   "devDependencies": {
     "@types/node": "^24.0.1",
     "abort-controller": "^3.0.0",
-    "c8": "^10.1.2",
     "concat-stream": "^2.0.0",
     "eslint": "^9.16.0",
     "gen-esm-wrapper": "^1.1.1",

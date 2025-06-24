@@ -49,7 +49,7 @@ const args = [
 
 let result;
 if (isCoverage) {
-  result = spawnSync('c8', ['--reporter=lcov', 'node', ...args], { stdio: 'inherit' });
+  result = spawnSync('node', ['--experimental-test-coverage', '--test-reporter=lcov', '--test-reporter-destination=lcov.info', '--test-reporter=spec', '--test-reporter-destination=stdout' , ...args], { stdio: 'inherit' });
 } else {
   result = spawnSync('node', [...args], { stdio: 'inherit' });
 }
