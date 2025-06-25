@@ -83,42 +83,38 @@ test('Piscina emits drain', async (t: TestContext) => {
     maxThreads: 1
   });
 
-  let drained = false;
-  let needsDrain = true;
+  t.plan(2);
   pool.on('drain', () => {
-    drained = true;
-    needsDrain = pool.needsDrain;
+    t.assert.ok(true);
+    t.assert.ok(!pool.needsDrain);
   });
 
   await Promise.all([pool.run('123'), pool.run('123'), pool.run('123')]);
 
-  t.assert.ok(drained);
-  t.assert.ok(!needsDrain);
 });
 
-test('Piscina exposes/emits needsDrain to true when capacity is exceeded', (t: TestContext, done) => {
+test('Piscina exposes/emits needsDrain to true when capacity is exceeded', async (t: TestContext) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js'),
     maxQueue: 3,
     maxThreads: 1
   });
 
-  t.plan(3);
+  t.plan(2);
 
   pool.once('drain', () => {
     t.assert.ok(true);
-    done();
   });
   pool.once('needsDrain', () => {
-    t.assert.ok(true);
+    t.assert.ok(pool.needsDrain);
   });
 
-  pool.run('123');
-  pool.run('123');
-  pool.run('123');
-  pool.run('123');
-
-  t.assert.ok(pool.needsDrain);
+  await Promise.all([
+    pool.run('123'),
+    pool.run('123'),
+    pool.run('123'),
+    pool.run('123')
+  ]);
 });
 
 test('Piscina can use async loaded workers', async (t: TestContext) => {

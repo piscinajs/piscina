@@ -465,7 +465,7 @@ class ThreadPool {
       this.histogram?.recordWaitTime(now - task.created)
       task.started = now;
       candidate[kWorkerData].postTask(task);
-      this._maybeDrain();
+      queueMicrotask(() => this._maybeDrain());
       // If candidate, let's try to distribute more tasks
       return true;
     }
@@ -530,7 +530,7 @@ class ThreadPool {
           resolve(result);
         }
 
-        this._maybeDrain();
+        queueMicrotask(() => this._maybeDrain());
       },
       signal,
       this.publicInterface.asyncResource.asyncId());
@@ -575,7 +575,7 @@ class ThreadPool {
         this.taskQueue.push(taskInfo);
       }
 
-      this._maybeDrain();
+      queueMicrotask(() => this._maybeDrain());
       return ret;
     }
 
@@ -595,7 +595,7 @@ class ThreadPool {
       }
     };
 
-    this._maybeDrain();
+    queueMicrotask(() => this._maybeDrain());
     return ret;
   }
 
