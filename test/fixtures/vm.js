@@ -1,5 +1,5 @@
 // worker.js
-const vm = require('vm');
+const vm = require('node:vm');
 
 module.exports = ({ payload, context }) => {
   const script = new vm.Script(payload);

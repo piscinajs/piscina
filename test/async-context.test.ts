@@ -1,10 +1,11 @@
-import { createHook, executionAsyncId } from 'async_hooks';
-import Piscina from '..';
+import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { TestContext } from 'node:test';
-import { resolve } from 'path';
+import { resolve } from 'node:path';
+import { createHook, executionAsyncId } from 'node:async_hooks';
+import Piscina from '..';
 
-test('postTask() calls the correct async hooks', async (t: TestContext) => {
+
+test('postTask() calls the correct async hooks', async () => {
   let taskId;
   let initCalls = 0;
   let beforeCalls = 0;
@@ -37,8 +38,8 @@ test('postTask() calls the correct async hooks', async (t: TestContext) => {
   await pool.run('42');
 
   hook.disable();
-  t.assert.strictEqual(initCalls, 1);
-  t.assert.strictEqual(beforeCalls, 1);
-  t.assert.strictEqual(afterCalls, 1);
-  t.assert.strictEqual(resolveCalls, 1);
+  assert.strictEqual(initCalls, 1);
+  assert.strictEqual(beforeCalls, 1);
+  assert.strictEqual(afterCalls, 1);
+  assert.strictEqual(resolveCalls, 1);
 });
