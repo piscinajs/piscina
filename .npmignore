@@ -5,3 +5,9 @@ coverage
 examples
 docs/**/*
 !docs/docs/**/*.md
+worker_tmp.js
+playground.*
+output.txt
+tsconfig.json
+eslint.config.js
+.editorconfig
