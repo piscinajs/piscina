@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [5.1.1](https://github.com/piscinajs/piscina/compare/v5.1.0...v5.1.1) (2025-06-19)
+
+
+### Bug Fixes
+
+* prevent race condition in idle worker cleanup ([#818](https://github.com/piscinajs/piscina/issues/818)) ([cafae5d](https://github.com/piscinajs/piscina/commit/cafae5d17340fa07e03bdb39a801fa4733dfb14f))
+
 ## [5.1.0](https://github.com/piscinajs/piscina/compare/v5.0.0...v5.1.0) (2025-06-15)
 
 
