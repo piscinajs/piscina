@@ -46,11 +46,12 @@ const args = [
   ...testFiles
 ];
 
+
 let result;
 if (isCoverage) {
   result = spawnSync('c8', ['--reporter=lcov', 'node', ...args], { stdio: 'inherit' });
 } else {
-  result = spawnSync('c8', ['node', ...args], { stdio: 'inherit' });
+  result = spawnSync('node', [...args], { stdio: 'inherit' });
 }
 
 process.exit(result.status);

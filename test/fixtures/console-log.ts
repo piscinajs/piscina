@@ -1,5 +1,5 @@
+import { resolve } from 'node:path';
 import Piscina from '../..';
-import { resolve } from 'path';
 
 const pool = new Piscina({
   filename: resolve(__dirname, 'eval.js'),
