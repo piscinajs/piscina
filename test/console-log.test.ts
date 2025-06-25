@@ -1,11 +1,10 @@
+import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
 import { spawn } from 'node:child_process';
-
-import concat from 'concat-stream';
 import { test } from 'node:test';
-import type { TestContext } from 'node:test';
+import concat from 'concat-stream';
 
-test('console.log() calls are not blocked by Atomics.wait() (sync mode)', async (t: TestContext) => {
+test('console.log() calls are not blocked by Atomics.wait() (sync mode)', async () => {
   const proc = spawn(process.execPath, [
     ...process.execArgv, resolve(__dirname, 'fixtures/console-log.ts')
   ], {
@@ -21,6 +20,6 @@ test('console.log() calls are not blocked by Atomics.wait() (sync mode)', async 
   const dataStderr = await new Promise((resolve) => {
     proc.stderr.setEncoding('utf8').pipe(concat(resolve));
   });
-  t.assert.strictEqual(dataStdout, 'A\n');
-  t.assert.strictEqual(dataStderr, 'B\n');
+  assert.strictEqual(dataStdout, 'A\n');
+  assert.strictEqual(dataStderr, 'B\n');
 });

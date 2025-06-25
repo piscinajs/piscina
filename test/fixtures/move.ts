@@ -1,6 +1,6 @@
+import assert from 'node:assert';
+import { types } from 'node:util';
 import Piscina from '../..';
-import assert from 'assert';
-import { types } from 'util';
 
 export default function (moved) {
   if (moved !== undefined) {
