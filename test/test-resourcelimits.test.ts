@@ -1,9 +1,9 @@
-import Piscina from '..';
+import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { TestContext } from 'node:test';
-import { resolve } from 'path';
+import { resolve } from 'node:path';
+import Piscina from '..';
 
-test('resourceLimits causes task to reject', async (t: TestContext) => {
+test('resourceLimits causes task to reject', async () => {
   const worker = new Piscina({
     filename: resolve(__dirname, 'fixtures/resource-limits.js'),
     resourceLimits: {
@@ -27,9 +27,9 @@ test('resourceLimits causes task to reject', async (t: TestContext) => {
     // now.
   });
   const limits : any = worker.options.resourceLimits;
-  t.assert.strictEqual(limits.maxOldGenerationSizeMb, 16);
-  t.assert.strictEqual(limits.maxYoungGenerationSizeMb, 4);
-  t.assert.strictEqual(limits.codeRangeSizeMb, 16);
-  t.assert.rejects(worker.run(null),
+  assert.strictEqual(limits.maxOldGenerationSizeMb, 16);
+  assert.strictEqual(limits.maxYoungGenerationSizeMb, 4);
+  assert.strictEqual(limits.codeRangeSizeMb, 16);
+  assert.rejects(worker.run(null),
     /Worker terminated due to reaching memory limit: JS heap out of memory/);
 });

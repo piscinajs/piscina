@@ -1,11 +1,9 @@
-import { resolve } from 'node:path';
-
+import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { TestContext } from 'node:test';
-
+import { resolve } from 'node:path';
 import Piscina from '..';
 
-test('coverage test for Atomics optimization (sync mode)', async (t: TestContext) => {
+test('coverage test for Atomics optimization (sync mode)', async () => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/notify-then-sleep-or.js'),
     minThreads: 2,
@@ -33,7 +31,7 @@ test('coverage test for Atomics optimization (sync mode)', async (t: TestContext
   // The check above could also be !== 2 but it's hard to get things right
   // sometimes and this gives us a nice assertion. Basically, at this point
   // exactly 2 tasks should be in Atomics.wait() state.
-  t.assert.strictEqual(popcount8(v), 2);
+  assert.strictEqual(popcount8(v), 2);
   // Wake both tasks up as simultaneously as possible. The other 2 tasks should
   // then start executing.
   Atomics.store(i32array, 0, 0);
@@ -53,7 +51,7 @@ test('coverage test for Atomics optimization (sync mode)', async (t: TestContext
 
   // Wake up the remaining 2 tasks in order to make sure that the test finishes.
   // Do the same consistency check beforehand as above.
-  t.assert.strictEqual(popcount8(v), 2);
+  assert.strictEqual(popcount8(v), 2);
   Atomics.store(i32array, 0, 0);
   Atomics.notify(i32array, 0, Infinity);
 
@@ -85,7 +83,7 @@ test('avoids unbounded recursion', async () => {
   await Promise.all(tasks);
 });
 
-test('enable async mode', async (t: TestContext) => {
+test('enable async mode', async () => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval-params.js'),
     minThreads: 1,
@@ -112,12 +110,10 @@ test('enable async mode', async (t: TestContext) => {
     shared: bufs
   });
 
-  t.plan(2);
-
   const atResult1 = Atomics.wait(bufs[0], 0, 0);
   const atResult2 = Atomics.wait(bufs[1], 0, 0);
   const atResult3 = Atomics.wait(bufs[2], 0, 0);
 
-  t.assert.deepStrictEqual([atResult1, atResult2, atResult3], ['ok', 'ok', 'ok']);
-  t.assert.strictEqual(await promise, true);
+  assert.deepStrictEqual([atResult1, atResult2, atResult3], ['ok', 'ok', 'ok']);
+  assert.strictEqual(await promise, true);
 });

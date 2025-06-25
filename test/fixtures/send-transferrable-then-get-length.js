@@ -29,7 +29,7 @@ module.exports = {
     try {
       return shared.make();
     } finally {
-      setTimeout(() => { time = data.byteLength; }, 1000);
+      setTimeout(() => { time = data.byteLength; }, 5);
     }
   },
   get: () => {
