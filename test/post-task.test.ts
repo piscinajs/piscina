@@ -1,5 +1,5 @@
 import assert from 'node:assert';
-import { test } from 'node:test';
+import { test, TestContext } from 'node:test';
 import { MessageChannel } from 'node:worker_threads';
 import { resolve } from 'node:path';
 import Piscina from '..';
@@ -77,25 +77,23 @@ test('postTask() validates abortSignal', () => {
     /signal argument must be an object/);
 });
 
-test('Piscina emits drain', async () => {
+test('Piscina emits drain', async (t: TestContext) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js'),
     maxThreads: 1
   });
 
   t.plan(2);
+
   pool.on('drain', () => {
     t.assert.ok(true);
     t.assert.ok(!pool.needsDrain);
   });
 
   await Promise.all([pool.run('123'), pool.run('123'), pool.run('123')]);
-
-  assert.ok(drained);
-  assert.ok(!needsDrain);
 });
 
-test('Piscina exposes/emits needsDrain to true when capacity is exceeded', (t, done) => {
+test('Piscina exposes/emits needsDrain to true when capacity is exceeded', async (t: TestContext) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js'),
     maxQueue: 3,
@@ -105,10 +103,10 @@ test('Piscina exposes/emits needsDrain to true when capacity is exceeded', (t, d
   t.plan(2);
 
   pool.once('drain', () => {
-    assert.ok(true);
+    t.assert.ok(true);
   });
   pool.once('needsDrain', () => {
-    assert.ok(pool.needsDrain);
+    t.assert.ok(pool.needsDrain);
   });
 
   await Promise.all([
