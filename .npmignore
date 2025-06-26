@@ -11,3 +11,4 @@ output.txt
 tsconfig.json
 eslint.config.js
 .editorconfig
+.worktrees
