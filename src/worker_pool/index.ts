@@ -62,9 +62,9 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
       if (this.terminating || this.destroyed) return;
 
       this.terminating = true;
+      this.clearIdleTimeout();
       this.worker.terminate();
       this.port.close();
-      this.clearIdleTimeout();
       for (const taskInfo of this.taskInfos.values()) {
         taskInfo.done(Errors.ThreadTermination());
       }
@@ -121,7 +121,6 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
       };
 
       try {
-        this.clearIdleTimeout();
         this.port.postMessage(message, taskInfo.transferList);
       } catch (err) {
         // This would mostly happen if e.g. message contains unserializable data
@@ -132,6 +131,7 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
 
       taskInfo.workerInfo = this;
       this.taskInfos.set(taskInfo.taskId, taskInfo);
+      queueMicrotask(() => this.clearIdleTimeout())
       this.ref();
 
       // Inform the worker that there are new messages posted, and wake it up
