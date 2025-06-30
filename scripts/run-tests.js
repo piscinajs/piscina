@@ -40,8 +40,9 @@ const concurrency = Number(values.concurrency);
 const testFiles = globSync(pattern, { absolute: true });
 
 const args = [
+  '--enable-source-maps',
   '--import=tsx',
-  `--test-concurrency=${concurrency}`,
+  //`--test-concurrency=${concurrency}`,
   '--test',
   ...testFiles
 ];
