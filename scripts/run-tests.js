@@ -21,12 +21,6 @@ const options = {
     description: 'Run tests with coverage',
     default: false,
   },
-  concurrency: {
-    type: 'string',
-    short: 'n',
-    description: 'Number of test files to run concurrently',
-    default: '2',
-  },
 };
 
 const {
@@ -35,14 +29,12 @@ const {
 
 const pattern = values.pattern;
 const isCoverage = values.coverage;
-const concurrency = Number(values.concurrency);
 
 const testFiles = globSync(pattern, { absolute: true });
 
 const args = [
   '--enable-source-maps',
   '--import=tsx',
-  //`--test-concurrency=${concurrency}`,
   '--test',
   ...testFiles
 ];
