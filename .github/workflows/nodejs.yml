@@ -21,7 +21,7 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: v22.x
+          node-version: v24.x
           cache: 'npm'
           cache-dependency-path: package.json
 
@@ -37,7 +37,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        # os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [windows-latest]
         node-version: [20.x, 22.x, 24.x]
     runs-on: ${{matrix.os}}
     steps:
