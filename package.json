@@ -58,7 +58,7 @@
     "typescript": "5.8.3"
   },
   "optionalDependencies": {
-    "@napi-rs/nice": "^1.0.1"
+    "@napi-rs/nice": "^1.0.4"
   },
   "bugs": {
     "url": "https://github.com/piscinajs/piscina/issues"
