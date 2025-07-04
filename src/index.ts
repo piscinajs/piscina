@@ -299,13 +299,8 @@ class ThreadPool {
     }
 
     function onReady () {
-      if (workerInfo.currentUsage() === 0) {
-        workerInfo.unref();
-      }
-
-      if (!workerInfo.isReady()) {
-        workerInfo.markAsReady();
-      }
+      workerInfo.currentUsage() === 0 && workerInfo.unref();
+      workerInfo.isReady() === false && workerInfo.markAsReady();
     }
 
     function onEventMessage (message: any) {
@@ -317,7 +312,7 @@ class ThreadPool {
     });
 
     worker.on('error', (err : Error) => {
-      this._onError(worker, workerInfo, err, false);
+      this._onError(workerInfo, err, false);
     });
 
     worker.on('exit', (exitCode : number) => {
@@ -328,7 +323,7 @@ class ThreadPool {
       const err = new Error(`worker exited with code: ${exitCode}`);
       // Only error unfinished tasks on process exit, since there are legitimate
       // reasons to exit workers and we want to handle that gracefully when possible.
-      this._onError(worker, workerInfo, err, true);
+      this._onError(workerInfo, err, true);
     });
 
     worker.unref();
@@ -342,10 +337,7 @@ class ThreadPool {
     this.workers.add(workerInfo);
   }
 
-  _onError (worker: Worker, workerInfo: WorkerInfo, err: Error, onlyErrorUnfinishedTasks: boolean) {
-    // Work around the bug in https://github.com/nodejs/node/pull/33394
-    worker.ref = () => {};
-
+  _onError (workerInfo: WorkerInfo, err: Error, onlyErrorUnfinishedTasks: boolean) {
     const taskInfos = [...workerInfo.taskInfos.values()];
     workerInfo.taskInfos.clear();
 

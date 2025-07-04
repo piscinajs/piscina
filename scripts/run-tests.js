@@ -21,6 +21,12 @@ const options = {
     description: 'Run tests with coverage',
     default: false,
   },
+  only: {
+    type: 'boolean',
+    short: 'o',
+    description: 'Run only tests marked with { only: true }',
+    default: false,
+  }
 };
 
 const {
@@ -29,13 +35,14 @@ const {
 
 const pattern = values.pattern;
 const isCoverage = values.coverage;
+const runOnly = values.only;
 
 const testFiles = globSync(pattern, { absolute: true });
 
 const args = [
   '--enable-source-maps',
   '--import=tsx',
-  '--test',
+  runOnly ? '--test-only' : '--test',
   ...testFiles
 ];
 
