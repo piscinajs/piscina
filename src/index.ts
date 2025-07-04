@@ -213,7 +213,7 @@ class ThreadPool {
     this.balancer = this.options.loadBalancer ?? LeastBusyBalancer({ maximumUsage: this.options.concurrentTasksPerWorker });
     this.workers = new AsynchronouslyCreatedResourcePool<WorkerInfo>(
       this.options.concurrentTasksPerWorker);
-    this.workers.onTaskDone((w : WorkerInfo) => this._onWorkerTaskDone(w));
+    this.workers.onTaskDone(this._onWorkerTaskDone.bind(this));
     this.maxCapacity = this.options.maxThreads * this.options.concurrentTasksPerWorker;
 
     this.startingUp = true;
@@ -283,15 +283,11 @@ class ThreadPool {
       // In case of success: Call the callback that was passed to `runTask`,
       // remove the `TaskInfo` associated with the Worker, which marks it as
       // free again.
-      const taskInfo = workerInfo.taskInfos.get(taskId);
-      workerInfo.taskInfos.delete(taskId);
-
-      // TODO: we can abstract the task info handling
-      // right into the pool.workers.taskDone method
+      const taskInfo = workerInfo.removeTask(taskId);
       pool.workers.taskDone(workerInfo);
 
       /* istanbul ignore if */
-      if (taskInfo === undefined) {
+      if (taskInfo == null) {
         const err = new Error(
           `Unexpected message from Worker: ${inspect(message)}`);
         pool.publicInterface.emit('error', err);

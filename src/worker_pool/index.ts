@@ -171,6 +171,14 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
       return this.taskInfos.size;
     }
 
+    removeTask (taskId: number) : TaskInfo | undefined {
+      const task = this.taskInfos.get(taskId);
+      
+      this.taskInfos.delete(taskId);
+
+      return task;
+    }
+
     get interface (): PiscinaWorker {
       const worker = this;
       return {
