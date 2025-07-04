@@ -54,7 +54,8 @@ import {
   isTransferable,
   markMovable,
   getAvailableParallelism,
-  maybeFileURLToPath
+  maybeFileURLToPath,
+  promiseResolvers
 } from './common';
 const cpuParallelism : number = getAvailableParallelism();
 
@@ -458,7 +459,7 @@ class ThreadPool {
       return true;
     }
 
-    if (task.abortSignal) {
+    if (task.abortSignal != null) {
       this.skipQueue.push(task);
     } else {
       this.taskQueue.push(task);
@@ -477,15 +478,13 @@ class ThreadPool {
     const {
       transferList = []
     } = options;
-    if (filename == null) {
-      filename = this.options.filename;
-    }
-    if (name == null) {
-      name = this.options.name;
-    }
+    filename = filename ?? this.options.filename;
+    name = name ??  this.options.name;
+
     if (typeof filename !== 'string') {
       return Promise.reject(Errors.FilenameNotProvided());
     }
+
     filename = maybeFileURLToPath(filename);
 
     let signal: AbortSignalAny | null;
@@ -498,10 +497,7 @@ class ThreadPool {
       signal = options.signal ?? null;
     }
 
-    let resolve : (result : any) => void;
-    let reject : (err : Error) => void;
-    // eslint-disable-next-line
-    const ret = new Promise((res, rej) => { resolve = res; reject = rej; });
+    const { promise: ret, resolve, reject } = promiseResolvers();
     const taskInfo = new TaskInfo(
       task,
       transferList,
@@ -518,12 +514,12 @@ class ThreadPool {
           resolve(result);
         }
 
-        queueMicrotask(() => this._maybeDrain());
+        queueMicrotask(this._maybeDrain.bind(this))
       },
       signal,
       this.publicInterface.asyncResource.asyncId());
 
-    if (signal !== null) {
+    if (signal != null) {
       // If the AbortSignal has an aborted property and it's truthy,
       // reject immediately.
       if ((signal as AbortSignalEventTarget).aborted) {
@@ -537,7 +533,7 @@ class ThreadPool {
         // thread termination below.
         reject(new AbortError((signal as AbortSignalEventTarget).reason));
 
-        if (taskInfo.workerInfo !== null) {
+        if (taskInfo.workerInfo != null) {
           // Already running: We cancel the Worker this is running on.
           this._removeWorker(taskInfo.workerInfo);
           this._ensureMinimumWorkers();
@@ -563,7 +559,7 @@ class ThreadPool {
         this.taskQueue.push(taskInfo);
       }
 
-      queueMicrotask(() => this._maybeDrain());
+      queueMicrotask(this._maybeDrain.bind(this))
       return ret;
     }
 
@@ -583,7 +579,7 @@ class ThreadPool {
       }
     };
 
-    queueMicrotask(() => this._maybeDrain());
+    queueMicrotask(this._maybeDrain.bind(this))
     return ret;
   }
 
@@ -629,11 +625,8 @@ class ThreadPool {
       this._removeWorker(workerInfo);
     }
 
-    try {
-      await Promise.all(exitEvents);
-    } finally {
-      this.destroying = false;
-    }
+    await Promise.allSettled(exitEvents);
+    this.destroying = false;
   }
 
   async close (options : Required<CloseOptions>) {

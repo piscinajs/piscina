@@ -59,3 +59,21 @@ export function maybeFileURLToPath (filename : string) : string {
 export function getAvailableParallelism () : number {
   return availableParallelism();
 }
+
+export function promiseResolvers <T = any> () : 
+  { promise: Promise<T>,
+    resolve: (res: T) => void,
+    reject: (err: Error) => void 
+  } {
+  // @ts-expect-error - available from v24 onwards
+  if (Promise.withResolvers != null) return Promise.withResolvers();
+
+  let res: (res: T) => void;
+  let rej: (err: Error) => void 
+
+  return {
+    promise: new Promise<T>((resolve, reject) => { res = resolve; rej = reject; } ),
+    resolve: res!,
+    reject: rej!
+  }
+}
