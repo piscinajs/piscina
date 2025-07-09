@@ -245,7 +245,12 @@ class ThreadPool {
     });
 
     const { port1, port2 } = new MessageChannel();
-    const workerInfo = new WorkerInfo(worker, port1, onMessage, this.options.workerHistogram);
+    const workerInfo = new WorkerInfo({
+      worker, 
+      onMessage,
+      port: port1, 
+      enableHistogram: this.options.workerHistogram
+    });
 
     workerInfo.onDestroy(() => {
       this.publicInterface.emit('workerDestroy', workerInfo.interface);
@@ -283,7 +288,7 @@ class ThreadPool {
       // In case of success: Call the callback that was passed to `runTask`,
       // remove the `TaskInfo` associated with the Worker, which marks it as
       // free again.
-      const taskInfo = workerInfo.removeTask(taskId);
+      const taskInfo = workerInfo.popTask(taskId);
       pool.workers.taskDone(workerInfo);
 
       /* istanbul ignore if */
@@ -431,15 +436,17 @@ class ThreadPool {
     // If more workers than minThreads, we can remove idle workers
     if (workerInfo.currentUsage() === 0 &&
         this.workers.size > this.options.minThreads) {
-      workerInfo.idleTimeout = setTimeout(() => {
+      workerInfo.setIdleTimeout(() => {
+        // Exit early - we can't safely remove the worker as there is workload in the middle.
+        // Once task is exited, timeout will be set once more for tearing up idle worker
         if (workerInfo.currentUsage() !== 0) {
-          // Exit early - we can't safely remove the worker.
           return;
         }
+
         if (this.workers.size > this.options.minThreads) {
           this._removeWorker(workerInfo);
         }
-      }, this.options.idleTimeout).unref();
+      }, this.options.idleTimeout);
     }
   }
 
