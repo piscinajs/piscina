@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [5.1.3](https://github.com/piscinajs/piscina/compare/v5.1.2...v5.1.3) (2025-07-09)
+
+
+### Features
+
+* offload drain events to microtask ([#835](https://github.com/piscinajs/piscina/issues/835)) ([76fe7a8](https://github.com/piscinajs/piscina/commit/76fe7a8138089750183836e8db2968337d8a97b0))
+
 ### [5.1.2](https://github.com/piscinajs/piscina/compare/v5.1.1...v5.1.2) (2025-06-26)
 
 ### [5.1.1](https://github.com/piscinajs/piscina/compare/v5.1.0...v5.1.1) (2025-06-19)
