@@ -4,7 +4,6 @@ import { resolve } from 'node:path';
 import { inspect, types } from 'node:util';
 import { performance } from 'node:perf_hooks';
 import { setTimeout as sleep } from 'node:timers/promises';
-import assert from 'node:assert';
 
 import { version } from '../package.json';
 import type {
@@ -444,7 +443,10 @@ class ThreadPool {
     if (workerInfo.currentUsage() === 0 &&
         this.workers.size > this.options.minThreads) {
       workerInfo.idleTimeout = setTimeout(() => {
-        assert.strictEqual(workerInfo.currentUsage(), 0);
+        if (workerInfo.currentUsage() !== 0) {
+          // Exit early - we can't safely remove the worker.
+          return;
+        }
         if (this.workers.size > this.options.minThreads) {
           this._removeWorker(workerInfo);
         }
