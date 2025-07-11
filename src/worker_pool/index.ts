@@ -144,7 +144,7 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
 
       taskInfo.workerInfo = this;
       this.taskInfos.set(taskInfo.taskId, taskInfo);
-      this.clearIdleTimeout()
+      queueMicrotask(() => this.clearIdleTimeout())
       this.ref();
 
       // Inform the worker that there are new messages posted, and wake it up
