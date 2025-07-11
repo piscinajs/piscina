@@ -24,6 +24,13 @@ export type PiscinaWorker = {
   [kWorkerData]: WorkerInfo;
 }
 
+type WorkerInfoParams = {
+  worker: Worker,
+  port: MessagePort,
+  onMessage: ResponseCallback,
+  enableHistogram: boolean,
+}
+
 export class WorkerInfo extends AsynchronouslyCreatedResource {
     worker : Worker;
     taskInfos : Map<number, TaskInfo>;
@@ -37,10 +44,12 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
     destroyed = false;
 
     constructor (
-      worker : Worker,
-      port : MessagePort,
-      onMessage : ResponseCallback,
-      enableHistogram: boolean
+      {
+        worker,
+        port,
+        onMessage,
+        enableHistogram
+      }: WorkerInfoParams
     ) {
       super();
       this.worker = worker;
@@ -73,6 +82,10 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
       this.terminating = false;
       this.destroyed = true;
       this.markAsDestroyed();
+    }
+
+    setIdleTimeout (handler: (_: void) => void, ms: number, ...args: any[]) : void {
+      this.idleTimeout = setTimeout(handler, ms, ...args).unref();
     }
 
     clearIdleTimeout () : void {
@@ -169,6 +182,14 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
     currentUsage () : number {
       if (this.isRunningAbortableTask()) return Infinity;
       return this.taskInfos.size;
+    }
+
+    popTask (taskId: number) : TaskInfo | null {
+      const task = this.taskInfos.get(taskId) ?? null;
+      
+      this.taskInfos.delete(taskId);
+
+      return task;
     }
 
     get interface (): PiscinaWorker {
