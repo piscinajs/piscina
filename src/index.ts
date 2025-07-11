@@ -997,5 +997,6 @@ export {
   kValue as valueSymbol,
   kQueueOptions as queueOptionsSymbol,
   version,
-  FixedQueue
+  FixedQueue,
+  ArrayTaskQueue,
 };
