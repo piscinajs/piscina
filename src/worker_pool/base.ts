@@ -6,7 +6,7 @@ export abstract class AsynchronouslyCreatedResource {
 
     markAsReady () : void {
       const listeners = this.onreadyListeners;
-      assert(listeners !== null);
+      assert(listeners != null);
       this.onreadyListeners = null;
       for (const listener of listeners) {
         listener();
@@ -14,11 +14,11 @@ export abstract class AsynchronouslyCreatedResource {
     }
 
     isReady () : boolean {
-      return this.onreadyListeners === null;
+      return this.onreadyListeners == null;
     }
 
     onReady (fn : () => void) {
-      if (this.onreadyListeners === null) {
+      if (this.onreadyListeners == null) {
         fn(); // Zalgo is okay here.
         return;
       }
@@ -26,7 +26,7 @@ export abstract class AsynchronouslyCreatedResource {
     }
 
     onDestroy (fn : () => void) {
-      if (this.ondestroyListeners === null) {
+      if (this.ondestroyListeners == null) {
         return;
       }
 
@@ -35,7 +35,7 @@ export abstract class AsynchronouslyCreatedResource {
 
     markAsDestroyed () {
       const listeners = this.ondestroyListeners;
-      assert(listeners !== null);
+      assert(listeners != null);
       this.ondestroyListeners = null;
       for (const listener of listeners) {
         listener();
@@ -43,7 +43,7 @@ export abstract class AsynchronouslyCreatedResource {
     }
 
     isDestroyed () {
-      return this.ondestroyListeners === null;
+      return this.ondestroyListeners == null;
     }
 
     abstract currentUsage() : number;
