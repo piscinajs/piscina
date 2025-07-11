@@ -53,7 +53,8 @@ import {
   isTransferable,
   markMovable,
   getAvailableParallelism,
-  maybeFileURLToPath
+  maybeFileURLToPath,
+  promiseResolvers
 } from './common';
 const cpuParallelism : number = getAvailableParallelism();
 
@@ -212,7 +213,7 @@ class ThreadPool {
     this.balancer = this.options.loadBalancer ?? LeastBusyBalancer({ maximumUsage: this.options.concurrentTasksPerWorker });
     this.workers = new AsynchronouslyCreatedResourcePool<WorkerInfo>(
       this.options.concurrentTasksPerWorker);
-    this.workers.onTaskDone((w : WorkerInfo) => this._onWorkerTaskDone(w));
+    this.workers.onTaskDone(this._onWorkerTaskDone.bind(this));
     this.maxCapacity = this.options.maxThreads * this.options.concurrentTasksPerWorker;
 
     this.startingUp = true;
@@ -244,7 +245,12 @@ class ThreadPool {
     });
 
     const { port1, port2 } = new MessageChannel();
-    const workerInfo = new WorkerInfo(worker, port1, onMessage, this.options.workerHistogram);
+    const workerInfo = new WorkerInfo({
+      worker, 
+      onMessage,
+      port: port1, 
+      enableHistogram: this.options.workerHistogram
+    });
 
     workerInfo.onDestroy(() => {
       this.publicInterface.emit('workerDestroy', workerInfo.interface);
@@ -282,15 +288,11 @@ class ThreadPool {
       // In case of success: Call the callback that was passed to `runTask`,
       // remove the `TaskInfo` associated with the Worker, which marks it as
       // free again.
-      const taskInfo = workerInfo.taskInfos.get(taskId);
-      workerInfo.taskInfos.delete(taskId);
-
-      // TODO: we can abstract the task info handling
-      // right into the pool.workers.taskDone method
+      const taskInfo = workerInfo.popTask(taskId);
       pool.workers.taskDone(workerInfo);
 
       /* istanbul ignore if */
-      if (taskInfo === undefined) {
+      if (taskInfo == null) {
         const err = new Error(
           `Unexpected message from Worker: ${inspect(message)}`);
         pool.publicInterface.emit('error', err);
@@ -302,13 +304,8 @@ class ThreadPool {
     }
 
     function onReady () {
-      if (workerInfo.currentUsage() === 0) {
-        workerInfo.unref();
-      }
-
-      if (!workerInfo.isReady()) {
-        workerInfo.markAsReady();
-      }
+      workerInfo.currentUsage() === 0 && workerInfo.unref();
+      workerInfo.isReady() === false && workerInfo.markAsReady();
     }
 
     function onEventMessage (message: any) {
@@ -320,7 +317,7 @@ class ThreadPool {
     });
 
     worker.on('error', (err : Error) => {
-      this._onError(worker, workerInfo, err, false);
+      this._onError(workerInfo, err, false);
     });
 
     worker.on('exit', (exitCode : number) => {
@@ -331,7 +328,7 @@ class ThreadPool {
       const err = new Error(`worker exited with code: ${exitCode}`);
       // Only error unfinished tasks on process exit, since there are legitimate
       // reasons to exit workers and we want to handle that gracefully when possible.
-      this._onError(worker, workerInfo, err, true);
+      this._onError(workerInfo, err, true);
     });
 
     worker.unref();
@@ -345,10 +342,7 @@ class ThreadPool {
     this.workers.add(workerInfo);
   }
 
-  _onError (worker: Worker, workerInfo: WorkerInfo, err: Error, onlyErrorUnfinishedTasks: boolean) {
-    // Work around the bug in https://github.com/nodejs/node/pull/33394
-    worker.ref = () => {};
-
+  _onError (workerInfo: WorkerInfo, err: Error, onlyErrorUnfinishedTasks: boolean) {
     const taskInfos = [...workerInfo.taskInfos.values()];
     workerInfo.taskInfos.clear();
 
@@ -442,15 +436,17 @@ class ThreadPool {
     // If more workers than minThreads, we can remove idle workers
     if (workerInfo.currentUsage() === 0 &&
         this.workers.size > this.options.minThreads) {
-      workerInfo.idleTimeout = setTimeout(() => {
+      workerInfo.setIdleTimeout(() => {
+        // Exit early - we can't safely remove the worker as there is workload in the middle.
+        // Once task is exited, timeout will be set once more for tearing up idle worker
         if (workerInfo.currentUsage() !== 0) {
-          // Exit early - we can't safely remove the worker.
           return;
         }
+
         if (this.workers.size > this.options.minThreads) {
           this._removeWorker(workerInfo);
         }
-      }, this.options.idleTimeout).unref();
+      }, this.options.idleTimeout);
     }
   }
 
@@ -472,7 +468,7 @@ class ThreadPool {
       return true;
     }
 
-    if (task.abortSignal) {
+    if (task.abortSignal != null) {
       this.skipQueue.push(task);
     } else {
       this.taskQueue.push(task);
@@ -491,15 +487,13 @@ class ThreadPool {
     const {
       transferList = []
     } = options;
-    if (filename == null) {
-      filename = this.options.filename;
-    }
-    if (name == null) {
-      name = this.options.name;
-    }
+    filename = filename ?? this.options.filename;
+    name = name ??  this.options.name;
+
     if (typeof filename !== 'string') {
       return Promise.reject(Errors.FilenameNotProvided());
     }
+
     filename = maybeFileURLToPath(filename);
 
     let signal: AbortSignalAny | null;
@@ -512,10 +506,7 @@ class ThreadPool {
       signal = options.signal ?? null;
     }
 
-    let resolve : (result : any) => void;
-    let reject : (err : Error) => void;
-    // eslint-disable-next-line
-    const ret = new Promise((res, rej) => { resolve = res; reject = rej; });
+    const { promise: ret, resolve, reject } = promiseResolvers();
     const taskInfo = new TaskInfo(
       task,
       transferList,
@@ -532,12 +523,12 @@ class ThreadPool {
           resolve(result);
         }
 
-        queueMicrotask(() => this._maybeDrain());
+        queueMicrotask(this._maybeDrain.bind(this))
       },
       signal,
       this.publicInterface.asyncResource.asyncId());
 
-    if (signal !== null) {
+    if (signal != null) {
       // If the AbortSignal has an aborted property and it's truthy,
       // reject immediately.
       if ((signal as AbortSignalEventTarget).aborted) {
@@ -551,7 +542,7 @@ class ThreadPool {
         // thread termination below.
         reject(new AbortError((signal as AbortSignalEventTarget).reason));
 
-        if (taskInfo.workerInfo !== null) {
+        if (taskInfo.workerInfo != null) {
           // Already running: We cancel the Worker this is running on.
           this._removeWorker(taskInfo.workerInfo);
           this._ensureMinimumWorkers();
@@ -577,7 +568,7 @@ class ThreadPool {
         this.taskQueue.push(taskInfo);
       }
 
-      queueMicrotask(() => this._maybeDrain());
+      queueMicrotask(this._maybeDrain.bind(this))
       return ret;
     }
 
@@ -597,7 +588,7 @@ class ThreadPool {
       }
     };
 
-    queueMicrotask(() => this._maybeDrain());
+    queueMicrotask(this._maybeDrain.bind(this))
     return ret;
   }
 
@@ -643,11 +634,8 @@ class ThreadPool {
       this._removeWorker(workerInfo);
     }
 
-    try {
-      await Promise.all(exitEvents);
-    } finally {
-      this.destroying = false;
-    }
+    await Promise.allSettled(exitEvents);
+    this.destroying = false;
   }
 
   async close (options : Required<CloseOptions>) {

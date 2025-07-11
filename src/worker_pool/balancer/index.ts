@@ -26,7 +26,7 @@ export function LeastBusyBalancer (
       if (worker.isRunningAbortableTask) continue;
 
       if (
-        !task.isAbortable &&
+        task.isAbortable === false &&
         (worker.currentUsage < checkpoint)
       ) {
         candidate = worker;

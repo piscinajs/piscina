@@ -3,7 +3,7 @@ const { Piscina } = require('../dist');
 const { resolve } = require('path');
 
 async function simpleBenchmark ({ duration = 10000 } = {}) {
-  const pool = new Piscina({ filename: resolve(__dirname, 'fixtures/add.js'), atomics: 'async' });
+  const pool = new Piscina({ filename: resolve(__dirname, 'fixtures/add.js'), atomics: 'async', workerHistogram: false });
   let done = 0;
 
   const results = [];
