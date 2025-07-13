@@ -19,11 +19,12 @@
     "test:ci": "npm run lint && npm run build && npm run test:coverage",
     "test:coverage": "node scripts/run-tests.js --coverage --pattern='test/**/*test.ts'",
     "prepack": "npm run build",
-    "benchmark": "npm run benchmark:default && npm run benchmark:queue && npm run benchmark:startup",
-    "benchmark:default": "node --allow-natives-syntax benchmark/simple.js",
-    "benchmark:default:async": "node --allow-natives-syntax benchmark/simple-async.js",
-    "benchmark:startup": "node --allow-natives-syntax benchmark/startup.js",
-    "benchmark:queue": "node --allow-natives-syntax benchmark/queue.js"
+    "benchmark": "node --allow-natives-syntax benchmark/index.js --scope all",
+    "benchmark:simple": "node --allow-natives-syntax benchmark/index.js --scope simple:all",
+    "benchmark:simple:default": "node --allow-natives-syntax benchmark/index.js --scope simple",
+    "benchmark:simple:async": "node --allow-natives-syntax benchmark/index.js --scope simple:async",
+    "benchmark:startup": "node --allow-natives-syntax benchmark/index.js --scope startup",
+    "benchmark:queue": "node --allow-natives-syntax benchmark/index.js --scope queue"
   },
   "repository": {
     "type": "git",

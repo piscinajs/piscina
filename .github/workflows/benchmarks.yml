@@ -125,7 +125,7 @@ jobs:
             **MAIN**: ${{ needs.benchmark-current.outputs.CURRENT-BENCH-24 }}
 
   remove-label:
-    if: ${{ github.event.label.name == 'benchmark' }}
+    if: ${{ github.event.label.name == 'benchmarks' }}
     needs:
       - print-benchmark
     runs-on: ubuntu-latest
