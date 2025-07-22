@@ -49,7 +49,7 @@ jobs:
       - name: Benchmark Branch
         id: benchmark-pr
         run: |
-          npm run benchmark > result.txt
+          node --allow-natives-syntax benchmark/index.js --scope all --reporter json | jq '.[] | .name, .opsSec' > result.txt
           result=$(cat result.txt)
           echo 'BENCH_RESULT${{matrix.node-version}}<<EOF' >> $GITHUB_OUTPUT
           echo '$result' >> $GITHUB_OUTPUT
@@ -89,7 +89,7 @@ jobs:
       - name: Benchmark Current
         id: benchmark-current
         run: |
-          npm run benchmark > result.txt
+          node --allow-natives-syntax benchmark/index.js --scope all --reporter json | jq '.[] | .name, .opsSec' > result.txt
           result=$(cat result.txt)
           echo 'BENCH_RESULT${{matrix.node-version}}<<EOF' >> $GITHUB_OUTPUT
           echo '$result' >> $GITHUB_OUTPUT
@@ -110,18 +110,21 @@ jobs:
           message: |
             **Node**: 20
             **PR**: ${{ needs.benchmark-pr.outputs.PR-BENCH-20 }}
+
             **MAIN**: ${{ needs.benchmark-current.outputs.CURRENT-BENCH-20 }}
 
             ---
 
             **Node**: 22
             **PR**: ${{ needs.benchmark-pr.outputs.PR-BENCH-22 }}
+
             **MAIN**: ${{ needs.benchmark-current.outputs.CURRENT-BENCH-22 }}
 
             ---
 
             **Node**: 24
             **PR**: ${{ needs.benchmark-pr.outputs.PR-BENCH-24 }}
+
             **MAIN**: ${{ needs.benchmark-current.outputs.CURRENT-BENCH-24 }}
 
   remove-label:
@@ -133,7 +136,7 @@ jobs:
       pull-requests: write
     steps:
       - name: Remove benchmark label
-        uses: octokit/request-action@v2.x
+        uses: octokit/request-action@dad4362715b7fb2ddedf9772c8670824af564f0d # v2.4.0
         id: remove-label
         with:
           route: DELETE /repos/{repo}/issues/{issue_number}/labels/{name}

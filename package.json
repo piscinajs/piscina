@@ -20,6 +20,7 @@
     "test:coverage": "node scripts/run-tests.js --coverage --pattern='test/**/*test.ts'",
     "prepack": "npm run build",
     "benchmark": "node --allow-natives-syntax benchmark/index.js --scope all",
+    "benchmark:ci": "node --allow-natives-syntax benchmark/index.js --scope all --reporter json | jq '.[] | .name, .opsSec'",
     "benchmark:simple": "node --allow-natives-syntax benchmark/index.js --scope simple:all",
     "benchmark:simple:default": "node --allow-natives-syntax benchmark/index.js --scope simple",
     "benchmark:simple:async": "node --allow-natives-syntax benchmark/index.js --scope simple:async",
