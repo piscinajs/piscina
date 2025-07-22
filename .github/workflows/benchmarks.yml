@@ -19,13 +19,13 @@ jobs:
       )
     name: Benchmark Pull Request
     outputs:
-      PR-BENCH-20: ${{ steps.benchmark-pr.outputs.BENCH_RESULT20 }}
-      PR-BENCH-22: ${{ steps.benchmark-pr.outputs.BENCH_RESULT22 }}
-      PR-BENCH-24: ${{ steps.benchmark-pr.outputs.BENCH_RESULT24 }}
+      PR-BENCH-20: ${{ steps.benchmark-pr-run.outputs.BENCH_RESULT20 }}
+      PR-BENCH-22: ${{ steps.benchmark-pr-run.outputs.BENCH_RESULT22 }}
+      PR-BENCH-24: ${{ steps.benchmark-pr-run.outputs.BENCH_RESULT24 }}
     strategy:
       fail-fast: true
       matrix:
-        node-version: [20.x, 22.x, 24.x]
+        node-version: [20, 22, 24]
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -47,7 +47,7 @@ jobs:
         run: npm run build
 
       - name: Benchmark Branch
-        id: benchmark-pr
+        id: benchmark-pr-run
         run: |
           node --allow-natives-syntax benchmark/index.js --scope all --reporter json | jq '.[] | .name, .opsSec' > result.txt
           cat result.txt
@@ -67,7 +67,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        node-version: [20.x, 22.x, 24.x]
+        node-version: [20, 22, 24]
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
