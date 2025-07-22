@@ -20,5 +20,5 @@ module.exports = suite => {
     await pool2.run({ a: 1, b: 2 })
   })
 
-  return suite;
+  return suite
 }
