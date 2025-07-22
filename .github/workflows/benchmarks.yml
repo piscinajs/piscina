@@ -52,7 +52,7 @@ jobs:
           node --allow-natives-syntax benchmark/index.js --scope all --reporter json | jq '.[] | .name, .opsSec' > result.txt
           result=$(cat result.txt)
           echo 'BENCH_RESULT${{matrix.node-version}}<<EOF' >> $GITHUB_OUTPUT
-          echo '$result' >> $GITHUB_OUTPUT
+          echo "$result" >> $GITHUB_OUTPUT
           echo 'EOF' >> $GITHUB_OUTPUT
 
   benchmark-current:
@@ -90,9 +90,10 @@ jobs:
         id: benchmark-current
         run: |
           node --allow-natives-syntax benchmark/index.js --scope all --reporter json | jq '.[] | .name, .opsSec' > result.txt
+          cat result.txt
           result=$(cat result.txt)
           echo 'BENCH_RESULT${{matrix.node-version}}<<EOF' >> $GITHUB_OUTPUT
-          echo '$result' >> $GITHUB_OUTPUT
+          echo "$result" >> $GITHUB_OUTPUT
           echo 'EOF' >> $GITHUB_OUTPUT
 
   print-benchmark:
@@ -142,6 +143,6 @@ jobs:
           route: DELETE /repos/{repo}/issues/{issue_number}/labels/{name}
           repo: ${{ github.repository }}
           issue_number: ${{ github.event.pull_request.number }}
-          name: benchmark
+          name: benchmarks
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
