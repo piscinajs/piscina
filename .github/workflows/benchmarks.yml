@@ -49,8 +49,7 @@ jobs:
       - name: Benchmark Branch
         id: benchmark-pr-run
         run: |
-          node --allow-natives-syntax benchmark/index.js --scope all --reporter json | jq '.[] | .name, .opsSec' > result.txt
-          cat result.txt
+          npm run --silent --if-present benchmark:ci > result.txt
           result=$(cat result.txt)
           echo 'BENCH_RESULT${{matrix.node-version}}<<EOF' >> $GITHUB_OUTPUT
           echo "$result" >> $GITHUB_OUTPUT
@@ -61,9 +60,9 @@ jobs:
     needs: [benchmark-pr]
     name: Benchmark Current Version
     outputs:
-      CURRENT-BENCH-20: ${{ steps.benchmark-current.outputs.BENCH_RESULT20 }}
-      CURRENT-BENCH-22: ${{ steps.benchmark-current.outputs.BENCH_RESULT22 }}
-      CURRENT-BENCH-24: ${{ steps.benchmark-current.outputs.BENCH_RESULT24 }}
+      CURRENT-BENCH-20: ${{ steps.benchmark-current-run.outputs.BENCH_RESULT20 }}
+      CURRENT-BENCH-22: ${{ steps.benchmark-current-run.outputs.BENCH_RESULT22 }}
+      CURRENT-BENCH-24: ${{ steps.benchmark-current-run.outputs.BENCH_RESULT24 }}
     strategy:
       fail-fast: true
       matrix:
@@ -88,9 +87,9 @@ jobs:
         run: npm run build
 
       - name: Benchmark Current
-        id: benchmark-current
+        id: benchmark-current-run
         run: |
-          node --allow-natives-syntax benchmark/index.js --scope all --reporter json | jq '.[] | .name, .opsSec' > result.txt
+          npm run --silent --if-present benchmark:ci > result.txt
           result=$(cat result.txt)
           echo 'BENCH_RESULT${{matrix.node-version}}<<EOF' >> $GITHUB_OUTPUT
           echo "$result" >> $GITHUB_OUTPUT
@@ -110,23 +109,41 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           message: |
             **Node**: 20
-            **PR**: ${{ needs.benchmark-pr.outputs.PR-BENCH-20 }}
+            **PR**:
+              ```shell
+                ${{ needs.benchmark-pr.outputs.PR-BENCH-20 }}
+              ```
 
-            **MAIN**: ${{ needs.benchmark-current.outputs.CURRENT-BENCH-20 }}
+            **MAIN**:
+              ```shell
+                ${{ needs.benchmark-current.outputs.CURRENT-BENCH-20 }}
+              ```
 
             ---
 
             **Node**: 22
-            **PR**: ${{ needs.benchmark-pr.outputs.PR-BENCH-22 }}
+            **PR**:
+              ```shell
+                ${{ needs.benchmark-pr.outputs.PR-BENCH-22 }}
+              ```
 
-            **MAIN**: ${{ needs.benchmark-current.outputs.CURRENT-BENCH-22 }}
+            **MAIN**:
+              ```shell
+                ${{ needs.benchmark-current.outputs.CURRENT-BENCH-22 }}
+              ```
 
             ---
 
             **Node**: 24
-            **PR**: ${{ needs.benchmark-pr.outputs.PR-BENCH-24 }}
+            **PR**:
+              ```shell
+                ${{ needs.benchmark-pr.outputs.PR-BENCH-24 }}
+              ```
 
-            **MAIN**: ${{ needs.benchmark-current.outputs.CURRENT-BENCH-24 }}
+            **MAIN**:
+              ```shell
+                ${{ needs.benchmark-current.outputs.CURRENT-BENCH-24 }}
+              ```
 
   remove-label:
     if: ${{ github.event.label.name == 'benchmarks' }}
