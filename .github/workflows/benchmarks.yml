@@ -109,18 +109,18 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           message: |
             ### Benchmarks Results
-            
+
             >Numbers are in Ops/sec
 
             **Node**: 20
             **PR**:
               ```shell
-                ${{ needs.benchmark-pr.outputs.PR-BENCH-20 }}
+              ${{ needs.benchmark-pr.outputs.PR-BENCH-20 }}
               ```
 
             **MAIN**:
               ```shell
-                ${{ needs.benchmark-current.outputs.CURRENT-BENCH-20 }}
+              ${{ needs.benchmark-current.outputs.CURRENT-BENCH-20 }}
               ```
 
             ---
@@ -128,12 +128,12 @@ jobs:
             **Node**: 22
             **PR**:
               ```shell
-                ${{ needs.benchmark-pr.outputs.PR-BENCH-22 }}
+              ${{ needs.benchmark-pr.outputs.PR-BENCH-22 }}
               ```
 
             **MAIN**:
               ```shell
-                ${{ needs.benchmark-current.outputs.CURRENT-BENCH-22 }}
+              ${{ needs.benchmark-current.outputs.CURRENT-BENCH-22 }}
               ```
 
             ---
@@ -141,12 +141,12 @@ jobs:
             **Node**: 24
             **PR**:
               ```shell
-                ${{ needs.benchmark-pr.outputs.PR-BENCH-24 }}
+              ${{ needs.benchmark-pr.outputs.PR-BENCH-24 }}
               ```
 
             **MAIN**:
               ```shell
-                ${{ needs.benchmark-current.outputs.CURRENT-BENCH-24 }}
+              ${{ needs.benchmark-current.outputs.CURRENT-BENCH-24 }}
               ```
 
   remove-label:
