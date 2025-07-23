@@ -15,6 +15,12 @@ const options = {
     description: 'Glob pattern to match test files',
     default: 'test/**/*test.ts',
   },
+  'exclude': {
+    type: 'string',
+    short: 'e',
+    description: 'Glob pattern to exclude from test files',
+    default: 'test/**/*test-d.ts',
+  },
   coverage: {
     type: 'boolean',
     short: 'c',
@@ -34,10 +40,11 @@ const {
 } = parseArgs({ args: process.argv.slice(2), options });
 
 const pattern = values.pattern;
+const exclude = values.exclude;
 const isCoverage = values.coverage;
 const runOnly = values.only;
 
-const testFiles = globSync(pattern, { absolute: true });
+const testFiles = globSync(pattern, { absolute: true, ignore: exclude });
 
 const args = [
   '--enable-source-maps',
