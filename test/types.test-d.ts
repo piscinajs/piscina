@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
 import { expectTypeOf } from "expect-type";
 
-import { test } from "tap";
+import { test } from "node:test";
 
 import Piscina from "../dist";
 
