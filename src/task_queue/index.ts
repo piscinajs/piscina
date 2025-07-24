@@ -41,16 +41,26 @@ export function isTaskQueue (value: TaskQueue): boolean {
   );
 }
 
-let taskIdCounter = 0;
+
+function taskIdFactory() {
+  let taskIdCounter = 0;
+  const maxint = 2147483647;
+  return () => {
+    taskIdCounter = (taskIdCounter + 1) & maxint;
+    return `${taskIdCounter.toString(36)}`
+  }
+}
+
 // Extend AsyncResource so that async relations between posting a task and
 // receiving its result are visible to diagnostic tools.
 export class TaskInfo extends AsyncResource implements Task {
+    static getTaskId: () => string = taskIdFactory();
     callback : TaskCallback;
     task : any;
     transferList : TransferList;
     filename : string;
     name : string;
-    taskId : number;
+    taskId : string;
     abortSignal : AbortSignalAny | null;
     // abortListener : (() => void) | null = null;
     workerInfo : WorkerInfo | null = null;
@@ -89,8 +99,7 @@ export class TaskInfo extends AsyncResource implements Task {
 
       this.filename = filename;
       this.name = name;
-      // TODO: This should not be global
-      this.taskId = taskIdCounter++;
+      this.taskId = TaskInfo.getTaskId();
       this.abortSignal = abortSignal;
       this.created = performance.now();
       this.started = 0;
