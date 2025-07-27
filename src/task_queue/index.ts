@@ -3,11 +3,12 @@ import { performance } from 'node:perf_hooks';
 import { AsyncResource } from 'node:async_hooks';
 
 import type { WorkerInfo } from '../worker_pool';
-import type { AbortSignalAny, AbortSignalEventEmitter } from '../abort';
+import type { Task, TaskQueue, PiscinaTask } from './common';
+
+import { onabort, type AbortSignalAny } from '../abort';
 import { isMovable } from '../common';
 import { kTransferable, kValue, kQueueOptions } from '../symbols';
 
-import type { Task, TaskQueue, PiscinaTask } from './common';
 
 export { ArrayTaskQueue } from './array_queue';
 export { FixedQueue } from './fixed_queue';
@@ -22,6 +23,15 @@ export type TransferList = MessagePort extends {
   ? T
   : never
 export type TransferListItem = TransferList extends Array<infer T> ? T : never
+
+type TaskInfoParameters = {
+  task : any;
+  transferList : TransferList;
+  filename : string;
+  name : string;
+  abortSignal : AbortSignalAny | null;
+  triggerAsyncId : number;
+}
 
 /**
  * Verifies if a given TaskQueue is valid
@@ -52,21 +62,22 @@ export class TaskInfo extends AsyncResource implements Task {
     name : string;
     taskId : number;
     abortSignal : AbortSignalAny | null;
-    // abortListener : (() => void) | null = null;
     workerInfo : WorkerInfo | null = null;
     created : number;
     started : number;
     aborted = false;
-    _abortListener: (() => void) | null = null;
+    _abortListener: (() => void) = () => { this.aborted = true; };
+    _abortCleaner: (() => void) | null = null;
 
-    constructor (
-      task : any,
-      transferList : TransferList,
-      filename : string,
-      name : string,
-      callback : TaskCallback,
-      abortSignal : AbortSignalAny | null,
-      triggerAsyncId : number) {
+    constructor ({
+      task,
+      transferList,
+      filename,
+      name,
+      abortSignal,
+      triggerAsyncId,
+    }: TaskInfoParameters,
+    callback: TaskCallback) {
       super('Piscina.Task', { requireManualDestroy: true, triggerAsyncId });
       this.callback = callback;
       this.task = task;
@@ -78,12 +89,11 @@ export class TaskInfo extends AsyncResource implements Task {
       if (isMovable(task)) {
         // This condition should never be hit but typescript
         // complains if we dont do the check.
-        /* istanbul ignore if */
+        /* c8 ignore next */
         if (this.transferList == null) {
           this.transferList = [];
         }
-        this.transferList =
-          this.transferList.concat(task[kTransferable]);
+        this.transferList = this.transferList.concat(task[kTransferable]);
         this.task = task[kValue];
       }
 
@@ -96,16 +106,15 @@ export class TaskInfo extends AsyncResource implements Task {
       this.started = 0;
     }
 
-    // TODO: improve this handling - ideally should be extended
-    set abortListener (value: (() => void)) {
+    onAbort (value: (() => void)) {
       this._abortListener = () => {
         this.aborted = true;
         value();
       };
     }
 
-    get abortListener (): (() => void) | null {
-      return this._abortListener;
+    setAbortListener(signal: AbortSignalAny) : void {
+      this._abortCleaner = onabort(signal, this._abortListener);
     }
 
     releaseTask () : any {
@@ -114,19 +123,15 @@ export class TaskInfo extends AsyncResource implements Task {
       return ret;
     }
 
+    // TODO: implement - helpful for streaming chunks of data from worker to parent
+    onResponse(_result: any) {}
+
     done (err : Error | null, result? : any) : void {
       this.runInAsyncScope(this.callback, null, err, result);
       this.emitDestroy(); // `TaskInfo`s are used only once.
       // If an abort signal was used, remove the listener from it when
       // done to make sure we do not accidentally leak.
-      if (this.abortSignal && this.abortListener) {
-        if ('removeEventListener' in this.abortSignal && this.abortListener) {
-          this.abortSignal.removeEventListener('abort', this.abortListener);
-        } else {
-          (this.abortSignal as AbortSignalEventEmitter).off(
-            'abort', this.abortListener);
-        }
-      }
+      this._abortCleaner?.();
     }
 
     get [kQueueOptions] () : {} | null {
