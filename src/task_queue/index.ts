@@ -131,9 +131,7 @@ export class TaskInfo extends AsyncResource implements Task {
       this.emitDestroy(); // `TaskInfo`s are used only once.
       // If an abort signal was used, remove the listener from it when
       // done to make sure we do not accidentally leak.
-      if (this.abortSignal != null) {
-        this._abortCleaner?.();
-      }
+      this._abortCleaner?.();
     }
 
     get [kQueueOptions] () : {} | null {
