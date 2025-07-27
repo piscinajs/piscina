@@ -1,3 +1,5 @@
+import type { EventEmitter } from 'node:events';
+
 interface AbortSignalEventTargetAddOptions {
   once: boolean;
 }
@@ -32,10 +34,12 @@ export class AbortError extends Error {
   }
 }
 
-export function onabort (abortSignal: AbortSignalAny, listener: () => void) {
+export function onabort (abortSignal: AbortSignalAny, listener: () => void): () => void {
   if ('addEventListener' in abortSignal) {
     abortSignal.addEventListener('abort', listener, { once: true });
+    return () => abortSignal.removeEventListener('abort', listener);
   } else {
     abortSignal.once('abort', listener);
+    return () => (abortSignal as EventEmitter).removeListener('abort', listener);
   }
 }

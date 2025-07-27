@@ -40,7 +40,6 @@ import {
   AbortSignalAny,
   AbortSignalEventTarget,
   AbortError,
-  onabort
 } from './abort';
 import {
   PiscinaHistogram,
@@ -507,12 +506,15 @@ class ThreadPool {
     }
 
     const { promise: ret, resolve, reject } = promiseResolvers();
-    const taskInfo = new TaskInfo(
+    const taskInfo = new TaskInfo({
       task,
       transferList,
       filename,
       name,
-      (err : Error | null, result : any) => {
+      abortSignal: signal,
+      triggerAsyncId: this.publicInterface.asyncResource.asyncId()
+    },
+    (err : Error | null, result : any) => {
         this.completed++;
         if (taskInfo.started) {
           this.histogram?.recordRunTime(performance.now() - taskInfo.started);
@@ -524,9 +526,7 @@ class ThreadPool {
         }
 
         queueMicrotask(this._maybeDrain.bind(this))
-      },
-      signal,
-      this.publicInterface.asyncResource.asyncId());
+    });
 
     if (signal != null) {
       // If the AbortSignal has an aborted property and it's truthy,
@@ -536,7 +536,7 @@ class ThreadPool {
         return ret;
       }
 
-      taskInfo.abortListener = () => {
+      taskInfo.onAbort(() => {
         // Call reject() first to make sure we always reject with the AbortError
         // if the task is aborted, not with an Error from the possible
         // thread termination below.
@@ -551,9 +551,9 @@ class ThreadPool {
           // Call should be idempotent
           this.taskQueue.remove(taskInfo);
         }
-      };
+      });
 
-      onabort(signal, taskInfo.abortListener);
+      taskInfo.setAbortListener(signal);
     }
 
     if (this.taskQueue.size > 0) {
