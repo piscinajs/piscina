@@ -223,7 +223,7 @@ If the `PiscinaLoadBalancer` returns `null`, `Piscina` will attempt to spawn a n
 
 ```ts
 interface PiscinaTask {
-  taskId: number; // Unique identifier for the task
+  taskId: string; // Unique identifier for the task
   filename: string; // Filename of the worker module
   name: string; // Name of the worker function
   created: number; // Timestamp when the task was created

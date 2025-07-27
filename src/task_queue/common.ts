@@ -9,7 +9,7 @@ export interface TaskQueue {
 
 // Public Interface
 export interface PiscinaTask extends Task {
-    taskId: number;
+    taskId: string;
     filename: string;
     name: string;
     created: number;
