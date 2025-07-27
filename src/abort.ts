@@ -40,6 +40,6 @@ export function onabort (abortSignal: AbortSignalAny, listener: () => void): () 
     return () => abortSignal.removeEventListener('abort', listener);
   } else {
     abortSignal.once('abort', listener);
-    return () => (abortSignal as EventEmitter).removeListener('abort', listener)
+    return () => (abortSignal as EventEmitter).removeListener('abort', listener);
   }
 }
