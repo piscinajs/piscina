@@ -16,7 +16,7 @@
     "build": "tsc && gen-esm-wrapper . dist/esm-wrapper.mjs",
     "lint": "eslint && tsc --noEmit && tsc --project test/tsconfig.json --noEmit",
     "test": "node scripts/run-tests.js --pattern='test/**/*test.ts'",
-    "test:ci": "npm run lint && npm run build && npm run test:coverage",
+    "test:ci": "npm run build && npm run lint && npm run test:coverage",
     "test:coverage": "node scripts/run-tests.js --coverage --pattern='test/**/*test.ts'",
     "prepack": "npm run build",
     "benchmark": "node --allow-natives-syntax benchmark/index.js --scope all",
