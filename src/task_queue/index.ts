@@ -46,7 +46,7 @@ function taskIdFactory() {
   let taskIdCounter = 0;
   const maxint = 2147483647;
   return () => {
-    taskIdCounter = (taskIdCounter + 1) % (maxint + 1);
+    taskIdCounter = (taskIdCounter + 1) & maxint;
     return taskIdCounter.toString(36);
   }
 }
