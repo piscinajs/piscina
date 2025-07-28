@@ -96,18 +96,18 @@ interface FilledOptions extends Options {
   workerHistogram: boolean,
 }
 
-interface RunOptions {
+interface RunOptions<Func = string> {
   transferList? : TransferList,
   filename? : string | null,
   signal? : AbortSignalAny | null,
-  name? : string | null
+  name? : Func | null
 }
 
-interface FilledRunOptions extends RunOptions {
+interface FilledRunOptions<Func extends string = string> extends RunOptions<Func> {
   transferList : TransferList | never,
   filename : string | null,
   signal : AbortSignalAny | null,
-  name : string | null
+  name : Func | null
 }
 
 interface CloseOptions {
@@ -478,7 +478,7 @@ class ThreadPool {
 
   runTask (
     task : any,
-    options : RunOptions) : Promise<any> {
+    options : RunOptions<string>) : Promise<any> {
     let {
       filename,
       name
@@ -710,7 +710,7 @@ class ThreadPool {
   }
 }
 
-export default class Piscina<T = any, R = any> extends EventEmitterAsyncResource {
+export default class Piscina<Exports extends Record<string, (payload: any) => any> = Record<string, (payload: any) => any>> extends EventEmitterAsyncResource {
   #pool : ThreadPool;
   #histogram: PiscinaHistogram | null = null;
 
@@ -783,7 +783,7 @@ export default class Piscina<T = any, R = any> extends EventEmitterAsyncResource
     this.#pool = new ThreadPool(this, options);
   }
 
-  run (task : T, options : RunOptions = kDefaultRunOptions): Promise<R> {
+  run <Func extends keyof Exports = 'default'>(task : Parameters<Exports[Func]>[0], options : RunOptions<Func> = kDefaultRunOptions as RunOptions<Func>): Promise<ReturnType<Exports[Func]>> {
     if (options === null || typeof options !== 'object') {
       return Promise.reject(
         new TypeError('options must be an object'));
