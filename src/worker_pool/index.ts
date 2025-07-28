@@ -33,7 +33,7 @@ type WorkerInfoParams = {
 
 export class WorkerInfo extends AsynchronouslyCreatedResource {
     worker : Worker;
-    taskInfos : Map<number, TaskInfo>;
+    taskInfos : Map<string, TaskInfo>;
     idleTimeout : NodeJS.Timeout | null = null;
     port : MessagePort;
     sharedBuffer : Int32Array;
@@ -184,7 +184,7 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
       return this.taskInfos.size;
     }
 
-    popTask (taskId: number) : TaskInfo | null {
+    popTask (taskId: string) : TaskInfo | null {
       const task = this.taskInfos.get(taskId) ?? null;
       
       this.taskInfos.delete(taskId);

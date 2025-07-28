@@ -13,7 +13,7 @@ export interface StartupMessage {
 }
 
 export interface RequestMessage {
-  taskId: number
+  taskId: string
   task: any
   filename: string
   name: string
@@ -25,7 +25,7 @@ export interface ReadyMessage {
 }
 
 export interface ResponseMessage {
-  taskId: number
+  taskId: string
   result: any
   error: Error | null
   time: number | null
