@@ -26,6 +26,11 @@ const options = {
     short: 'o',
     description: 'Run only tests marked with { only: true }',
     default: false,
+  },
+  verbose: {
+    type: 'boolean',
+    description: 'Enable verbose output',
+    default: false,
   }
 };
 
@@ -36,8 +41,12 @@ const {
 const pattern = values.pattern;
 const isCoverage = values.coverage;
 const runOnly = values.only;
+const log = values.verbose ? console.log : () => {};
 
 const testFiles = globSync(pattern, { absolute: true });
+
+log(`Running tests with pattern: ${pattern}`);
+log(`-- Files: ${testFiles.join(', ')}`);
 
 const args = [
   '--enable-source-maps',
@@ -47,8 +56,9 @@ const args = [
 ];
 
 
-let result;
+log(`Args: \t\n${args.join('\t\n')}`);
 
+let result;
 // we skip coverage for node 20
 // because this issuse happen https://github.com/nodejs/node/pull/53315
 if (isCoverage && !process.version.startsWith('v20.')) {

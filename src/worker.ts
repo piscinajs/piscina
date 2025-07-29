@@ -8,6 +8,7 @@ import type {
   ResponseMessage,
   StartupMessage
 } from './types';
+import { WorkerStreamWriter } from './worker_pool/worker_stream';
 import {
   kResponseCountField,
   kRequestCountField,
@@ -17,7 +18,11 @@ import {
 import {
   READY,
   commonState,
-  isMovable
+  isMovable,
+  GeneratorFunctionConstructor,
+  AsyncGeneratorConstructor,
+  AsyncFunctionConstructor,
+  FunctionConstructor,
 } from './common';
 
 commonState.isWorkerThread = true;
@@ -171,7 +176,7 @@ async function onMessage (
   sharedBuffer : Int32Array,
   message : RequestMessage) {
   currentTasks++;
-  const { taskId, task, filename, name } = message;
+  const { taskId, task, filename, name, bufferSize } = message;
   let response : ResponseMessage;
   let transferList : any[] = [];
   const start = message.histogramEnabled === 1 ? performance.now() : null;
@@ -181,31 +186,107 @@ async function onMessage (
     if (handler === null) {
       throw new Error(`No handler function exported from ${filename}`);
     }
-    let result = await handler(task);
-    if (isMovable(result)) {
-      transferList = transferList.concat(result[kTransferable]);
-      result = result[kValue];
+
+    let result: any = null;
+    switch (handler.constructor.name) {
+      case FunctionConstructor: {
+        result = handler(task);
+
+        // Handle theneable
+        if (result?.then != null) {
+          result = await result;
+        }
+
+        if (isMovable(result)) {
+          transferList = transferList.concat(result[kTransferable]);
+          result = result[kValue];
+        }
+
+        break
+      }
+      case AsyncFunctionConstructor: {
+        result = await handler(task)
+        if (isMovable(result)) {
+          transferList = transferList.concat(result[kTransferable]);
+          result = result[kValue];
+        }
+        break;
+      }
+      case AsyncGeneratorConstructor: {
+        const state = new SharedArrayBuffer(128);
+        const data = new SharedArrayBuffer(bufferSize);
+        const writer = new WorkerStreamWriter(state, data);
+        const res = {
+          taskId,
+          shared: {
+            state,
+            data,
+          },
+          done: 0,
+          error: null,
+        };
+
+        port.postMessage(res);
+        writer.prepare();
+
+        try {
+          for await (const chunk of handler(task)) {
+            if(writer.write(chunk) === false) {
+              await writer.wait();
+            }
+          }
+          writer.end();
+        } catch (e) {
+          writer.destroy();
+          throw e
+        }
+
+        break;
+      }
+      case GeneratorFunctionConstructor: {
+        const state = new SharedArrayBuffer(128);
+        const data = new SharedArrayBuffer(bufferSize);
+        const writer = new WorkerStreamWriter(state, data);
+
+        const res = {
+          taskId,
+          shared: {
+            state,
+            data,
+          },
+          done: 0,
+          error: null,
+        };
+
+        port.postMessage(res);
+        writer.prepare();
+
+        try {
+          for (const chunk of handler(task)) {
+            if (writer.write(chunk) === false) {
+              await writer.wait();
+            }
+          }
+          writer.end();
+        } catch (e) {
+          writer.destroy();
+          throw e
+        }
+
+        break;
+      }
+      default: {
+        throw new Error(`Unsupported handler exported from ${filename}`);
+      }
     }
+
     response = {
       taskId,
+      done: 1,
       result,
       error: null,
       time: start == null ? null : Math.round(performance.now() - start)
     };
-
-    if (useAtomics && !useAsyncAtomics) {
-      // If the task used e.g. console.log(), wait for the stream to drain
-      // before potentially entering the `Atomics.wait()` loop, and before
-      // returning the result so that messages will always be printed even
-      // if the process would otherwise be ready to exit.
-      if (process.stdout.writableLength > 0) {
-        await new Promise((resolve) => process.stdout.write('', resolve));
-      }
-
-      if (process.stderr.writableLength > 0) {
-        await new Promise((resolve) => process.stderr.write('', resolve));
-      }
-    }
   } catch (error) {
     response = {
       taskId,
@@ -213,6 +294,7 @@ async function onMessage (
       // It may be worth taking a look at the error cloning algorithm we
       // use in Node.js core here, it's quite a bit more flexible
       error: <Error>error,
+      done: 1,
       time: start == null ? null : Math.round(performance.now() - start)
     };
   }

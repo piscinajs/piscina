@@ -161,7 +161,8 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
         taskId: taskInfo.taskId,
         filename: taskInfo.filename,
         name: taskInfo.name,
-        histogramEnabled: this.histogram != null ? 1 : 0
+        histogramEnabled: this.histogram != null ? 1 : 0,
+        bufferSize: taskInfo.bufferSize,
       };
 
       try {

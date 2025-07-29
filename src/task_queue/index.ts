@@ -1,6 +1,7 @@
 import type { MessagePort } from 'node:worker_threads';
 import { performance } from 'node:perf_hooks';
 import { AsyncResource } from 'node:async_hooks';
+import assert from 'node:assert';
 
 import type { WorkerInfo } from '../worker_pool';
 import type { Task, TaskQueue, PiscinaTask } from './common';
@@ -8,12 +9,15 @@ import type { Task, TaskQueue, PiscinaTask } from './common';
 import { onabort, type AbortSignalAny } from '../abort';
 import { isMovable } from '../common';
 import { kTransferable, kValue, kQueueOptions } from '../symbols';
+import { WorkerStream } from '../worker_pool/worker_stream';
+import { ResponseMessage } from '../types';
 
 
 export { ArrayTaskQueue } from './array_queue';
 export { FixedQueue } from './fixed_queue';
 
 export type TaskCallback = (err: Error, result: any) => void
+export type TaskResponseCallback = (err: Error | null) => void
 // Grab the type of `transferList` off `MessagePort`. At the time of writing,
 // only ArrayBuffer and MessagePort are valid, but let's avoid having to update
 // our types here every time Node.js adds support for more objects.
@@ -31,6 +35,7 @@ type TaskInfoParameters = {
   name : string;
   abortSignal : AbortSignalAny | null;
   triggerAsyncId : number;
+  bufferSize: number;
 }
 
 /**
@@ -66,6 +71,7 @@ function taskIdFactory() {
 export class TaskInfo extends AsyncResource implements Task {
     static getTaskId: () => string = taskIdFactory();
     callback : TaskCallback;
+    onResponseCallback : TaskResponseCallback;
     task : any;
     transferList : TransferList;
     filename : string;
@@ -76,6 +82,8 @@ export class TaskInfo extends AsyncResource implements Task {
     created : number;
     started : number;
     aborted = false;
+    redeable: WorkerStream | null = null;
+    bufferSize: number;
     _abortListener: (() => void) = () => { this.aborted = true; };
     _abortCleaner: (() => void) | null = null;
 
@@ -86,10 +94,13 @@ export class TaskInfo extends AsyncResource implements Task {
       name,
       abortSignal,
       triggerAsyncId,
+      bufferSize
     }: TaskInfoParameters,
-    callback: TaskCallback) {
+    callback: TaskCallback,
+    onResponseCallback: TaskResponseCallback) {
       super('Piscina.Task', { requireManualDestroy: true, triggerAsyncId });
       this.callback = callback;
+      this.onResponseCallback = onResponseCallback;
       this.task = task;
       this.transferList = transferList;
 
@@ -113,6 +124,7 @@ export class TaskInfo extends AsyncResource implements Task {
       this.abortSignal = abortSignal;
       this.created = performance.now();
       this.started = 0;
+      this.bufferSize = bufferSize;
     }
 
     onAbort (value: (() => void)) {
@@ -132,8 +144,14 @@ export class TaskInfo extends AsyncResource implements Task {
       return ret;
     }
 
-    // TODO: implement - helpful for streaming chunks of data from worker to parent
-    onResponse(_result: any) {}
+    // Until now, we only assume onResponse hints a streamed response
+    handleResponse(result: ResponseMessage) : void {
+      const { shared, error } = result;
+      assert(shared != null);
+
+      this.redeable = new WorkerStream(shared!);
+      this.onResponseCallback(error);
+    }
 
     done (err : Error | null, result? : any) : void {
       this.runInAsyncScope(this.callback, null, err, result);

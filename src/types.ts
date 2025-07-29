@@ -18,6 +18,7 @@ export interface RequestMessage {
   filename: string
   name: string
   histogramEnabled: number
+  bufferSize: number,
 }
 
 export interface ReadyMessage {
@@ -29,7 +30,13 @@ export interface ResponseMessage {
   result: any
   error: Error | null
   time: number | null
+  done: 0 | 1 // 0 = continue, 1 = done
+  shared?: {
+    state: SharedArrayBuffer,
+    data: SharedArrayBuffer
+  }
 }
+
 export const commonState = {
   isWorkerThread: false,
   workerData: undefined

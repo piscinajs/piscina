@@ -1,10 +1,10 @@
-import { fileURLToPath, URL } from 'node:url';
-import { availableParallelism } from 'node:os';
+import { fileURLToPath, URL } from "node:url";
+import { availableParallelism } from "node:os";
 
-import { kMovable, kTransferable, kValue } from './symbols';
+import { kMovable, kTransferable, kValue } from "./symbols";
 
 // States wether the worker is ready to receive tasks
-export const READY = '_WORKER_READY';
+export const READY = "_WORKER_READY";
 
 /**
  * True if the object implements the Transferable interface
@@ -13,10 +13,10 @@ export const READY = '_WORKER_READY';
  * @param {unknown} value
  * @return {*}  {boolean}
  */
-export function isTransferable (value: unknown): boolean {
+export function isTransferable(value: unknown): boolean {
   return (
     value != null &&
-    typeof value === 'object' &&
+    typeof value === "object" &&
     kTransferable in value &&
     kValue in value
   );
@@ -31,49 +31,71 @@ export function isTransferable (value: unknown): boolean {
  * @param {(unknown & PiscinaMovable)} value
  * @return {*}  {boolean}
  */
-export function isMovable (value: any): boolean {
+export function isMovable(value: any): boolean {
   return isTransferable(value) && value[kMovable] === true;
 }
 
-export function markMovable (value: {}): void {
+export function markMovable(value: {}): void {
   Object.defineProperty(value, kMovable, {
     enumerable: false,
     configurable: true,
     writable: true,
-    value: true
+    value: true,
   });
 }
 
 // State of Piscina pool
 export const commonState = {
   isWorkerThread: false,
-  workerData: undefined
+  workerData: undefined,
 };
 
-export function maybeFileURLToPath (filename : string) : string {
-  return filename.startsWith('file:')
+export function maybeFileURLToPath(filename: string): string {
+  return filename.startsWith("file:")
     ? fileURLToPath(new URL(filename))
     : filename;
 }
 
-export function getAvailableParallelism () : number {
+export function getAvailableParallelism(): number {
   return availableParallelism();
 }
 
-export function promiseResolvers <T = any> () : 
-  { promise: Promise<T>,
-    resolve: (res: T) => void,
-    reject: (err: Error) => void 
-  } {
+export function promiseResolvers<T = any>(): {
+  promise: Promise<T>;
+  resolve: (res: T) => void;
+  reject: (err: Error) => void;
+} {
   // @ts-expect-error - available from v24 onwards
   if (Promise.withResolvers != null) return Promise.withResolvers();
 
   let res: (res: T) => void;
-  let rej: (err: Error) => void 
+  let rej: (err: Error) => void;
 
   return {
-    promise: new Promise<T>((resolve, reject) => { res = resolve; rej = reject; } ),
+    promise: new Promise<T>((resolve, reject) => {
+      res = resolve;
+      rej = reject;
+    }),
     resolve: res!,
-    reject: rej!
-  }
+    reject: rej!,
+  };
 }
+
+// Ring Buffer
+export const RING_BUFFER_INDEXES = {
+  READ_INDEX: 0,
+  WRITE_INDEX: 1,
+  STATUS_INDEX: 2,
+};
+
+export const RING_BUFFER_STATUSES = {
+  PAUSED: 0,
+  RESUME: 1,
+  ENDED: 2,
+  ERRORED: 3, // ?
+};
+
+export const GeneratorFunctionConstructor = (function*(){}).constructor.name;
+export const AsyncGeneratorConstructor = (async function*(){}).constructor.name;
+export const AsyncFunctionConstructor = (async function(){}).constructor.name;
+export const FunctionConstructor = (function(){}).constructor.name;

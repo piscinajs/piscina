@@ -100,14 +100,16 @@ interface RunOptions<Func = string> {
   transferList? : TransferList,
   filename? : string | null,
   signal? : AbortSignalAny | null,
-  name? : Func | null
+  name? : Func | null,
+  bufferSize?: number | null
 }
 
 interface FilledRunOptions<Func extends string = string> extends RunOptions<Func> {
   transferList : TransferList | never,
   filename : string | null,
   signal : AbortSignalAny | null,
-  name : Func | null
+  name : Func | null,
+  bufferSize?: number | null
 }
 
 interface CloseOptions {
@@ -135,7 +137,8 @@ const kDefaultRunOptions : FilledRunOptions = {
   transferList: undefined,
   filename: null,
   signal: null,
-  name: null
+  name: null,
+  bufferSize: null,
 };
 
 const kDefaultCloseOptions : Required<CloseOptions> = {
@@ -285,20 +288,25 @@ class ThreadPool {
     this.workers.add(workerInfo);
 
     function onMessage (this: ThreadPool, message : ResponseMessage) {
-      const { taskId, result } = message;
+      const { taskId, result, done } = message;
       // In case of success: Call the callback that was passed to `runTask`,
       // remove the `TaskInfo` associated with the Worker, which marks it as
       // free again.
       const taskInfo = workerInfo.popTask(taskId);
-      this.workers.taskDone(workerInfo);
 
-      
       if (taskInfo == null) { /* c8 ignore next */
         const err = new Error(
           `Unexpected message from Worker: ${inspect(message)}`);
         this.publicInterface.emit('error', err);
+        this._processPendingMessages();
+        return;
+      }
+
+      if (done === 0) {
+        this.workers.taskDone(workerInfo);
+        taskInfo!.done(message.error, result);
       } else {
-        taskInfo.done(message.error, result);
+        taskInfo!.handleResponse(message);
       }
 
       this._processPendingMessages();
@@ -471,13 +479,15 @@ class ThreadPool {
     options : RunOptions<string>) : Promise<any> {
     let {
       filename,
-      name
+      name,
+      bufferSize
     } = options;
     const {
       transferList = []
     } = options;
     filename = filename ?? this.options.filename;
     name = name ??  this.options.name;
+    bufferSize = bufferSize ?? 1024 * 1024;
 
     if (typeof filename !== 'string') {
       return Promise.reject(Errors.FilenameNotProvided());
@@ -501,6 +511,7 @@ class ThreadPool {
       transferList,
       filename,
       name,
+      bufferSize,
       abortSignal: signal,
       triggerAsyncId: this.publicInterface.asyncResource.asyncId()
     },
@@ -516,6 +527,11 @@ class ThreadPool {
         }
 
         queueMicrotask(this._maybeDrain.bind(this))
+    },
+    // Until now, we just assume this is a streamed response and we jump into handling the chunks as stream
+    (err) => {
+      if (err) reject(err);
+      else resolve(taskInfo.redeable);
     });
 
     if (signal != null) {
@@ -782,7 +798,8 @@ export default class Piscina<Exports extends Record<string, (payload: any) => an
       transferList,
       filename,
       name,
-      signal
+      signal,
+      bufferSize
     } = options;
     if (transferList !== undefined && !Array.isArray(transferList)) {
       return Promise.reject(
@@ -798,6 +815,17 @@ export default class Piscina<Exports extends Record<string, (payload: any) => an
     if (signal != null && typeof signal !== 'object') {
       return Promise.reject(
         new TypeError('signal argument must be an object'));
+    }
+    if (bufferSize != null &&
+      (
+        typeof bufferSize !== 'number'||
+        !Number.isInteger(bufferSize) ||
+        !Number.isFinite(bufferSize) ||
+        bufferSize <= 0
+      )
+    ) {
+      return Promise.reject(
+        new TypeError('bufferSize argument must be a finite integer'));
     }
 
     return this.#pool.runTask(task, { transferList, filename, name, signal });

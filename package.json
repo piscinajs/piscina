@@ -14,6 +14,7 @@
   },
   "scripts": {
     "build": "tsc && gen-esm-wrapper . dist/esm-wrapper.mjs",
+    "build:clean": "rm -rf ./dist tsconfig.tsbuildinfo",
     "lint": "eslint && tsc --noEmit && tsc --project test/tsconfig.json --noEmit",
     "test": "node scripts/run-tests.js --pattern='test/**/*test.ts'",
     "test:ci": "npm run build && npm run lint && npm run test:coverage",
