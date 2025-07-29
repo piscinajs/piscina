@@ -231,31 +231,40 @@ class ThreadPool {
   }
 
   _addNewWorker () : void {
-    if (this.closingUp) return;
-
-    const pool = this;
-    const worker = new Worker(resolve(__dirname, 'worker.js'), {
-      env: this.options.env,
-      argv: this.options.argv,
-      execArgv: this.options.execArgv,
-      resourceLimits: this.options.resourceLimits,
-      workerData: this.options.workerData,
-      trackUnmanagedFds: this.options.trackUnmanagedFds
-    });
+    if (this.closingUp === true) return;
 
     const { port1, port2 } = new MessageChannel();
     const workerInfo = new WorkerInfo({
-      worker, 
-      onMessage,
+      worker: {
+        filename: resolve(__dirname, 'worker.js'),
+        env: this.options.env,
+        argv: this.options.argv,
+        execArgv: this.options.execArgv,
+        resourceLimits: this.options.resourceLimits,
+        workerData: this.options.workerData,
+        trackUnmanagedFds: this.options.trackUnmanagedFds
+      }, 
       port: port1, 
       enableHistogram: this.options.workerHistogram
-    });
-
+    }, onMessage.bind(this));
+    const message : StartupMessage = {
+      filename: this.options.filename,
+      name: this.options.name,
+      port: port2,
+      sharedBuffer: workerInfo.sharedBuffer,
+      atomics: this.options.atomics!,
+      niceIncrement: this.options.niceIncrement
+    };
+    
     workerInfo.onDestroy(() => {
       this.publicInterface.emit('workerDestroy', workerInfo.interface);
     });
+    workerInfo.onWorkerMessage(onWorkerMessage.bind(this));
+    workerInfo.onWorkerError(onWorkerError.bind(this));
+    workerInfo.onWorkerExit(onWorkerExit.bind(this));
+    workerInfo.onPortClose(() => { workerInfo.workerRef(); });
 
-    if (this.startingUp) {
+    if (this.startingUp === true) {
       // There is no point in waiting for the initial set of Workers to indicate
       // that they are ready, we just mark them as such from the start.
       workerInfo.markAsReady();
@@ -271,74 +280,55 @@ class ThreadPool {
         this._onWorkerReady(workerInfo);
       });
     }
+    
+    workerInfo.init(message, [port2]).workerUnref();
+    this.workers.add(workerInfo);
 
-    const message : StartupMessage = {
-      filename: this.options.filename,
-      name: this.options.name,
-      port: port2,
-      sharedBuffer: workerInfo.sharedBuffer,
-      atomics: this.options.atomics!,
-      niceIncrement: this.options.niceIncrement
-    };
-    worker.postMessage(message, [port2]);
-
-    function onMessage (message : ResponseMessage) {
+    function onMessage (this: ThreadPool, message : ResponseMessage) {
       const { taskId, result } = message;
       // In case of success: Call the callback that was passed to `runTask`,
       // remove the `TaskInfo` associated with the Worker, which marks it as
       // free again.
       const taskInfo = workerInfo.popTask(taskId);
-      pool.workers.taskDone(workerInfo);
+      this.workers.taskDone(workerInfo);
 
-      /* istanbul ignore if */
-      if (taskInfo == null) {
+      
+      if (taskInfo == null) { /* c8 ignore next */
         const err = new Error(
           `Unexpected message from Worker: ${inspect(message)}`);
-        pool.publicInterface.emit('error', err);
+        this.publicInterface.emit('error', err);
       } else {
         taskInfo.done(message.error, result);
       }
 
-      pool._processPendingMessages();
+      this._processPendingMessages();
     }
 
-    function onReady () {
+    function onWorkerReady () {
       workerInfo.currentUsage() === 0 && workerInfo.unref();
       workerInfo.isReady() === false && workerInfo.markAsReady();
     }
 
-    function onEventMessage (message: any) {
-      pool.publicInterface.emit('message', message);
+    function onEventMessage (this: ThreadPool, message: any) {
+      this.publicInterface.emit('message', message);
     }
 
-    worker.on('message', (message : any) => {
-      message instanceof Object && READY in message ? onReady() : onEventMessage(message);
-    });
+    function onWorkerMessage (this: ThreadPool, message: any) {
+      message instanceof Object && READY in message ? onWorkerReady() : onEventMessage.call(this, message);
+    }
 
-    worker.on('error', (err : Error) => {
+    function onWorkerError (this: ThreadPool, err: Error) {
       this._onError(workerInfo, err, false);
-    });
+    }
 
-    worker.on('exit', (exitCode : number) => {
-      if (this.destroying) {
-        return;
+    function onWorkerExit (this: ThreadPool, code: number) {
+      if (this.destroying === false) {
+        const err = new Error(`worker exited with code: ${code}`);
+        // Only error unfinished tasks on process exit, since there are legitimate
+        // reasons to exit workers and we want to handle that gracefully when possible.
+        this._onError(workerInfo, err, true);
       }
-
-      const err = new Error(`worker exited with code: ${exitCode}`);
-      // Only error unfinished tasks on process exit, since there are legitimate
-      // reasons to exit workers and we want to handle that gracefully when possible.
-      this._onError(workerInfo, err, true);
-    });
-
-    worker.unref();
-    port1.on('close', () => {
-      // The port is only closed if the Worker stops for some reason, but we
-      // always .unref() the Worker itself. We want to receive e.g. 'error'
-      // events on it, so we ref it once we know it's going to exit anyway.
-      worker.ref();
-    });
-
-    this.workers.add(workerInfo);
+    }
   }
 
   _onError (workerInfo: WorkerInfo, err: Error, onlyErrorUnfinishedTasks: boolean) {
