@@ -292,8 +292,8 @@ class ThreadPool {
       const taskInfo = workerInfo.popTask(taskId);
       this.workers.taskDone(workerInfo);
 
-      /* c8 ignore next */
-      if (taskInfo == null) {
+      
+      if (taskInfo == null) { /* c8 ignore next */
         const err = new Error(
           `Unexpected message from Worker: ${inspect(message)}`);
         this.publicInterface.emit('error', err);
