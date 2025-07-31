@@ -159,6 +159,8 @@ export class TaskInfo extends AsyncResource implements Task {
       // If an abort signal was used, remove the listener from it when
       // done to make sure we do not accidentally leak.
       this._abortCleaner?.();
+
+      if (this.redeable != null && err != null) this.redeable.destroy(err);
     }
 
     get [kQueueOptions] () : {} | null {

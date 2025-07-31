@@ -221,6 +221,10 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
       return task;
     }
 
+    getTask (taskId: string): TaskInfo | null {
+      return this.taskInfos.get(taskId) ?? null;
+    }
+
     get interface (): PiscinaWorker {
       const worker = this;
       return {

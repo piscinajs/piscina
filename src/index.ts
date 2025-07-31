@@ -292,7 +292,7 @@ class ThreadPool {
       // In case of success: Call the callback that was passed to `runTask`,
       // remove the `TaskInfo` associated with the Worker, which marks it as
       // free again.
-      const taskInfo = workerInfo.popTask(taskId);
+      const taskInfo = done === 0 ? workerInfo.getTask(taskId) : workerInfo.popTask(taskId);
 
       if (taskInfo == null) { /* c8 ignore next */
         const err = new Error(
@@ -302,7 +302,7 @@ class ThreadPool {
         return;
       }
 
-      if (done === 0) {
+      if (done === 1) {
         this.workers.taskDone(workerInfo);
         taskInfo!.done(message.error, result);
       } else {
@@ -516,21 +516,21 @@ class ThreadPool {
       triggerAsyncId: this.publicInterface.asyncResource.asyncId()
     },
     (err : Error | null, result : any) => {
-        this.completed++;
-        if (taskInfo.started) {
-          this.histogram?.recordRunTime(performance.now() - taskInfo.started);
-        }
-        if (err !== null) {
-          reject(err);
-        } else {
-          resolve(result);
-        }
+      this.completed++;
+      if (taskInfo.started) {
+        this.histogram?.recordRunTime(performance.now() - taskInfo.started);
+      }
+      if (err !== null) {
+        reject(err);
+      } else {
+        resolve(result);
+      }
 
-        queueMicrotask(this._maybeDrain.bind(this))
+      queueMicrotask(this._maybeDrain.bind(this))
     },
     // Until now, we just assume this is a streamed response and we jump into handling the chunks as stream
     (err) => {
-      if (err) reject(err);
+      if (err != null) reject(err);
       else resolve(taskInfo.redeable);
     });
 
