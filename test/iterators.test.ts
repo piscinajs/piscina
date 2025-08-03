@@ -10,7 +10,7 @@ test('should handle iterator throw', async (t) => {
     filename: resolve(__dirname, 'fixtures', 'iterator.js'),
   });
 
-  t.plan(1)
+  t.plan(1);
   const [result] = await once(await pool.run({ length: 5, throwNext: true }), 'error');
   t.assert.equal(result.message, 'Thrown error');
 });
@@ -20,7 +20,7 @@ test('should handle iterator throw (async)', async (t) => {
     filename: resolve(__dirname, 'fixtures', 'async-iterator.js'),
   });
 
-  t.plan(1)
+  t.plan(1);
   const [result] = await once(await pool.run({ length: 5, throwNext: true }), 'error');
   t.assert.equal(result.message, 'Thrown error');
 });
@@ -30,7 +30,7 @@ test('should support iterator with custom buffer size', (t, done) => {
     filename: resolve(__dirname, 'fixtures', 'iterator.js'),
   });
 
-  t.plan(1)
+  t.plan(1);
   pool.run({ length: 10 }, { bufferSize: 100 }).then((red: Readable) => {
     const chunks: Buffer[] = [];
     red.on('data', (chunk) => {
@@ -49,7 +49,7 @@ test('should throw with custom buffer size not valid', (t) => {
     filename: resolve(__dirname, 'fixtures', 'iterator.js'),
   });
 
-  t.plan(5)
+  t.plan(5);
   t.assert.rejects(pool.run({}, { bufferSize: Infinity }));
   // @ts-expect-error
   t.assert.rejects(pool.run({}, { bufferSize: '1' }));
@@ -64,17 +64,16 @@ test('should support iterator', async (t) => {
     filename: resolve(__dirname, 'fixtures', 'iterator.js'),
   });
 
-  t.after(pool.close.bind(pool))
+  t.after(pool.close.bind(pool));
   t.plan(1);
   const redeable = await pool.run({ length: 10 });
-
 
   let chunks = '';
   for await (const chunk of redeable) {
     chunks += chunk;
   }
 
-  t.assert.equal(chunks, '0123456789')
+  t.assert.equal(chunks, '0123456789');
 });
 
 test('should support async iterator', async (t) => {
@@ -82,9 +81,9 @@ test('should support async iterator', async (t) => {
     filename: resolve(__dirname, 'fixtures', 'async-iterator.js'),
   });
 
-  t.plan(1)
-  t.after(() => pool.close())
-  const redeable = await pool.run({ length: 10 })
+  t.plan(1);
+  t.after(() => pool.close());
+  const redeable = await pool.run({ length: 10 });
   let chunks = '';
   redeable.setEncoding('utf-8');
 
@@ -101,36 +100,36 @@ test('should throw on invalid output (async)', { skip: true }, async (t) => {
     filename: resolve(__dirname, 'fixtures', 'bad-iterators.js'),
   });
 
-  t.plan(4)
-  t.after(pool.close.bind(pool))
+  t.plan(4);
+  t.after(pool.close.bind(pool));
 
   await t.assert.rejects(async () => {
     const read = await pool.run('', { name: 'asyncIterator' });
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     for await (const _chunk of read) { /* empty */ }
-  }, new TypeError('(Async)Iterators should only return string, buffer or typed arrays'))
+  }, new TypeError('(Async)Iterators should only return string, buffer or typed arrays'));
 
   await t.assert.rejects(async () => {
     const read = await pool.run('', { name: 'asyncIterator2' });
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     for await (const _chunk of read) { /* empty */ }
-  }, new TypeError('(Async)Iterators should only return string, buffer or typed arrays'))
+  }, new TypeError('(Async)Iterators should only return string, buffer or typed arrays'));
 
   await t.assert.rejects(async () => {
     const read = await pool.run('', { name: 'asyncIterator3' });
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     for await (const _chunk of read) { /* empty */ }
-  }, new TypeError('(Async)Iterators should only return string, buffer or typed arrays'))
+  }, new TypeError('(Async)Iterators should only return string, buffer or typed arrays'));
 
   await t.assert.rejects(async () => {
     const read = await pool.run('', { name: 'asyncIterator4' });
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     for await (const _chunk of read) { /* empty */ }
-  }, new TypeError('(Async)Iterators should only return string, buffer or typed arrays'))
+  }, new TypeError('(Async)Iterators should only return string, buffer or typed arrays'));
 });
 
 // TODO: flaky tests. Research and enable it later
@@ -140,33 +139,33 @@ test('should throw on invalid output', { skip: true }, async (t) => {
     concurrentTasksPerWorker: 4,
   });
 
-  t.plan(4)
-  t.after(pool.close.bind(pool))
+  t.plan(4);
+  t.after(pool.close.bind(pool));
   await t.assert.rejects(async () => {
     const read = await pool.run('', { name: 'syncIterator' });
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     for await (const _chunk of read) { /* empty */ }
-  }, new TypeError('(Async)Iterators should only return string, buffer or typed arrays'))
+  }, new TypeError('(Async)Iterators should only return string, buffer or typed arrays'));
 
   await t.assert.rejects(async () => {
     const read = await pool.run('', { name: 'syncIterator2' });
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     for await (const _chunk of read) { /* empty */ }
-  }, new TypeError('(Async)Iterators should only return string, buffer or typed arrays'))
+  }, new TypeError('(Async)Iterators should only return string, buffer or typed arrays'));
 
   await t.assert.rejects(async () => {
     const read = await pool.run('', { name: 'syncIterator3' });
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     for await (const _chunk of read) { /* empty */ }
-  }, new TypeError('(Async)Iterators should only return string, buffer or typed arrays'))
+  }, new TypeError('(Async)Iterators should only return string, buffer or typed arrays'));
 
   await t.assert.rejects(async () => {
     const read = await pool.run('', { name: 'syncIterator4' });
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     for await (const _chunk of read) { /* empty */ }
-  }, new TypeError('(Async)Iterators should only return string, buffer or typed arrays'))
+  }, new TypeError('(Async)Iterators should only return string, buffer or typed arrays'));
 });
