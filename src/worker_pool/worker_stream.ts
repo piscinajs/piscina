@@ -46,7 +46,6 @@ class WorkerStreamBuffer {
   }
 }
 
-// TODO: test out
 export class WorkerStreamWriter {
   #state: Int32Array;
   #data: Buffer;
@@ -349,6 +348,8 @@ class WorkerStream extends Readable {
           value.then(() => {
             this.#waiting = false;
           });
+        } else {
+          this.#waiting = false;
         }
 
         return;

@@ -516,17 +516,20 @@ class ThreadPool {
       triggerAsyncId: this.publicInterface.asyncResource.asyncId()
     },
     (err : Error | null, result : any) => {
+      queueMicrotask(this._maybeDrain.bind(this))
       this.completed++;
       if (taskInfo.started) {
         this.histogram?.recordRunTime(performance.now() - taskInfo.started);
       }
+
+      // Promise already resolved, this is for statistics only
+      if (taskInfo.redeable != null) return;
+
       if (err !== null) {
         reject(err);
       } else {
         resolve(result);
       }
-
-      queueMicrotask(this._maybeDrain.bind(this))
     },
     // Until now, we just assume this is a streamed response and we jump into handling the chunks as stream
     (err) => {

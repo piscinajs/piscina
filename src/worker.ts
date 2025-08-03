@@ -231,7 +231,7 @@ async function onMessage (
 
         try {
           for await (const chunk of handler(task)) {
-            if(writer.write(chunk) === false) {
+            if (writer.write(chunk) === false) {
               await writer.wait();
             }
           }
