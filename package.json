@@ -48,7 +48,7 @@
   "devDependencies": {
     "@types/node": "^24.0.1",
     "abort-controller": "^3.0.0",
-    "bench-node": "^0.7.0",
+    "bench-node": "^0.9.0",
     "concat-stream": "^2.0.0",
     "eslint": "^9.16.0",
     "expect-type": "^1.2.1",
