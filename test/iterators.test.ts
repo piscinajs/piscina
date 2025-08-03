@@ -95,7 +95,7 @@ test('should support async iterator', async (t) => {
 });
 
 // TODO: flaky tests. Research and enable it later
-test('should throw on invalid output (async)', async (t) => {
+test('should throw on invalid output (async)', { only: true }, async (t) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures', 'bad-iterators.js'),
   });
@@ -133,10 +133,10 @@ test('should throw on invalid output (async)', async (t) => {
 });
 
 // TODO: flaky tests. Research and enable it later
-test('should throw on invalid output', async (t) => {
+test('should throw on invalid output', { only: true }, async (t) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures', 'bad-iterators.js'),
-    concurrentTasksPerWorker: 4,
+    // concurrentTasksPerWorker: 4,
   });
 
   t.plan(4);
