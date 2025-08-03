@@ -2,7 +2,6 @@ import { Readable } from 'node:stream';
 import { resolve } from 'node:path';
 import { test } from 'node:test';
 import { once } from 'node:events';
-import assert from 'node:assert/strict';
 
 import Piscina from '..';
 
@@ -84,7 +83,7 @@ test('should support async iterator', async (t) => {
   });
 
   t.plan(1)
-  t.after(pool.close.bind(pool))
+  t.after(() => pool.close())
   const redeable = await pool.run({ length: 10 })
   let chunks = '';
   redeable.setEncoding('utf-8');
