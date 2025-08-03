@@ -154,7 +154,7 @@ export class TaskInfo extends AsyncResource implements Task {
     }
 
     done (err : Error | null, result? : any) : void {
-      if (this.redeable != null && err != null) queueMicrotask(() => this.redeable?.destroy(err));
+      if (this.redeable != null && err != null) this.redeable?.destroy(err);
 
       this.runInAsyncScope(this.callback, null, err, result);
       this.emitDestroy(); // `TaskInfo`s are used only once.
