@@ -85,7 +85,7 @@ export class WorkerStreamWriter {
     ) {
       this.destroy();
       throw new TypeError(
-        'AsyncIterators should only return string, buffer or typed arrays'
+        '(Async)Iterators should only return string, buffer or typed arrays'
       );
     }
 

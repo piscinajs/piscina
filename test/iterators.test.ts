@@ -102,26 +102,34 @@ test('should throw on invalid output (async)', async (t) => {
 
   t.plan(4)
   t.after(pool.close.bind(pool))
-  const [result] = await once(await pool.run('', { name: 'asyncIterator' }), 'error');
-  const [result2] = await once(await pool.run('', { name: 'asyncIterator2' }), 'error');
-  const [result3] = await once(await pool.run('', { name: 'asyncIterator3' }), 'error');
-  const [result4] = await once(await pool.run('', { name: 'asyncIterator4' }), 'error');
-  t.assert.equal(
-    result.message,
-    'AsyncIterators should only return string, buffer or typed arrays'
-  );
-  t.assert.equal(
-    result2.message,
-    'AsyncIterators should only return string, buffer or typed arrays'
-  );
-  t.assert.equal(
-    result3.message,
-    'AsyncIterators should only return string, buffer or typed arrays'
-  );
-  t.assert.equal(
-    result4.message,
-    'AsyncIterators should only return string, buffer or typed arrays'
-  );
+
+  await t.assert.rejects(async () => {
+    const read = await pool.run('', { name: 'asyncIterator' });
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    for await (const _chunk of read) { /* empty */ }
+  }, new TypeError('(Async)Iterators should only return string, buffer or typed arrays'))
+
+  await t.assert.rejects(async () => {
+    const read = await pool.run('', { name: 'asyncIterator2' });
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    for await (const _chunk of read) { /* empty */ }
+  }, new TypeError('(Async)Iterators should only return string, buffer or typed arrays'))
+
+  await t.assert.rejects(async () => {
+    const read = await pool.run('', { name: 'asyncIterator3' });
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    for await (const _chunk of read) { /* empty */ }
+  }, new TypeError('(Async)Iterators should only return string, buffer or typed arrays'))
+
+  await t.assert.rejects(async () => {
+    const read = await pool.run('', { name: 'asyncIterator4' });
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    for await (const _chunk of read) { /* empty */ }
+  }, new TypeError('(Async)Iterators should only return string, buffer or typed arrays'))
 });
 
 test('should throw on invalid output', async (t) => {
@@ -132,24 +140,31 @@ test('should throw on invalid output', async (t) => {
 
   t.plan(4)
   t.after(pool.close.bind(pool))
-  const [result] = await once(await pool.run('', { name: 'syncIterator' }), 'error');
-  const [result2] = await once(await pool.run('', { name: 'syncIterator2' }), 'error');
-  const [result3] = await once(await pool.run('', { name: 'syncIterator3' }), 'error');
-  const [result4] = await once(await pool.run('', { name: 'syncIterator4' }), 'error');
-  t.assert.equal(
-    result.message,
-    'AsyncIterators should only return string, buffer or typed arrays'
-  );
-  t.assert.equal(
-    result2.message,
-    'AsyncIterators should only return string, buffer or typed arrays'
-  );
-  t.assert.equal(
-    result3.message,
-    'AsyncIterators should only return string, buffer or typed arrays'
-  );
-  t.assert.equal(
-    result4.message,
-    'AsyncIterators should only return string, buffer or typed arrays'
-  );
+  await t.assert.rejects(async () => {
+    const read = await pool.run('', { name: 'syncIterator' });
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    for await (const _chunk of read) { /* empty */ }
+  }, new TypeError('(Async)Iterators should only return string, buffer or typed arrays'))
+
+  await t.assert.rejects(async () => {
+    const read = await pool.run('', { name: 'syncIterator2' });
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    for await (const _chunk of read) { /* empty */ }
+  }, new TypeError('(Async)Iterators should only return string, buffer or typed arrays'))
+
+  await t.assert.rejects(async () => {
+    const read = await pool.run('', { name: 'syncIterator3' });
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    for await (const _chunk of read) { /* empty */ }
+  }, new TypeError('(Async)Iterators should only return string, buffer or typed arrays'))
+
+  await t.assert.rejects(async () => {
+    const read = await pool.run('', { name: 'syncIterator4' });
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    for await (const _chunk of read) { /* empty */ }
+  }, new TypeError('(Async)Iterators should only return string, buffer or typed arrays'))
 });
