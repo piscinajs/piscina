@@ -82,7 +82,6 @@ export class WorkerStreamWriter {
       Buffer.isBuffer(chunk) === false &&
       ArrayBuffer.isView(chunk) === false
     ) {
-      this.destroy();
       throw new TypeError(
         '(Async)Iterators should only return string, buffer or typed arrays'
       );
