@@ -600,16 +600,19 @@ class ThreadPool {
     const queueSize = this.publicInterface.queueSize;
 
     if (this._needsDrain === true) {
-      if (maxCapacity > currentUsage && maxQueueSize > queueSize) {
+      if (queueSize === 0) {
         this._needsDrain = false;
         queueMicrotask(() => this.publicInterface.emit('drain'));
       }
       return;
     }
 
+    // Attempting to provide a similar behaviour to a Writable stream
+    // if maxquesize is already reached, let's attempt to inform that the
+    // queue needs drain before handling more tasks
     if (maxCapacity === currentUsage && queueSize === maxQueueSize) {
       this._needsDrain = true;
-      queueMicrotask(() => this.publicInterface.emit('needsDrain'))
+      queueMicrotask(() => this.publicInterface.emit('needsDrain'));
     } 
   }
 
