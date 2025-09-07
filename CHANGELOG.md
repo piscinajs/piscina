@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [6.0.0](https://github.com/piscinajs/piscina/compare/v5.0.0...v6.0.0) (2025-09-07)
+
+
+### ⚠ BREAKING CHANGES
+
+* make piscina entrypoint easier for typescript ([#801](https://github.com/piscinajs/piscina/issues/801))
+* apply task id optimization ([#858](https://github.com/piscinajs/piscina/issues/858))
+
+### Features
+
+* add explicit resource management support ([#810](https://github.com/piscinajs/piscina/issues/810)) ([d625bba](https://github.com/piscinajs/piscina/commit/d625bbaf17536ba0a5654383206e4126b01db557))
+* apply task id optimization ([#858](https://github.com/piscinajs/piscina/issues/858)) ([e3e2d39](https://github.com/piscinajs/piscina/commit/e3e2d39aaae0b57718e9f0bb8c96e981ac5c78fc))
+* make piscina entrypoint easier for typescript ([#801](https://github.com/piscinajs/piscina/issues/801)) ([1a1dbed](https://github.com/piscinajs/piscina/commit/1a1dbed4bec550b7cd907aebde7eb4552a549d0c))
+* offload drain events to microtask ([#809](https://github.com/piscinajs/piscina/issues/809)) ([2e6b02f](https://github.com/piscinajs/piscina/commit/2e6b02fd8a877503bc998cb36c4c256663c280c1))
+
+
+### Bug Fixes
+
+* **#805:** Fix handling of aborted tasks ([#807](https://github.com/piscinajs/piscina/issues/807)) ([5608520](https://github.com/piscinajs/piscina/commit/5608520bd7d812b253a0373d50572005ab863195))
+* add provenance ([#884](https://github.com/piscinajs/piscina/issues/884)) ([5204b9b](https://github.com/piscinajs/piscina/commit/5204b9b3f526a118c94803be7bb2c61a3cb590b1))
+* prevent race condition in idle worker cleanup ([#818](https://github.com/piscinajs/piscina/issues/818)) ([5c24f4f](https://github.com/piscinajs/piscina/commit/5c24f4f675af8ab71944826ea897037aad2f2dd3))
+
 ### [5.1.1](https://github.com/piscinajs/piscina/compare/v5.1.0...v5.1.1) (2025-06-19)
 
 
