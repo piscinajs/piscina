@@ -1,0 +1,23 @@
+name: Create release PR
+
+on:
+  workflow_dispatch:
+
+jobs:
+  create-pr:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    #   Let's try to trigger releases only after this release PR gets merged
+    # so we might need to verify who the author is to do so
+    steps:
+      - uses: googleapis/release-please-action@c2a5a2bd6a758a0937f1ddb1e8950609867ed15c # v4.3.0
+        with:
+          # this is a built-in strategy in release-please, see "Action Inputs"
+          # for more options
+          release-type: node
+          skip-github-release: true
+          skip-labeling: true
