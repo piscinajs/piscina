@@ -1,0 +1,25 @@
+on:
+  push:
+    branches:
+      - current
+
+name: publish
+
+permissions:
+  id-token: write  # Required for OIDC
+  contents: read
+
+jobs:
+  publish:
+    if: >
+      github.event.head_commit.author.username == 'github-actions[bot]' && github.event.head_commit.author.email == '41898282+github-actions[bot]@users.noreply.github.com'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          registry-url: 'https://registry.npmjs.org'
+      - run: npm install -g npm@latest
+      - run: npm install
+      - run: npm publish --access public
