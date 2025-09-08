@@ -452,7 +452,7 @@ class ThreadPool {
       this.histogram?.recordWaitTime(now - task.created)
       task.started = now;
       candidate[kWorkerData].postTask(task);
-      queueMicrotask(() => this._maybeDrain());
+      this._maybeDrain();
       // If candidate, let's try to distribute more tasks
       return true;
     }
@@ -515,7 +515,7 @@ class ThreadPool {
           resolve(result);
         }
 
-        queueMicrotask(this._maybeDrain.bind(this))
+        this._maybeDrain();
     });
 
     if (signal != null) {
@@ -558,7 +558,7 @@ class ThreadPool {
         this.taskQueue.push(taskInfo);
       }
 
-      queueMicrotask(this._maybeDrain.bind(this))
+      this._maybeDrain();
       return ret;
     }
 
@@ -578,7 +578,7 @@ class ThreadPool {
       }
     };
 
-    queueMicrotask(this._maybeDrain.bind(this))
+    this._maybeDrain();
     return ret;
   }
 
@@ -594,16 +594,26 @@ class ThreadPool {
      * since we want to avoid creating tasks that can't execute
      * immediately in order to provide back pressure to the task source.
      */
-    const { maxCapacity } = this;
+    const { maxCapacity, } = this;
     const currentUsage = this.workers.getCurrentUsage();
+    const maxQueueSize = this.options.maxQueue;
+    const queueSize = this.publicInterface.queueSize;
 
-    if (maxCapacity === currentUsage) {
+    if (this._needsDrain === true) {
+      if (queueSize === 0) {
+        this._needsDrain = false;
+        queueMicrotask(() => this.publicInterface.emit('drain'));
+      }
+      return;
+    }
+
+    // Attempting to provide a similar behaviour to a Writable stream
+    // if maxquesize is already reached, let's attempt to inform that the
+    // queue needs drain before handling more tasks
+    if (maxCapacity === currentUsage && queueSize === maxQueueSize) {
       this._needsDrain = true;
       queueMicrotask(() => this.publicInterface.emit('needsDrain'));
-    } else if (maxCapacity > currentUsage && this._needsDrain) {
-      this._needsDrain = false;
-      queueMicrotask(() => this.publicInterface.emit('drain'));
-    }
+    } 
   }
 
   async destroy () {
@@ -853,7 +863,7 @@ export default class Piscina<Exports extends Record<string, (payload: any) => an
 
   get queueSize () : number {
     const pool = this.#pool;
-    return Math.max(pool.taskQueue.size - pool.pendingCapacity(), 0);
+    return Math.max((pool.taskQueue.size + pool.skipQueue.length) - pool.pendingCapacity(), 0);
   }
 
   get completed () : number {

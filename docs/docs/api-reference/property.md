@@ -68,11 +68,17 @@ The current number of tasks waiting to be assigned to a Worker thread.
 
 ## Property: `needsDrain` (readonly)
 
-Boolean value that specifies whether the capacity of the pool has
-been exceeded by the number of tasks submitted.
+Boolean value that specifies whether the pool requires draining before processing new tasks.
 
-This property is helpful to make decisions towards creating backpressure
-over the number of tasks submitted to the pool.
+This is `true` when there is not enough capacity to process more tasks
+without exceeding the maximum queue size or within the maximum number of threads.
+
+This is often calculated based on the number of threads (current and pending if number of threads is below `maxThreads` threshold),
+the maximum queue size, and the current number of in-flight tasks.
+
+This property is helpful to make decisions towards creating backpressure.
+
+> **Note**: Piscina does not buffer tasks beyond the `maxQueue` threshold, so this property is not a guarantee that the pool will accept more tasks.
 
 ## Property: `utilization` (readonly)
 
