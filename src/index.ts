@@ -673,6 +673,8 @@ class ThreadPool {
         }
       };
 
+      this.workers.onTaskDone(checkIfWorkerIsDone);
+
       for (const workerInfo of this.workers) {
         checkIfWorkerIsDone(workerInfo);
 
