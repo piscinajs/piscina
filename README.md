@@ -933,7 +933,7 @@ Piscina development is sponsored by [NearForm Research][].
 [`nice(2)`]: https://linux.die.net/man/2/nice
 [`@napi-rs/nice`]: https://npmjs.org/package/@napi-rs/nice
 [`runTime`]: #property-runtime-readonly
-[Custom Task Queues]: #custom_task_queues
+[Custom Task Queues]: #custom-task-queues
 [ES modules]: https://nodejs.org/api/esm.html
 [Node.js new Worker options]: https://nodejs.org/api/worker_threads.html#worker_threads_new_worker_filename_options
 [MIT Licensed]: LICENSE.md
