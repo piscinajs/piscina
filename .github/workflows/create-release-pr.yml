@@ -14,7 +14,7 @@ jobs:
     #   Let's try to trigger releases only after this release PR gets merged
     # so we might need to verify who the author is to do so
     steps:
-      - uses: googleapis/release-please-action@c2a5a2bd6a758a0937f1ddb1e8950609867ed15c # v4.3.0
+      - uses: googleapis/release-please-action@16a9c90856f42705d54a6fda1823352bdc62cf38 # v4.4.0
         with:
           # this is a built-in strategy in release-please, see "Action Inputs"
           # for more options
