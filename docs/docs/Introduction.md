@@ -35,5 +35,5 @@ Looking to support the development of Piscina? Consider sponsoring us on [Open C
 ### Bronze Sponsors
 
 <a href="https://www.lambdatest.com/?utm_source=piscinajs&utm_medium=sponsor" target="_blank">
-<img src="https://www.lambdatest.com/blue-logo.png" style="vertical-align: middle;" width="250" height="45" />
+<img src="https://www.lambdatest.com/blue-logo.png" style={{ verticalAlign: "middle" }} width="250" height="45" />
 </a>
