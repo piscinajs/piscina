@@ -4,16 +4,16 @@
 
 ![CI](https://github.com/jasnell/piscina/workflows/CI/badge.svg)
 
-* ✔ Fast communication between threads
-* ✔ Covers both fixed-task and variable-task scenarios
-* ✔ Supports flexible pool sizes
-* ✔ Proper async tracking integration
-* ✔ Tracking statistics for run and wait times
-* ✔ Cancellation Support
-* ✔ Supports enforcing memory resource limits
-* ✔ Supports CommonJS, ESM, and TypeScript
-* ✔ Custom task queues
-* ✔ Optional CPU scheduling priorities on Linux
+- ✔ Fast communication between threads
+- ✔ Covers both fixed-task and variable-task scenarios
+- ✔ Supports flexible pool sizes
+- ✔ Proper async tracking integration
+- ✔ Tracking statistics for run and wait times
+- ✔ Cancellation Support
+- ✔ Supports enforcing memory resource limits
+- ✔ Supports CommonJS, ESM, and TypeScript
+- ✔ Custom task queues
+- ✔ Optional CPU scheduling priorities on Linux
 
 Written in TypeScript.
 
@@ -25,6 +25,54 @@ For Node.js 20.x and higher.
 
 - [Website](https://piscinajs.github.io/piscina/)
 
+- [piscina - the node.js worker pool](#piscina---the-nodejs-worker-pool)
+  - [Documentation](#documentation)
+  - [Piscina API](#piscina-api)
+    - [Example](#example)
+    - [Exporting multiple worker functions](#exporting-multiple-worker-functions)
+    - [Cancelable Tasks](#cancelable-tasks)
+    - [Delaying Availability of Workers](#delaying-availability-of-workers)
+    - [Backpressure](#backpressure)
+    - [Out of scope asynchronous code](#out-of-scope-asynchronous-code)
+    - [Broadcast a message to all worker threads](#broadcast-a-message-to-all-worker-threads)
+    - [Additional Examples](#additional-examples)
+  - [Class: `Piscina`](#class-piscina)
+    - [Constructor: `new Piscina([options])`](#constructor-new-piscinaoptions)
+    - [Method: `run(task[, options])`](#method-runtask-options)
+    - [Method: `destroy()`](#method-destroy)
+    - [Method: `close([options])`](#method-closeoptions)
+    - [Event: `'error'`](#event-error)
+    - [Event: `'drain'`](#event-drain)
+    - [Event: `'needsDrain'`](#event-needsdrain)
+    - [Event: `'message'`](#event-message)
+    - [Property: `completed` (readonly)](#property-completed-readonly)
+    - [Property: `duration` (readonly)](#property-duration-readonly)
+    - [Property: `options` (readonly)](#property-options-readonly)
+    - [Property: `runTime` (readonly)](#property-runtime-readonly)
+    - [Property: `threads` (readonly)](#property-threads-readonly)
+    - [Property: `queueSize` (readonly)](#property-queuesize-readonly)
+    - [Property: `needsDrain` (readonly)](#property-needsdrain-readonly)
+    - [Property: `utilization` (readonly)](#property-utilization-readonly)
+    - [Property: `waitTime` (readonly)](#property-waittime-readonly)
+    - [Static property: `isWorkerThread` (readonly)](#static-property-isworkerthread-readonly)
+    - [Static property: `version` (readonly)](#static-property-version-readonly)
+    - [Static method: `move(value)`](#static-method-movevalue)
+      - [Interface: `Transferable`](#interface-transferable)
+  - [Custom Task Queues](#custom-task-queues)
+    - [Built-In Queues](#built-in-queues)
+      - [Using FixedQueue Example](#using-fixedqueue-example)
+  - [Current Limitations (Things we're working on / would love help with)](#current-limitations-things-were-working-on--would-love-help-with)
+  - [Performance Notes](#performance-notes)
+    - [Queue Size](#queue-size)
+    - [Queue Pressure and Idle Threads](#queue-pressure-and-idle-threads)
+    - [Thread priority on Linux systems](#thread-priority-on-linux-systems)
+    - [Multiple Thread Pools and Embedding Piscina as a Dependency](#multiple-thread-pools-and-embedding-piscina-as-a-dependency)
+  - [The Team](#the-team)
+  - [Acknowledgements](#acknowledgements)
+  - [Sponsors](#sponsors)
+    - [Bronze Sponsors](#bronze-sponsors)
+  - [Resources](#resources)
+
 ## Piscina API
 
 ### Example
@@ -32,16 +80,16 @@ For Node.js 20.x and higher.
 In `main.js`:
 
 ```js
-const path = require('path');
-const Piscina = require('piscina');
+const path = require("path");
+const Piscina = require("piscina");
 
 const piscina = new Piscina({
-  filename: path.resolve(__dirname, 'worker.js')
+  filename: path.resolve(__dirname, "worker.js"),
 });
 
-(async function() {
+(async function () {
   const result = await piscina.run({ a: 4, b: 6 });
-  console.log(result);  // Prints 10
+  console.log(result); // Prints 10
 })();
 ```
 
@@ -56,7 +104,7 @@ module.exports = ({ a, b }) => {
 The worker may also be an async function or may return a Promise:
 
 ```js
-const { setTimeout } = require('timers/promises');
+const { setTimeout } = require("timers/promises");
 
 module.exports = async ({ a, b }) => {
   // Fake some async activity
@@ -68,11 +116,11 @@ module.exports = async ({ a, b }) => {
 ESM is also supported for both Piscina and workers:
 
 ```js
-import { Piscina } from 'piscina';
+import { Piscina } from "piscina";
 
 const piscina = new Piscina({
   // The URL must be a file:// URL
-  filename: new URL('./worker.mjs', import.meta.url).href
+  filename: new URL("./worker.mjs", import.meta.url).href,
 });
 
 const result = await piscina.run({ a: 4, b: 6 });
@@ -92,11 +140,15 @@ export default ({ a, b }) => {
 A single worker file may export multiple named handler functions.
 
 ```js
-'use strict';
+"use strict";
 
-function add({ a, b }) { return a + b; }
+function add({ a, b }) {
+  return a + b;
+}
 
-function multiply({ a, b }) { return a * b; }
+function multiply({ a, b }) {
+  return a * b;
+}
 
 add.add = add;
 add.multiply = multiply;
@@ -107,19 +159,19 @@ module.exports = add;
 The export to target can then be specified when the task is submitted:
 
 ```js
-'use strict';
+"use strict";
 
-const Piscina = require('piscina');
-const { resolve } = require('path');
+const Piscina = require("piscina");
+const { resolve } = require("path");
 
 const piscina = new Piscina({
-  filename: resolve(__dirname, 'worker.js')
+  filename: resolve(__dirname, "worker.js"),
 });
 
-(async function() {
+(async function () {
   const res = await Promise.all([
-    piscina.run({ a: 4, b: 6 }, { name: 'add' }),
-    piscina.run({ a: 4, b: 6 }, { name: 'multiply' })
+    piscina.run({ a: 4, b: 6 }, { name: "add" }),
+    piscina.run({ a: 4, b: 6 }, { name: "multiply" }),
   ]);
 })();
 ```
@@ -130,16 +182,16 @@ Submitted tasks may be canceled using either an `AbortController` or
 an `EventEmitter`:
 
 ```js
-'use strict';
+"use strict";
 
-const Piscina = require('piscina');
-const { resolve } = require('path');
+const Piscina = require("piscina");
+const { resolve } = require("path");
 
 const piscina = new Piscina({
-  filename: resolve(__dirname, 'worker.js')
+  filename: resolve(__dirname, "worker.js"),
 });
 
-(async function() {
+(async function () {
   const abortController = new AbortController();
   try {
     const { signal } = abortController;
@@ -147,7 +199,7 @@ const piscina = new Piscina({
     abortController.abort();
     await task;
   } catch (err) {
-    console.log('The task was canceled');
+    console.log("The task was canceled");
   }
 })();
 ```
@@ -156,24 +208,24 @@ Alternatively, any `EventEmitter` that emits an `'abort'` event
 may be used as an abort controller:
 
 ```js
-'use strict';
+"use strict";
 
-const Piscina = require('piscina');
-const EventEmitter = require('events');
-const { resolve } = require('path');
+const Piscina = require("piscina");
+const EventEmitter = require("events");
+const { resolve } = require("path");
 
 const piscina = new Piscina({
-  filename: resolve(__dirname, 'worker.js')
+  filename: resolve(__dirname, "worker.js"),
 });
 
-(async function() {
+(async function () {
   const ee = new EventEmitter();
   try {
     const task = piscina.run({ a: 4, b: 6 }, { signal: ee });
-    ee.emit('abort');
+    ee.emit("abort");
     await task;
   } catch (err) {
-    console.log('The task was canceled');
+    console.log("The task was canceled");
   }
 })();
 ```
@@ -211,37 +263,37 @@ queue is empty and all tasks have been submitted to workers for processing.
 Example: Using a Node.js stream to feed a Piscina worker pool:
 
 ```js
-'use strict';
+"use strict";
 
-const { resolve } = require('path');
-const Pool = require('../..');
+const { resolve } = require("path");
+const Pool = require("../..");
 
 const pool = new Pool({
-  filename: resolve(__dirname, 'worker.js'),
-  maxQueue: 'auto'
+  filename: resolve(__dirname, "worker.js"),
+  maxQueue: "auto",
 });
 
 const stream = getStreamSomehow();
-stream.setEncoding('utf8');
+stream.setEncoding("utf8");
 
-pool.on('drain', () => {
+pool.on("drain", () => {
   if (stream.isPaused()) {
-    console.log('resuming...', counter, pool.queueSize);
+    console.log("resuming...", counter, pool.queueSize);
     stream.resume();
   }
 });
 
 stream
-  .on('data', (data) => {
+  .on("data", (data) => {
     pool.run(data);
     if (pool.queueSize === pool.options.maxQueue) {
-      console.log('pausing...', counter, pool.queueSize);
+      console.log("pausing...", counter, pool.queueSize);
       stream.pause();
     }
   })
-  .on('error', console.error)
-  .on('end', () => {
-    console.log('done');
+  .on("error", console.error)
+  .on("end", () => {
+    console.log("done");
   });
 ```
 
@@ -252,14 +304,14 @@ A worker thread is **only** active until the moment it returns a result, it can 
 For example:
 
 ```js
-const { setTimeout } = require('timers/promises');
+const { setTimeout } = require("timers/promises");
 
 module.exports = ({ a, b }) => {
   // This promise should be awaited
   setTimeout(1000).then(() => {
-    console.log('Working'); // This will **not** run during the same worker call
+    console.log("Working"); // This will **not** run during the same worker call
   });
-  
+
   return a + b;
 };
 ```
@@ -269,49 +321,47 @@ module.exports = ({ a, b }) => {
 Piscina supports broadcast communication via BroadcastChannel(Node v18+). Here is an example, the main thread sends a message, and other threads the receive message.
 
 In `main.js`
+
 ```js
-'use strict';
+"use strict";
 
-const { BroadcastChannel } = require('worker_threads');
-const { resolve } = require('path');
+const { BroadcastChannel } = require("worker_threads");
+const { resolve } = require("path");
 
-const Piscina = require('piscina');
+const Piscina = require("piscina");
 const piscina = new Piscina({
-  filename: resolve(__dirname, 'worker.js'),
-  atomics: 'disabled'
+  filename: resolve(__dirname, "worker.js"),
+  atomics: "disabled",
 });
 
-async function main () {
-  const bc = new BroadcastChannel('my_channel');
+async function main() {
+  const bc = new BroadcastChannel("my_channel");
   // start worker
-  Promise.all([
-    piscina.run('thread 1'),
-    piscina.run('thread 2')
-  ]);
+  Promise.all([piscina.run("thread 1"), piscina.run("thread 2")]);
   // post message in one second
   setTimeout(() => {
-    bc.postMessage('Main thread message');
+    bc.postMessage("Main thread message");
   }, 1000);
 }
 
 main();
-
 ```
+
 In `worker.js`
+
 ```js
-'use strict';
-const { BroadcastChannel } = require('worker_threads');
+"use strict";
+const { BroadcastChannel } = require("worker_threads");
 
 module.exports = async (thread) => {
-  const bc = new BroadcastChannel('my_channel');
+  const bc = new BroadcastChannel("my_channel");
   bc.onmessage = (event) => {
-    console.log(thread + ' Received from:' + event.data);
+    console.log(thread + " Received from:" + event.data);
   };
   await new Promise((resolve) => {
     setTimeout(resolve, 2000);
   });
 };
-
 ```
 
 ### Additional Examples
@@ -332,39 +382,40 @@ This class extends [`EventEmitter`][] from Node.js.
 
 ### Constructor: `new Piscina([options])`
 
-* The following optional configuration is supported:
-  * `filename`: (`string | null`) Provides the default source for the code that
+- The following optional configuration is supported:
+
+  - `filename`: (`string | null`) Provides the default source for the code that
     runs the tasks on Worker threads. This should be an absolute path or an
     absolute `file://` URL to a file that exports a JavaScript `function` or
     `async function` as its default export or `module.exports`. [ES modules][]
     are supported.
-  * `name`: (`string | null`) Provides the name of the default exported worker
+  - `name`: (`string | null`) Provides the name of the default exported worker
     function. The default is `'default'`, indicating the default export of the
     worker module.
-  * `minThreads`: (`number`) Sets the minimum number of threads that are always
+  - `minThreads`: (`number`) Sets the minimum number of threads that are always
     running for this thread pool. The default is the number provided by [`os.availableParallelism`](https://nodejs.org/api/os.html#osavailableparallelism).
-  * `maxThreads`: (`number`) Sets the maximum number of threads that are
-    running for this thread pool. The default is the number provided by [`os.availableParallelism`](https://nodejs.org/api/os.html#osavailableparallelism) * 1.5.
-  * `idleTimeout`: (`number`) A timeout in milliseconds that specifies how long
+  - `maxThreads`: (`number`) Sets the maximum number of threads that are
+    running for this thread pool. The default is the number provided by [`os.availableParallelism`](https://nodejs.org/api/os.html#osavailableparallelism) \* 1.5.
+  - `idleTimeout`: (`number`) A timeout in milliseconds that specifies how long
     a `Worker` is allowed to be idle, i.e. not handling any tasks, before it is
-    shut down. By default, this is immediate. If `Infinity` is passed as the value, 
-    the `Worker` never shuts down. Be careful when using `Infinity`, 
-    as it can lead to resource overuse. **Tip**: *The default `idleTimeout`
+    shut down. By default, this is immediate. If `Infinity` is passed as the value,
+    the `Worker` never shuts down. Be careful when using `Infinity`,
+    as it can lead to resource overuse. **Tip**: _The default `idleTimeout`
     can lead to some performance loss in the application because of the overhead
     involved with stopping and starting new worker threads. To improve performance,
-    try setting the `idleTimeout` explicitly.*
-  * `maxQueue`: (`number` | `string`) The maximum number of tasks that may be
+    try setting the `idleTimeout` explicitly._
+  - `maxQueue`: (`number` | `string`) The maximum number of tasks that may be
     scheduled to run, but not yet running due to lack of available threads, at
     a given time. By default, there is no limit. The special value `'auto'`
     may be used to have Piscina calculate the maximum as the square of `maxThreads`.
     When `'auto'` is used, the calculated `maxQueue` value may be found by checking
     the [`options.maxQueue`](#property-options-readonly) property.
-  * `concurrentTasksPerWorker`: (`number`) Specifies how many tasks can share
+  - `concurrentTasksPerWorker`: (`number`) Specifies how many tasks can share
     a single Worker thread simultaneously. The default is `1`. This generally
     only makes sense to specify if there is some kind of asynchronous component
     to the task. Keep in mind that Worker threads are generally not built for
     handling I/O in parallel.
-  * `atomics`: (`sync` | `async` | `disabled`) Use the [`Atomics`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Atomics) API for faster communication
+  - `atomics`: (`sync` | `async` | `disabled`) Use the [`Atomics`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Atomics) API for faster communication
     between threads. This is on by default. You can disable `Atomics` globally by
     setting the environment variable `PISCINA_DISABLE_ATOMICS` to `1` .
     If `atomics` is `sync`, it will cause to pause threads (stoping all execution)
@@ -372,44 +423,44 @@ This class extends [`EventEmitter`][] from Node.js.
     returning control to the main thread (avoid having open handles within a thread). If still want to have the possibility
     of having open handles or handle asynchrnous tasks, you can set the environment variable `PISCINA_ENABLE_ASYNC_ATOMICS` to `1` or setting `options.atomics` to `async`.
 
-   > **Note**: The `async` mode comes with performance penalties and can lead to undesired behaviour if open handles are not tracked correctly.
-  
-  * `resourceLimits`: (`object`) See [Node.js new Worker options][]
-    * `maxOldGenerationSizeMb`: (`number`) The maximum size of each worker threads
+  > **Note**: The `async` mode comes with performance penalties and can lead to undesired behaviour if open handles are not tracked correctly.
+
+  - `resourceLimits`: (`object`) See [Node.js new Worker options][]
+    - `maxOldGenerationSizeMb`: (`number`) The maximum size of each worker threads
       main heap in MB.
-    * `maxYoungGenerationSizeMb`: (`number`) The maximum size of a heap space for
+    - `maxYoungGenerationSizeMb`: (`number`) The maximum size of a heap space for
       recently created objects.
-    * `codeRangeSizeMb`: (`number`) The size of a pre-allocated memory range used
+    - `codeRangeSizeMb`: (`number`) The size of a pre-allocated memory range used
       for generated code.
-    * `stackSizeMb` : (`number`) The default maximum stack size for the thread.
+    - `stackSizeMb` : (`number`) The default maximum stack size for the thread.
       Small values may lead to unusable Worker instances. Default: 4
-  * `env`: (`object`) If set, specifies the initial value of `process.env` inside
+  - `env`: (`object`) If set, specifies the initial value of `process.env` inside
     the worker threads. See [Node.js new Worker options][] for details.
-  * `argv`: (`any[]`) List of arguments that will be stringified and appended to
+  - `argv`: (`any[]`) List of arguments that will be stringified and appended to
     `process.argv` in the worker. See [Node.js new Worker options][] for details.
-  * `execArgv`: (`string[]`) List of Node.js CLI options passed to the worker.
+  - `execArgv`: (`string[]`) List of Node.js CLI options passed to the worker.
     See [Node.js new Worker options][] for details.
-  * `workerData`: (`any`) Any JavaScript value that can be cloned and made
+  - `workerData`: (`any`) Any JavaScript value that can be cloned and made
     available as `require('piscina').workerData`. See [Node.js new Worker options][]
     for details. Unlike regular Node.js Worker Threads, `workerData` must not
     specify any value requiring a `transferList`. This is because the `workerData`
     will be cloned for each pooled worker.
-  * `taskQueue`: (`TaskQueue`) By default, Piscina uses a first-in-first-out
+  - `taskQueue`: (`TaskQueue`) By default, Piscina uses a first-in-first-out
     queue for submitted tasks. The `taskQueue` option can be used to provide an
     alternative implementation. See [Custom Task Queues][] for additional detail.
-  * `niceIncrement`: (`number`) An optional value that decreases priority for
+  - `niceIncrement`: (`number`) An optional value that decreases priority for
     the individual threads, i.e. the higher the value, the lower the priority
     of the Worker threads. This value is used on Unix/Windows and requires the
     optional [`@napi-rs/nice`][https://www.npmjs.com/package/@napi-rs/nice] module to be installed.
     See [`nice(2)`][https://linux.die.net/man/2/nice] for more details.
-  * `trackUnmanagedFds`: (`boolean`) An optional setting that, when `true`, will
+  - `trackUnmanagedFds`: (`boolean`) An optional setting that, when `true`, will
     cause Workers to track file descriptors managed using `fs.open()` and
     `fs.close()`, and will close them automatically when the Worker exits.
     Defaults to `true`. (This option is only supported on Node.js 12.19+ and
     all Node.js versions higher than 14.6.0).
-  * `closeTimeout`: (`number`) An optional time (in milliseconds) to wait for the pool to 
-  complete all in-flight tasks when `close()` is called. The default is `30000`
-  * `recordTiming`: (`boolean`) By default, run and wait time will be recorded
+  - `closeTimeout`: (`number`) An optional time (in milliseconds) to wait for the pool to
+    complete all in-flight tasks when `close()` is called. The default is `30000`
+  - `recordTiming`: (`boolean`) By default, run and wait time will be recorded
     for the pool. To disable, set to `false`.
 
 Use caution when setting resource limits. Setting limits that are too low may
@@ -419,17 +470,17 @@ result in the `Piscina` worker threads being unusable.
 
 Schedules a task to be run on a Worker thread.
 
-* `task`: Any value. This will be passed to the function that is exported from
+- `task`: Any value. This will be passed to the function that is exported from
   `filename`.
-* `options`:
-  * `transferList`: An optional lists of objects that is passed to
+- `options`:
+  - `transferList`: An optional lists of objects that is passed to
     [`postMessage()`] when posting `task` to the Worker, which are transferred
     rather than cloned.
-  * `filename`: Optionally overrides the `filename` option passed to the
+  - `filename`: Optionally overrides the `filename` option passed to the
     constructor for this task. If no `filename` was specified to the constructor,
     this is mandatory.
-  * `name`: Optionally overrides the exported worker function used for the task.
-  * `signal`: An [`AbortSignal`][] instance. If passed, this can be used to
+  - `name`: Optionally overrides the exported worker function used for the task.
+  - `signal`: An [`AbortSignal`][] instance. If passed, this can be used to
     cancel a task. If the task is already running, the corresponding `Worker`
     thread will be stopped.
     (More generally, any `EventEmitter` or `EventTarget` that emits `'abort'`
@@ -450,17 +501,17 @@ This returns a `Promise` that is fulfilled once all threads have stopped.
 
 ### Method: `close([options])`
 
-* `options`:
-  * `force`: A `boolean` value that indicates whether to abort all tasks that 
-  are enqueued but not started yet. The default is `false`.
+- `options`:
+  - `force`: A `boolean` value that indicates whether to abort all tasks that
+    are enqueued but not started yet. The default is `false`.
 
 Stops all Workers gracefully.
 
-This returns a `Promise` that is fulfilled once all tasks that were started 
+This returns a `Promise` that is fulfilled once all tasks that were started
 have completed and all threads have stopped.
 
-This method is similar to `destroy()`, but with the difference that `close()` 
-will wait for the worker tasks to finish, while `destroy()` 
+This method is similar to `destroy()`, but with the difference that `close()`
+will wait for the worker tasks to finish, while `destroy()`
 will abort them immediately.
 
 ### Event: `'error'`
@@ -481,7 +532,6 @@ A `'drain'` event is emitted when the current usage of the
 pool is below the maximum capacity of the same.
 The intended goal is to provide backpressure to the task source
 so creating tasks that can not be executed at immediately can be avoided.
-
 
 ### Event: `'needsDrain'`
 
@@ -512,11 +562,11 @@ object has the same properties as the options object passed to the constructor.
 A histogram summary object summarizing the collected run times of completed
 tasks. All values are expressed in milliseconds.
 
-* `runTime.average` {`number`} The average run time of all tasks
-* `runTime.mean` {`number`} The mean run time of all tasks
-* `runTime.stddev` {`number`} The standard deviation of collected run times
-* `runTime.min` {`number`} The fastest recorded run time
-* `runTime.max` {`number`} The slowest recorded run time
+- `runTime.average` {`number`} The average run time of all tasks
+- `runTime.mean` {`number`} The mean run time of all tasks
+- `runTime.stddev` {`number`} The standard deviation of collected run times
+- `runTime.min` {`number`} The fastest recorded run time
+- `runTime.max` {`number`} The slowest recorded run time
 
 All properties following the pattern `p{N}` where N is a number (e.g. `p1`, `p99`)
 represent the percentile distributions of run time observations. For example,
@@ -586,11 +636,11 @@ mean run time by the capacity, yielding a fraction between `0` and `1`.
 A histogram summary object summarizing the collected times tasks spent
 waiting in the queue. All values are expressed in milliseconds.
 
-* `waitTime.average` {`number`} The average wait time of all tasks
-* `waitTime.mean` {`number`} The mean wait time of all tasks
-* `waitTime.stddev` {`number`} The standard deviation of collected wait times
-* `waitTime.min` {`number`} The fastest recorded wait time
-* `waitTime.max` {`number`} The longest recorded wait time
+- `waitTime.average` {`number`} The average wait time of all tasks
+- `waitTime.mean` {`number`} The mean wait time of all tasks
+- `waitTime.stddev` {`number`} The standard deviation of collected wait times
+- `waitTime.min` {`number`} The fastest recorded wait time
+- `waitTime.max` {`number`} The longest recorded wait time
 
 All properties following the pattern `p{N}` where N is a number (e.g. `p1`, `p99`)
 represent the percentile distributions of wait time observations. For example,
@@ -643,11 +693,11 @@ The `value` may be any object supported by Node.js to be transferable
 implementing the `Transferable` interface.
 
 ```js
-const { move } = require('piscina');
+const { move } = require("piscina");
 
 module.exports = () => {
   return move(new ArrayBuffer(10));
-}
+};
 ```
 
 The `move()` method will throw if the `value` is not transferable.
@@ -668,10 +718,10 @@ to determine how to transfer the object. These properties are
 named using the special static `Piscina.transferableSymbol` and
 `Piscina.valueSymbol` properties:
 
-* The `Piscina.transferableSymbol` property provides the object
+- The `Piscina.transferableSymbol` property provides the object
   (or objects) that are to be included in the `transferList`.
 
-* The `Piscina.valueSymbol` property provides a surrogate value
+- The `Piscina.valueSymbol` property provides a surrogate value
   to transmit in place of the `Transferable` itself.
 
 Both properties are required.
@@ -714,19 +764,19 @@ If the default fifo queue is not sufficient, user code may replace the
 task queue implementation with a custom implementation using the
 `taskQueue` option on the Piscina constructor.
 
-Custom task queue objects *must* implement the `TaskQueue` interface,
+Custom task queue objects _must_ implement the `TaskQueue` interface,
 described below using TypeScript syntax:
 
 ```ts
 interface Task {
-  readonly [Piscina.queueOptionsSymbol] : object | null;
+  readonly [Piscina.queueOptionsSymbol]: object | null;
 }
 
 interface TaskQueue {
-  readonly size : number;
-  shift () : Task | null;
-  remove (task : Task) : void;
-  push (task : Task) : void;
+  readonly size: number;
+  shift(): Task | null;
+  remove(task: Task): void;
+  push(task: Task): void;
 }
 ```
 
@@ -740,9 +790,11 @@ queue options are set as a property on the task, tasks with queue
 options cannot be submitted as JavaScript primitives).
 
 ### Built-In Queues
-Piscina also provides the `FixedQueue`, a more performant task queue implementation based on [`FixedQueue`](https://github.com/nodejs/node/blob/de7b37880f5a541d5f874c1c2362a65a4be76cd0/lib/internal/fixed_queue.js) from Node.js project.  
+
+Piscina also provides the `FixedQueue`, a more performant task queue implementation based on [`FixedQueue`](https://github.com/nodejs/node/blob/de7b37880f5a541d5f874c1c2362a65a4be76cd0/lib/internal/fixed_queue.js) from Node.js project.
 
 Here are some benchmarks to compare new `FixedQueue` with `ArrayTaskQueue` (current default). The benchmarks demonstrate substantial improvements in push and shift operations, especially with larger queue sizes.
+
 ```
 Queue size = 1000
 ┌─────────┬─────────────────────────────────────────┬───────────┬────────────────────┬──────────┬─────────┐
@@ -760,39 +812,42 @@ Queue size = 100_000
 │ 1       │ 'FixedQueue full push + full shift'     │ '1 026' │ 974328.1553396407  │ '±2.51%' │ 103     │
 └─────────┴─────────────────────────────────────────┴─────────┴────────────────────┴──────────┴─────────┘
 ```
+
 In terms of Piscina performance itself, using `FixedQueue` with a queue size of 100,000 queued tasks can result in up to 6 times faster execution times.
 
 Users can import `FixedQueue` from the `Piscina` package and pass it as the `taskQueue` option to leverage its benefits.
-
 
 #### Using FixedQueue Example
 
 Here's an example of how to use the `FixedQueue`:
 
 ```js
-const { Piscina, FixedQueue } = require('piscina');
-const { resolve } = require('path');
+const { Piscina, FixedQueue } = require("piscina");
+const { resolve } = require("path");
 
 // Create a Piscina pool with FixedQueue
 const piscina = new Piscina({
-  filename: resolve(__dirname, 'worker.js'),
-  taskQueue: new FixedQueue()
+  filename: resolve(__dirname, "worker.js"),
+  taskQueue: new FixedQueue(),
 });
 
 // Submit tasks to the pool
 for (let i = 0; i < 10; i++) {
-  piscina.run({ data: i }).then((result) => {
-    console.log(result);
-  }).catch((error) => {
-    console.error(error);
-  });
+  piscina
+    .run({ data: i })
+    .then((result) => {
+      console.log(result);
+    })
+    .catch((error) => {
+      console.error(error);
+    });
 }
 ```
 
 ## Current Limitations (Things we're working on / would love help with)
 
-* Improved Documentation
-* Benchmarks
+- Improved Documentation
+- Benchmarks
 
 ## Performance Notes
 
@@ -883,10 +938,10 @@ Once [`@napi-rs/nice`][] is installed, creating a `Piscina` instance with the
 `niceIncrement` configuration option will set the priority for the pool:
 
 ```js
-const Piscina = require('piscina');
+const Piscina = require("piscina");
 const pool = new Piscina({
-  worker: '/absolute/path/to/worker.js',
-  niceIncrement: 20
+  worker: "/absolute/path/to/worker.js",
+  niceIncrement: 20,
 });
 ```
 
@@ -908,23 +963,35 @@ single application the various threads may contend with one another, and
 with the Node.js main event loop thread, and may cause an overall reduction
 in system performance.
 
-Modules that embed Piscina as a dependency *should* make it clear via
+Modules that embed Piscina as a dependency _should_ make it clear via
 documentation that threads are being used. It would be ideal if those
 would make it possible for users to provide an existing `Piscina` instance
 as a configuration option in lieu of always creating their own.
 
 ## The Team
 
-* James M Snell <jasnell@gmail.com>
-* Anna Henningsen <anna@addaleax.net>
-* Matteo Collina <matteo.collina@gmail.com>
-* Rafael Gonzaga <rafael.nunu@hotmail.com>
-* Robert Nagy <ronagy@icloud.com>
-* Carlos Fuentes <me@metcoder.dev>
+- James M Snell <jasnell@gmail.com>
+- Anna Henningsen <anna@addaleax.net>
+- Matteo Collina <matteo.collina@gmail.com>
+- Rafael Gonzaga <rafael.nunu@hotmail.com>
+- Robert Nagy <ronagy@icloud.com>
+- Carlos Fuentes <me@metcoder.dev>
 
 ## Acknowledgements
 
-Piscina development is sponsored by [NearForm Research][].
+Piscina development was initially sponsored by [NearForm Research][].
+
+## Sponsors
+
+Looking to support the development of Piscina? Consider sponsoring us on [Open Collective](https://opencollective.com/piscinajs). We appreciate all levels of support!
+
+### Bronze Sponsors
+
+<a href="https://www.lambdatest.com/?utm_source=piscinajs&utm_medium=sponsor" target="_blank">
+<img src="https://www.lambdatest.com/blue-logo.png" style="vertical-align: middle;" width="250" height="45" />
+</a>
+
+## Resources
 
 [`Atomics`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Atomics
 [`EventEmitter`]: https://nodejs.org/api/events.html
