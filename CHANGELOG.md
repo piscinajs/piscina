@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [5.1.4](https://github.com/piscinajs/piscina/compare/v5.1.3...v5.1.4) (2025-11-07)
+
+
+### Bug Fixes
+
+* add provenance ([#885](https://github.com/piscinajs/piscina/issues/885)) ([ca951fe](https://github.com/piscinajs/piscina/commit/ca951febd2fab0b1371d9d2b18e4e0d729846fd5))
+* standardize normalize calculation of stddev ([#924](https://github.com/piscinajs/piscina/issues/924)) ([260a87c](https://github.com/piscinajs/piscina/commit/260a87c6741f5a8ad4ded28735d549e15d62d0ce))
+
 ### [5.1.3](https://github.com/piscinajs/piscina/compare/v5.1.2...v5.1.3) (2025-07-09)
 
 
