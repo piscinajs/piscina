@@ -52,7 +52,7 @@
     "eslint": "^9.16.0",
     "expect-type": "^1.2.1",
     "gen-esm-wrapper": "^1.1.1",
-    "glob": "^11.0.2",
+    "glob": "^13.0.0",
     "neostandard": "^0.12.0",
     "tsx": "^4.20.3",
     "typescript": "5.8.3"
