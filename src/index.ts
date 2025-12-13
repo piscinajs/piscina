@@ -34,7 +34,8 @@ import {
   AsynchronouslyCreatedResourcePool,
   PiscinaLoadBalancer,
   PiscinaWorker,
-  LeastBusyBalancer
+  LeastBusyBalancer,
+  AffinityBalancer
 } from './worker_pool';
 import {
   AbortSignalAny,
@@ -965,6 +966,13 @@ export default class Piscina<Exports extends Record<string, (payload: any) => an
   static get ArrayTaskQueue () {
     return ArrayTaskQueue;
   }
+  static get LeastBusyBalancer () {
+    return LeastBusyBalancer;
+  }
+
+  static get AffinityBalancer () {
+    return AffinityBalancer;
+  }
 
   static move (val : Transferable | TransferListItem | ArrayBufferView | ArrayBuffer | MessagePort) {
     if (val != null && typeof val === 'object' && typeof val !== 'function') {
@@ -1001,4 +1009,6 @@ export {
   version,
   FixedQueue,
   ArrayTaskQueue,
+  LeastBusyBalancer,
+  AffinityBalancer,
 };
