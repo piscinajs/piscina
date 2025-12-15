@@ -37,8 +37,8 @@ export function AffinityBalancer (
     const queueOptions = task[kQueueOptions] as { affinityKey?: unknown } | undefined;
     const affinityKey = queueOptions?.affinityKey;
 
-    // If no affinity key or it's empty/null/undefined, use LeastBusy behavior
-    if (affinityKey == null || affinityKey === '') {
+    // If no affinity key or it's null/undefined, use LeastBusy behavior
+    if (affinityKey == null) {
       return leastBusySelect(task, workers, maximumUsage);
     }
 
