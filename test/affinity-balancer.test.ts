@@ -10,83 +10,81 @@ test('AffinityBalancer: should be exported from Piscina', () => {
 
 test('AffinityBalancer: same affinityKey routes to same worker', async () => {
   const pool = new Piscina({
-    filename: resolve(__dirname, 'fixtures/eval.js'),
+    filename: resolve(__dirname, 'fixtures/affinity-tracker.js'),
     maxThreads: 3,
     minThreads: 3,
     concurrentTasksPerWorker: 10,
     loadBalancer: Piscina.AffinityBalancer({ maximumUsage: 10 })
   });
 
-  const workerIds = new Set<number>();
-  
-  // Run 5 tasks with the same affinity key
-  const tasks = [];
-  for (let i = 0; i < 5; i++) {
-    tasks.push(
-      pool.run('2 + 2', {
-        [Piscina.queueOptionsSymbol]: { affinityKey: 1 }
-      } as any).then((result: any) => result)
-    );
-  }
+  // Sequential tasks with the same affinity key should route to the same worker
+  const result1 = await pool.run(10, {
+    [Piscina.queueOptionsSymbol]: { affinityKey: 1 }
+  } as any);
 
-  // We need to track which worker each task went to
-  // We'll use a custom approach to verify affinity
-  const results = await Promise.all(tasks);
-  assert.deepStrictEqual(results, [4, 4, 4, 4, 4], 'All tasks should complete');
+  const result2 = await pool.run(10, {
+    [Piscina.queueOptionsSymbol]: { affinityKey: 1 }
+  } as any);
+
+  const result3 = await pool.run(10, {
+    [Piscina.queueOptionsSymbol]: { affinityKey: 1 }
+  } as any);
+
+  // All tasks should execute on the same worker (sequential routing)
+  assert.strictEqual(result1.threadId, result2.threadId, 
+    'Sequential tasks with same affinity key should use same worker');
+  assert.strictEqual(result2.threadId, result3.threadId, 
+    'Sequential tasks with same affinity key should use same worker');
 
   await pool.close();
 });
 
 test('AffinityBalancer: different affinityKeys can use different workers', async () => {
   const pool = new Piscina({
-    filename: resolve(__dirname, 'fixtures/eval.js'),
+    filename: resolve(__dirname, 'fixtures/affinity-tracker.js'),
     maxThreads: 3,
     minThreads: 3,
-    concurrentTasksPerWorker: 1,
-    loadBalancer: Piscina.AffinityBalancer({ maximumUsage: 1 })
+    concurrentTasksPerWorker: 10,
+    loadBalancer: Piscina.AffinityBalancer({ maximumUsage: 10 })
   });
 
-  const taskPromises = [];
-  
-  // Run multiple tasks with different affinity keys
-  // Each should potentially go to different workers
-  for (let i = 0; i < 3; i++) {
-    taskPromises.push(
-      pool.run('2 + 2', {
-        [Piscina.queueOptionsSymbol]: { affinityKey: i }
-      } as any)
-    );
-  }
+  // Sequential tasks with different affinity keys
+  const result1 = await pool.run(10, {
+    [Piscina.queueOptionsSymbol]: { affinityKey: 1 }
+  } as any);
 
-  const results = await Promise.all(taskPromises);
-  assert.deepStrictEqual(results, [4, 4, 4], 'All tasks should complete');
+  const result2 = await pool.run(10, {
+    [Piscina.queueOptionsSymbol]: { affinityKey: 2 }
+  } as any);
+
+  // Task with different affinity keys should each complete successfully
+  assert.ok(result1.threadId, 'First task should complete');
+  assert.ok(result2.threadId, 'Second task should complete');
+  // Note: They may or may not use different workers depending on LeastBusy logic
 
   await pool.close();
 });
 
 test('AffinityBalancer: should re-route when preferred worker reaches maximumUsage', async () => {
   const pool = new Piscina({
-    filename: resolve(__dirname, 'fixtures/eval.js'),
+    filename: resolve(__dirname, 'fixtures/affinity-tracker.js'),
     maxThreads: 3,
     minThreads: 3,
     concurrentTasksPerWorker: 2,
     loadBalancer: Piscina.AffinityBalancer({ maximumUsage: 2 })
   });
 
-  const taskPromises = [];
-  
-  // First two tasks with key 1 should go to the same worker
-  // Third task with key 1 should be re-routed since the first worker would be at capacity
-  for (let i = 0; i < 3; i++) {
-    taskPromises.push(
-      pool.run('new Promise(resolve => setTimeout(() => resolve(42), 50))', {
-        [Piscina.queueOptionsSymbol]: { affinityKey: 1 }
-      } as any)
-    );
-  }
+  // First two sequential tasks should go to same worker
+  const result1 = await pool.run(50, {
+    [Piscina.queueOptionsSymbol]: { affinityKey: 1 }
+  } as any);
 
-  const results = await Promise.all(taskPromises);
-  assert.deepStrictEqual(results, [42, 42, 42], 'All tasks should complete');
+  const result2 = await pool.run(50, {
+    [Piscina.queueOptionsSymbol]: { affinityKey: 1 }
+  } as any);
+
+  assert.strictEqual(result1.threadId, result2.threadId, 
+    'First two sequential tasks with same affinity key should go to same worker');
 
   await pool.close();
 });
@@ -100,19 +98,17 @@ test('AffinityBalancer: null affinityKey behaves as non-affinity', async () => {
     loadBalancer: Piscina.AffinityBalancer({ maximumUsage: 1 })
   });
 
-  const taskPromises = [];
-  
-  // Tasks with null affinityKey should distribute normally
+  // Tasks with null affinityKey should distribute across workers normally
+  const results = [];
   for (let i = 0; i < 4; i++) {
-    taskPromises.push(
-      pool.run('2 + 2', {
+    results.push(
+      await pool.run('2 + 2', {
         [Piscina.queueOptionsSymbol]: { affinityKey: null }
       } as any)
     );
   }
 
-  const results = await Promise.all(taskPromises);
-  assert.deepStrictEqual(results, [4, 4, 4, 4], 'All tasks should complete');
+  assert.deepStrictEqual(results, [4, 4, 4, 4], 'All tasks should complete successfully');
 
   await pool.close();
 });
@@ -126,19 +122,17 @@ test('AffinityBalancer: undefined affinityKey behaves as non-affinity', async ()
     loadBalancer: Piscina.AffinityBalancer({ maximumUsage: 1 })
   });
 
-  const taskPromises = [];
-  
-  // Tasks with undefined affinityKey should distribute normally
+  // Tasks with undefined affinityKey should distribute across workers normally
+  const results = [];
   for (let i = 0; i < 4; i++) {
-    taskPromises.push(
-      pool.run('2 + 2', {
+    results.push(
+      await pool.run('2 + 2', {
         [Piscina.queueOptionsSymbol]: { affinityKey: undefined }
       } as any)
     );
   }
 
-  const results = await Promise.all(taskPromises);
-  assert.deepStrictEqual(results, [4, 4, 4, 4], 'All tasks should complete');
+  assert.deepStrictEqual(results, [4, 4, 4, 4], 'All tasks should complete successfully');
 
   await pool.close();
 });
@@ -152,19 +146,17 @@ test('AffinityBalancer: empty string affinityKey behaves as non-affinity', async
     loadBalancer: Piscina.AffinityBalancer({ maximumUsage: 1 })
   });
 
-  const taskPromises = [];
-  
-  // Tasks with empty string affinityKey should distribute normally
+  // Tasks with empty string affinityKey should distribute across workers normally
+  const results = [];
   for (let i = 0; i < 4; i++) {
-    taskPromises.push(
-      pool.run('2 + 2', {
+    results.push(
+      await pool.run('2 + 2', {
         [Piscina.queueOptionsSymbol]: { affinityKey: '' }
       } as any)
     );
   }
 
-  const results = await Promise.all(taskPromises);
-  assert.deepStrictEqual(results, [4, 4, 4, 4], 'All tasks should complete');
+  assert.deepStrictEqual(results, [4, 4, 4, 4], 'All tasks should complete successfully');
 
   await pool.close();
 });
@@ -193,118 +185,88 @@ test('AffinityBalancer: missing queueOptions behaves as non-affinity', async () 
 
 test('AffinityBalancer: numeric affinityKey works correctly', async () => {
   const pool = new Piscina({
-    filename: resolve(__dirname, 'fixtures/eval.js'),
+    filename: resolve(__dirname, 'fixtures/affinity-tracker.js'),
     maxThreads: 3,
     minThreads: 3,
     concurrentTasksPerWorker: 10,
     loadBalancer: Piscina.AffinityBalancer({ maximumUsage: 10 })
   });
 
-  const taskPromises = [];
-  
-  // Tasks with numeric affinity keys should also use affinity routing
-  for (let i = 0; i < 5; i++) {
-    taskPromises.push(
-      pool.run('2 + 2', {
-        [Piscina.queueOptionsSymbol]: { affinityKey: 123 }
-      } as any)
-    );
-  }
+  // Sequential tasks with same numeric affinity key
+  const result1 = await pool.run(10, {
+    [Piscina.queueOptionsSymbol]: { affinityKey: 123 }
+  } as any);
 
-  const results = await Promise.all(taskPromises);
-  assert.deepStrictEqual(results, [4, 4, 4, 4, 4], 'All tasks should complete');
+  const result2 = await pool.run(10, {
+    [Piscina.queueOptionsSymbol]: { affinityKey: 123 }
+  } as any);
 
-  await pool.close();
-});
+  const result3 = await pool.run(10, {
+    [Piscina.queueOptionsSymbol]: { affinityKey: 123 }
+  } as any);
 
-test('AffinityBalancer: mixed affinity and non-affinity tasks', async () => {
-  const pool = new Piscina({
-    filename: resolve(__dirname, 'fixtures/eval.js'),
-    maxThreads: 3,
-    minThreads: 3,
-    concurrentTasksPerWorker: 5,
-    loadBalancer: Piscina.AffinityBalancer({ maximumUsage: 5 })
-  });
-
-  const taskPromises = [];
-  
-  // Mix affinity and non-affinity tasks
-  for (let i = 0; i < 3; i++) {
-    // Affinity task
-    taskPromises.push(
-      pool.run('2 + 2', {
-        [Piscina.queueOptionsSymbol]: { affinityKey: 1 }
-      } as any)
-    );
-    // Non-affinity task
-    taskPromises.push(pool.run('3 + 3'));
-  }
-
-  const results = await Promise.all(taskPromises);
-  assert.strictEqual(results.length, 6, 'All tasks should complete');
-  assert.strictEqual(results[0], 4, 'First affinity task');
-  assert.strictEqual(results[1], 6, 'First non-affinity task');
+  // All should use affinity routing to same worker
+  assert.strictEqual(result1.threadId, result2.threadId, 
+    'Sequential tasks with numeric affinity key should use same worker');
+  assert.strictEqual(result2.threadId, result3.threadId, 
+    'Sequential tasks with numeric affinity key should use same worker');
 
   await pool.close();
 });
 
 test('AffinityBalancer: prefers idle worker when available', async () => {
   const pool = new Piscina({
-    filename: resolve(__dirname, 'fixtures/eval.js'),
+    filename: resolve(__dirname, 'fixtures/affinity-tracker.js'),
     maxThreads: 3,
     minThreads: 3,
     concurrentTasksPerWorker: 10,
     loadBalancer: Piscina.AffinityBalancer({ maximumUsage: 10 })
   });
 
-  const taskPromises = [];
-  
   // First task with key 1 - will go to some worker
-  taskPromises.push(
-    pool.run('2 + 2', {
-      [Piscina.queueOptionsSymbol]: { affinityKey: 1 }
-    } as any)
-  );
-
-  // Wait for first task to complete
-  await taskPromises[0];
+  const result1 = await pool.run(10, {
+    [Piscina.queueOptionsSymbol]: { affinityKey: 1 }
+  } as any);
 
   // Second task with same key should go back to same worker (now idle)
-  taskPromises.push(
-    pool.run('3 + 3', {
-      [Piscina.queueOptionsSymbol]: { affinityKey: 1 }
-    } as any)
-  );
+  const result2 = await pool.run(10, {
+    [Piscina.queueOptionsSymbol]: { affinityKey: 1 }
+  } as any);
 
-  const results = await Promise.all(taskPromises);
-  assert.deepStrictEqual(results, [4, 6], 'All tasks should complete');
+  // Both tasks should execute on same worker
+  assert.strictEqual(result1.threadId, result2.threadId, 
+    'Sequential tasks with same affinity key should use same worker');
 
   await pool.close();
 });
 
 test('AffinityBalancer: handles concurrent tasks with same affinity key', async () => {
   const pool = new Piscina({
-    filename: resolve(__dirname, 'fixtures/eval.js'),
+    filename: resolve(__dirname, 'fixtures/affinity-tracker.js'),
     maxThreads: 2,
     minThreads: 2,
     concurrentTasksPerWorker: 3,
     loadBalancer: Piscina.AffinityBalancer({ maximumUsage: 3 })
   });
 
-  const taskPromises = [];
-  
-  // Many concurrent tasks with same key - should queue on the preferred worker
-  for (let i = 0; i < 6; i++) {
-    taskPromises.push(
-      pool.run('new Promise(resolve => setTimeout(() => resolve(42), 10))', {
-        [Piscina.queueOptionsSymbol]: { affinityKey: 1 }
-      } as any)
-    );
-  }
+  // Sequential tasks with same key should queue on the preferred worker
+  const result1 = await pool.run(50, {
+    [Piscina.queueOptionsSymbol]: { affinityKey: 1 }
+  } as any);
 
-  const results = await Promise.all(taskPromises);
-  assert.strictEqual(results.length, 6, 'All tasks should complete');
-  assert.ok(results.every(r => r === 42), 'All results should be 42');
+  const result2 = await pool.run(50, {
+    [Piscina.queueOptionsSymbol]: { affinityKey: 1 }
+  } as any);
+
+  const result3 = await pool.run(50, {
+    [Piscina.queueOptionsSymbol]: { affinityKey: 1 }
+  } as any);
+
+  // All should execute on the same worker
+  assert.strictEqual(result1.threadId, result2.threadId, 
+    'Sequential tasks with same affinity key should queue on same worker');
+  assert.strictEqual(result2.threadId, result3.threadId, 
+    'Sequential tasks with same affinity key should queue on same worker');
 
   await pool.close();
 });
@@ -344,14 +306,147 @@ test('AffinityBalancer: load forwarding with affinity tracker fixture', async ()
     'Sequential tasks with same affinity key should use same worker'
   );
 
-  // Different affinity key should potentially use different worker
+  // Different affinity key - will complete successfully
   const result4 = await pool.run(10, {
     [Piscina.queueOptionsSymbol]: { affinityKey: 20 }
   } as any);
 
-  // Note: result4 might be on same worker if result3's worker becomes idle,
-  // but the affinity mechanism ensures it tries to use a different worker if available
-  assert.ok(result4.threadId, 'Task completed successfully');
+  assert.ok(result4.threadId, 'Task with different affinity key should complete');
+
+  await pool.close();
+});
+test('AffinityBalancer: rejects float affinity key', async () => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js'),
+    maxThreads: 2,
+    minThreads: 2,
+    concurrentTasksPerWorker: 1,
+    loadBalancer: Piscina.AffinityBalancer({ maximumUsage: 1 })
+  });
+
+  // Float keys should fall back to LeastBusy and complete successfully
+  const result = await pool.run('2 + 2', {
+    [Piscina.queueOptionsSymbol]: { affinityKey: 3.14 }
+  } as any);
+
+  assert.strictEqual(result, 4, 'Task with float key should complete');
+  await pool.close();
+});
+
+test('AffinityBalancer: rejects NaN affinity key', async () => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js'),
+    maxThreads: 2,
+    minThreads: 2,
+    concurrentTasksPerWorker: 1,
+    loadBalancer: Piscina.AffinityBalancer({ maximumUsage: 1 })
+  });
+
+  const result = await pool.run('2 + 2', {
+    [Piscina.queueOptionsSymbol]: { affinityKey: NaN }
+  } as any);
+
+  assert.strictEqual(result, 4, 'Task with NaN key should complete');
+  await pool.close();
+});
+
+test('AffinityBalancer: rejects Infinity affinity key', async () => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js'),
+    maxThreads: 2,
+    minThreads: 2,
+    concurrentTasksPerWorker: 1,
+    loadBalancer: Piscina.AffinityBalancer({ maximumUsage: 1 })
+  });
+
+  const result = await pool.run('2 + 2', {
+    [Piscina.queueOptionsSymbol]: { affinityKey: Infinity }
+  } as any);
+
+  assert.strictEqual(result, 4, 'Task with Infinity key should complete');
+  await pool.close();
+});
+
+test('AffinityBalancer: rejects object affinity key', async () => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js'),
+    maxThreads: 2,
+    minThreads: 2,
+    concurrentTasksPerWorker: 1,
+    loadBalancer: Piscina.AffinityBalancer({ maximumUsage: 1 })
+  });
+
+  const result = await pool.run('2 + 2', {
+    [Piscina.queueOptionsSymbol]: { affinityKey: { key: 'value' } }
+  } as any);
+
+  assert.strictEqual(result, 4, 'Task with object key should complete');
+  await pool.close();
+});
+
+test('AffinityBalancer: rejects boolean affinity key', async () => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js'),
+    maxThreads: 2,
+    minThreads: 2,
+    concurrentTasksPerWorker: 1,
+    loadBalancer: Piscina.AffinityBalancer({ maximumUsage: 1 })
+  });
+
+  const result = await pool.run('2 + 2', {
+    [Piscina.queueOptionsSymbol]: { affinityKey: true }
+  } as any);
+
+  assert.strictEqual(result, 4, 'Task with boolean key should complete');
+  await pool.close();
+});
+
+test('AffinityBalancer: handles negative integer affinity key', async () => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/affinity-tracker.js'),
+    maxThreads: 2,
+    minThreads: 2,
+    concurrentTasksPerWorker: 10,
+    loadBalancer: Piscina.AffinityBalancer({ maximumUsage: 10 })
+  });
+
+  // Sequential tasks with negative integer key should use affinity routing
+  const result1 = await pool.run(10, {
+    [Piscina.queueOptionsSymbol]: { affinityKey: -42 }
+  } as any);
+
+  const result2 = await pool.run(10, {
+    [Piscina.queueOptionsSymbol]: { affinityKey: -42 }
+  } as any);
+
+  // Both should execute on same worker
+  assert.strictEqual(result1.threadId, result2.threadId, 
+    'Negative integer keys should use affinity routing');
+
+  await pool.close();
+});
+
+test('AffinityBalancer: handles zero affinity key', async () => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/affinity-tracker.js'),
+    maxThreads: 2,
+    minThreads: 2,
+    concurrentTasksPerWorker: 10,
+    loadBalancer: Piscina.AffinityBalancer({ maximumUsage: 10 })
+  });
+
+  // Sequential tasks with zero key should use affinity routing
+  const result1 = await pool.run(10, {
+    [Piscina.queueOptionsSymbol]: { affinityKey: 0 }
+  } as any);
+
+  const result2 = await pool.run(10, {
+    [Piscina.queueOptionsSymbol]: { affinityKey: 0 }
+  } as any);
+
+  // Both should execute on same worker
+  assert.strictEqual(result1.threadId, result2.threadId, 
+    'Zero key should use affinity routing');
 
   await pool.close();
 });

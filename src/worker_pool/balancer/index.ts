@@ -29,20 +29,22 @@ export function AffinityBalancer (
 ): PiscinaLoadBalancer {
   const { maximumUsage } = opts;
   
-  // Map from affinity key to preferred worker
+  // Map from affinity key to preferred worker.
+  // We validate that the worker is still available before using it.
   const affinityMap = new Map<number, PiscinaWorker>();
 
   return (task, workers) => {
-    // Extract affinity key from task queue options
+    // Extract affinity key from task queue options.
     const queueOptions = task[kQueueOptions] as { affinityKey?: unknown } | undefined;
     const affinityKey = queueOptions?.affinityKey;
 
-    // If no affinity key or it's null/undefined, use LeastBusy behavior
+    // If no affinity key (null, undefined, etc), use LeastBusy behavior.
     if (affinityKey == null) {
       return leastBusySelect(task, workers, maximumUsage);
     }
 
-    // Validate affinity key is a finite integer
+    // Validate affinity key is a finite integer. Any other type falls back to LeastBusy.
+    // This includes: strings (empty or non-empty), floats, NaN, Infinity, objects, etc.
     if (
       typeof affinityKey !== 'number' ||
       !Number.isFinite(affinityKey) ||
@@ -51,21 +53,26 @@ export function AffinityBalancer (
       return leastBusySelect(task, workers, maximumUsage);
     }
 
-    // Try to get the preferred worker for this affinity key
+    // Try to use the preferred worker for this affinity key.
     let preferredWorker = affinityMap.get(affinityKey);
 
-    // Check if preferred worker still exists and is available
+    // Validate the preferred worker is still valid and available.
+    // A worker becomes invalid if it's been destroyed, terminated, or removed from the pool.
     if (preferredWorker !== undefined) {
-      if (workers.includes(preferredWorker) && preferredWorker.currentUsage < maximumUsage) {
-        // Preferred worker is available, use it
+      if (!preferredWorker.destroyed && !preferredWorker.terminating && workers.includes(preferredWorker) && preferredWorker.currentUsage < maximumUsage) {
+        // Preferred worker is valid and available, use it.
         return preferredWorker;
+      } else {
+        // Worker is no longer valid, clean up the stale entry.
+        affinityMap.delete(affinityKey);
       }
     }
 
-    // Preferred worker is not available or saturated, find another worker using LeastBusy logic
+    // Either no preferred worker exists or it became unavailable.
+    // Use LeastBusy logic to find a candidate worker.
     const candidate = leastBusySelect(task, workers, maximumUsage);
     
-    // If we found a candidate, update the affinity mapping to the new worker
+    // If we found a candidate, remember it as the preferred worker for this key.
     if (candidate !== null) {
       affinityMap.set(affinityKey, candidate);
     }
