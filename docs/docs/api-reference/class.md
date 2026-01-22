@@ -160,7 +160,7 @@ console.log(pool.histogram.runTime);
 console.log(pool.histogram.waitTime);
 ```
 
-### Interface: `PiscinaLoadBalancer`
+### Interface: `PiscinaHistogram`
 
 - `runTime`: (`PiscinaHistogramSummary`) Run Time Histogram Summary. Time taken to execute a task.
 - `waitTime`: (`PiscinaHistogramSummary`) Wait Time Histogram Summary. Time between a task being submitted and the task starting to run.
@@ -173,6 +173,7 @@ type PiscinaHistogram = {
   waitTime: PiscinaHistogramSummary;
   resetRunTime(): void; // Reset Run Time Histogram
   resetWaitTime(): void; // Reset Wait Time Histogram
+}
 ```
 
 ### Interface: `PiscinaHistogramSummary`
