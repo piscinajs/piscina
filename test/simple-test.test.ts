@@ -127,7 +127,7 @@ test('passing execArgv to workers works', async () => {
   assert.deepStrictEqual(env, ['--no-warnings']);
 });
 
-test('passing valid workerData works', async () => {
+test('passing valid workerData works', {only: true}, async () => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/simple-workerdata.ts'),
     workerData: 'ABC'
@@ -137,7 +137,7 @@ test('passing valid workerData works', async () => {
   await pool.run(null);
 });
 
-test('passing valid workerData works with named import', async () => {
+test('passing valid workerData works with named import', {only: true}, async () => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/simple-workerdata-named-import.ts'),
     workerData: 'ABC'
@@ -147,7 +147,7 @@ test('passing valid workerData works with named import', async () => {
   await pool.run(null);
 });
 
-test('passing valid workerData works with named import', async () => {
+test('passing valid workerData works with named import', {only: true}, async () => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/simple-workerdata-named-import.ts'),
     workerData: 'ABC'
