@@ -68,7 +68,7 @@ jobs:
         run: npm run build
 
       - name: Run Tests
-        run: node scripts/run-tests.js --only --coverage --pattern='test/**/simple-test.test.ts'
+        run: node scripts/run-tests.js --coverage --pattern='test/**/simple-test.test.ts'
       # - name: Run Tests
       #   run: npm run test:coverage
 
