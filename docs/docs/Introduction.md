@@ -34,7 +34,7 @@ Looking to support the development of Piscina? Consider sponsoring us on [Open C
 
 ### Bronze Sponsors
 
-<a href="https://testmu.ai/?utm_source=piscinajs&utm_medium=sponsor" target="_blank">
-<img src="https://assets.testmu.ai/resources/images/logos/black-logo.png" style={{ verticalAlign: "middle" }} width="250" height="110" class="img-dark"/>
-<img src="https://assets.testmu.ai/resources/images/logos/white-logo.png" style={{ verticalAlign: "middle" }} width="250" height="110" class="img-light"/>
+<a href="https://testmu.ai/?utm_source=piscinajs&utm_medium=sponsor" target="_blank" rel="noopener noreferrer">
+<img src="https://assets.testmu.ai/resources/images/logos/black-logo.png" alt="TestMu.ai logo" style={{ verticalAlign: "middle" }} width="250" height="110" class="img-dark"/>
+<img src="https://assets.testmu.ai/resources/images/logos/white-logo.png" alt="TestMu.ai logo" style={{ verticalAlign: "middle" }} width="250" height="110" class="img-light"/>
 </a>
