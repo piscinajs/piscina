@@ -46,5 +46,7 @@ test('niceness - Windows', {
     const result = await worker.run('require("@napi-rs/nice").getCurrentProcessPriority()');
 
     assert.strictEqual(result, WindowsThreadPriority.ThreadPriorityAboveNormal);
+
+    await worker.close();
   });
 });

@@ -172,7 +172,7 @@ test('tasks can share a Worker if requested (one test finishes)', async () => {
   assert.strictEqual(pool.threads.length, 1);
   assert.strictEqual(pool.queueSize, 0);
 
-  await pool.destroy();
+  await pool.close();
 });
 
 test('tasks can share a Worker if requested (both tests finish)', async () => {
