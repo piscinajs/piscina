@@ -67,9 +67,16 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Run Tests
-        # run: node scripts/run-tests.js --coverage --pattern='test/**/simple-test.test.ts'
-        run: npm run test:coverage
+      - name: Run Tests - Simple Test
+        run: node scripts/run-tests.js --coverage --pattern='test/**/simple-test.test.ts'
+
+      - name: Run Tests - Niceness
+        run: node scripts/run-tests.js --coverage --pattern='test/**/nice.test.ts'
+
+      - name: Run Tests - All
+        run: node scripts/run-tests.js --coverage --pattern='test/**/!(simple-test|niceness).test.ts'
+        # run: npm run test:coverage
+
 
   automerge:
     if: >
