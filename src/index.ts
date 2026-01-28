@@ -314,7 +314,14 @@ class ThreadPool {
     }
 
     function onWorkerMessage (this: ThreadPool, message: any) {
-      message instanceof Object && READY in message ? onWorkerReady() : onEventMessage.call(this, message);
+      const isReadyMessage =
+        (message instanceof Object && READY in message) ||
+        (typeof message === 'object' && message !== null && READY in message);
+      if (isReadyMessage) {
+        onWorkerReady();
+      } else {
+        onEventMessage.call(this, message);
+      }
     }
 
     function onWorkerError (this: ThreadPool, err: Error) {
