@@ -995,8 +995,14 @@ export default class Piscina<Exports extends Record<string, (payload: any) => an
 }
 
 export const move = Piscina.move;
-export const isWorkerThread = Piscina.isWorkerThread;
-export const workerData = Piscina.workerData;
+Object.defineProperty(module.exports, 'isWorkerThread', {
+  get: () => commonState.isWorkerThread,
+  enumerable: true
+});
+Object.defineProperty(module.exports, 'workerData', {
+  get: () => commonState.workerData,
+  enumerable: true
+});
 
 export {
   Piscina,
