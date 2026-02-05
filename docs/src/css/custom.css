@@ -30,7 +30,20 @@
   background-color: #03091f;
 }
 
+/* Default state (Light Mode) - Hide the dark image */
+.img-dark {
+  display: none;
+}
+
+/* Dark Mode State - Hide light image, show dark image */
+html[data-theme="dark"] .img-light {
+  display: none;
+}
+
+html[data-theme="dark"] .img-dark {
+  display: block;
+}
+
 p {
   font-size: 17px;
 }
-
