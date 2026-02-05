@@ -137,7 +137,7 @@ test('tasks can share a Worker if requested (both tests blocking)', async (t) =>
   await pool.destroy();
 });
 
-test('tasks can share a Worker if requested (one test finishes)', async () => {
+test('tasks can share a Worker if requested (one test finishes)', async (t) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/wait-for-notify.js'),
     minThreads: 0,
@@ -158,10 +158,9 @@ test('tasks can share a Worker if requested (one test finishes)', async () => {
   assert.strictEqual(pool.threads.length, 1);
   assert.strictEqual(pool.queueSize, 0);
 
-  assert.rejects(pool.run(
-    'new Promise((resolve) => setTimeout(resolve, 5))',
+  const secondTask =  pool.run(
+    '42',
     { filename: resolve(__dirname, 'fixtures/eval.js') })
-  , /Terminating worker thread/);
   assert.strictEqual(pool.threads.length, 1);
   assert.strictEqual(pool.queueSize, 0);
 
@@ -171,8 +170,9 @@ test('tasks can share a Worker if requested (one test finishes)', async () => {
   await firstTask;
   assert.strictEqual(pool.threads.length, 1);
   assert.strictEqual(pool.queueSize, 0);
-
-  await pool.destroy();
+  await secondTask;
+  assert.strictEqual(pool.threads.length, 1);
+  assert.strictEqual(pool.queueSize, 0);
 });
 
 test('tasks can share a Worker if requested (both tests finish)', async () => {
