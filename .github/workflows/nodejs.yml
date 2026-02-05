@@ -71,7 +71,7 @@ jobs:
         run: node scripts/run-tests.js --coverage --pattern='test/**/simple-test.test.ts'
 
       - name: Run Tests - Isolated
-        run: node scripts/run-tests.js --coverage --pattern='test/**/(nice|test-resourcelimits).test.ts'
+        run: node scripts/run-tests.js --coverage --pattern='test/**/(nice|test-resourcelimits).test.ts --concurrency 1'
 
       - name: Run Tests - All
         run: node scripts/run-tests.js --coverage --pattern='test/**/!(simple-test|nice|task-queue|test-resourcelimits).test.ts'
