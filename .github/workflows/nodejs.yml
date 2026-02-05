@@ -39,9 +39,6 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         node-version: [20, 22, 24]
-        exclude:
-            - os: windows-latest
-              node-version: 24
       
     runs-on: ${{matrix.os}}
     steps:
@@ -59,8 +56,12 @@ jobs:
       - name: Install Dependencies
         run: npm install
 
+      - name: Build
+        run: npm run build
+
       - name: Run Tests
-        run: npm run test:ci
+        run: npm run test:coverage
+
 
   automerge:
     if: >

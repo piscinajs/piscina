@@ -977,9 +977,9 @@ export default class Piscina<T = any, R = any> extends EventEmitterAsyncResource
   static get queueOptionsSymbol () { return kQueueOptions; }
 }
 
-export const move = Piscina.move;
-export const isWorkerThread = Piscina.isWorkerThread;
-export const workerData = Piscina.workerData;
+const move = Piscina.move;
+const isWorkerThread = Piscina.isWorkerThread;
+const workerData = Piscina.workerData;
 
 export {
   Piscina,
@@ -991,4 +991,7 @@ export {
   version,
   FixedQueue,
   ArrayTaskQueue,
+  move,
+  isWorkerThread,
+  workerData
 };
