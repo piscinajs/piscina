@@ -11,9 +11,20 @@ test("types can be inferred from function", async (t) => {
     concurrentTasksPerWorker: 1,
   });
 
-  expectTypeOf(pool.run).toExtend<(payload: { a: number; b: number }) => Promise<number>>();
-  expectTypeOf(pool.run).toExtend<(payload: { a: number; b: number }, opts: { name: "default" }) => Promise<number>>();
-  expectTypeOf(pool.run).toExtend<(payload: { name: string }, opts: { name: "greet" }) => Promise<string>>();
+  expectTypeOf(pool.run).toExtend<
+    (payload: { a: number; b: number }) => Promise<number>
+  >();
+  expectTypeOf(pool.run).toExtend<
+    (
+      payload: { a: number; b: number },
+      opts: { name: "default" },
+    ) => Promise<number>
+  >();
+  expectTypeOf(pool.run).toExtend<
+    (payload: { name: string }, opts: { name: "greet" }) => Promise<string>
+  >();
+
+  await pool.close();
 });
 
 test("types can be manually specified", async (t) => {
@@ -25,7 +36,18 @@ test("types can be manually specified", async (t) => {
     concurrentTasksPerWorker: 1,
   });
 
-  expectTypeOf(pool.run).toExtend<(payload: { a: number; b: number }) => Promise<number>>();
-  expectTypeOf(pool.run).toExtend<(payload: { a: number; b: number }, opts: { name: "default" }) => Promise<number>>();
-  expectTypeOf(pool.run).toExtend<(payload: { name: string }, opts: { name: "greet" }) => Promise<string>>();
+  expectTypeOf(pool.run).toExtend<
+    (payload: { a: number; b: number }) => Promise<number>
+  >();
+  expectTypeOf(pool.run).toExtend<
+    (
+      payload: { a: number; b: number },
+      opts: { name: "default" },
+    ) => Promise<number>
+  >();
+  expectTypeOf(pool.run).toExtend<
+    (payload: { name: string }, opts: { name: "greet" }) => Promise<string>
+  >();
+
+  await pool.close();
 });

@@ -10,7 +10,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "fastify": "^2.14.1",
+    "fastify": "^5.7.4",
     "fastify-piscina": "^1.0.0",
     "lorem-ipsum": "^2.0.3",
     "notare": "^1.0.6",

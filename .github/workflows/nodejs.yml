@@ -17,9 +17,9 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Install Node.js
-        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
         with:
           node-version: 24
           cache: 'npm'
@@ -42,18 +42,15 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         node-version: [20, 22, 24]
-        exclude:
-            - os: windows-latest
-              node-version: 24
       
     runs-on: ${{matrix.os}}
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
@@ -62,8 +59,12 @@ jobs:
       - name: Install Dependencies
         run: npm install
 
+      - name: Build
+        run: npm run build
+
       - name: Run Tests
-        run: npm run test:ci
+        run: npm run test:coverage
+
 
   automerge:
     if: >

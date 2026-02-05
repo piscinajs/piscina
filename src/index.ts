@@ -994,15 +994,9 @@ export default class Piscina<Exports extends Record<string, (payload: any) => an
   static get queueOptionsSymbol () { return kQueueOptions; }
 }
 
-export const move = Piscina.move;
-Object.defineProperty(module.exports, 'isWorkerThread', {
-  get: () => commonState.isWorkerThread,
-  enumerable: true
-});
-Object.defineProperty(module.exports, 'workerData', {
-  get: () => commonState.workerData,
-  enumerable: true
-});
+const move = Piscina.move;
+const isWorkerThread = Piscina.isWorkerThread;
+const workerData = Piscina.workerData;
 
 export {
   Piscina,
@@ -1014,4 +1008,7 @@ export {
   version,
   FixedQueue,
   ArrayTaskQueue,
+  move,
+  isWorkerThread,
+  workerData
 };

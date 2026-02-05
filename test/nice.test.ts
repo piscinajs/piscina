@@ -35,9 +35,10 @@ test('niceness - Linux:', { skip: process.platform !== 'linux' }, async scope =>
 
 test('niceness - Windows', {
   skip: process.platform !== 'win32'
-}, scope => {
-  scope.plan(1);
-  scope.test('can set niceness for threads on Windows', async () => {
+}, async scope => {
+  scope.plan(2);
+
+  await scope.test('can set niceness for threads on Windows', async () => {
     const worker = new Piscina({
       filename: resolve(__dirname, 'fixtures/eval.js'),
       niceIncrement: WindowsThreadPriority.ThreadPriorityAboveNormal
@@ -46,5 +47,17 @@ test('niceness - Windows', {
     const result = await worker.run('require("@napi-rs/nice").getCurrentProcessPriority()');
 
     assert.strictEqual(result, WindowsThreadPriority.ThreadPriorityAboveNormal);
+
+    await worker.close();
+  });
+
+  await scope.test('setting niceness never does anything bad', async () => {
+    const worker = new Piscina({
+      filename: resolve(__dirname, 'fixtures/eval.js'),
+      niceIncrement: WindowsThreadPriority.ThreadPriorityIdle
+    });
+
+    const result = await worker.run('42');
+    assert.strictEqual(result, 42);
   });
 });
