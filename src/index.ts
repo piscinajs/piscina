@@ -987,9 +987,9 @@ export default class Piscina<Exports extends Record<string, (payload: any) => an
   static get queueOptionsSymbol () { return kQueueOptions; }
 }
 
-export const move = Piscina.move;
-export const isWorkerThread = Piscina.isWorkerThread;
-export const workerData = Piscina.workerData;
+const move = Piscina.move;
+const isWorkerThread = Piscina.isWorkerThread;
+const workerData = Piscina.workerData;
 
 export {
   Piscina,
@@ -1001,4 +1001,7 @@ export {
   version,
   FixedQueue,
   ArrayTaskQueue,
+  move,
+  isWorkerThread,
+  workerData
 };

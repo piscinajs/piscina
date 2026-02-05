@@ -136,9 +136,10 @@ test('passing valid workerData works', async () => {
     filename: resolve(__dirname, 'fixtures/simple-workerdata.ts'),
     workerData: 'ABC'
   });
-  assert.strictEqual(Piscina.workerData, undefined);
 
-  await pool.run(null);
+  assert.strictEqual(Piscina.workerData, undefined);
+  assert.strictEqual(await pool.run(null), 'ABC')
+
   await pool.close();
 });
 
