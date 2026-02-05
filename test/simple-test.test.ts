@@ -24,7 +24,8 @@ test('Piscina.isWorkerThread has the correct value (worker)', async () => {
     filename: resolve(__dirname, 'fixtures/simple-isworkerthread.ts')
   });
   const result = await pool.run(null);
-  assert.strictEqual(result, 'done');
+  assert.strictEqual(result, true);
+  
   await pool.close();
 });
 
@@ -33,7 +34,7 @@ test('Piscina.isWorkerThread has the correct value (worker) with named import', 
     filename: resolve(__dirname, 'fixtures/simple-isworkerthread-named-import.ts')
   });
   const result = await pool.run(null);
-  assert.strictEqual(result, 'done');
+  assert.strictEqual(result, true);
   await pool.close();
 });
 
@@ -42,7 +43,7 @@ test('Piscina.isWorkerThread has the correct value (worker) with named import', 
     filename: resolve(__dirname, 'fixtures/simple-isworkerthread-named-import.ts')
   });
   const result = await pool.run(null);
-  assert.strictEqual(result, 'done');
+  assert.strictEqual(result, true);
   await pool.close();
 });
 
@@ -149,8 +150,8 @@ test('passing valid workerData works with named import', async () => {
     workerData: 'ABC'
   });
   assert.strictEqual(Piscina.workerData, undefined);
+  assert.strictEqual(await pool.run(null), 'ABC')
 
-  await pool.run(null);
   await pool.close();
 });
 
@@ -160,8 +161,8 @@ test('passing valid workerData works with named import', async () => {
     workerData: 'ABC'
   });
   assert.strictEqual(Piscina.workerData, undefined);
+  assert.strictEqual(await pool.run(null), 'ABC')
 
-  await pool.run(null);
   await pool.close();
 });
 

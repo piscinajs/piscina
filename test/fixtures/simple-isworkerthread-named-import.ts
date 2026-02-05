@@ -1,6 +1,5 @@
-import assert from 'node:assert';
-import { isWorkerThread } from '../..';
+import Piscina from "../..";
 
-assert.strictEqual(isWorkerThread, true);
-
-export default function () { return 'done'; }
+export default function () {
+  return Piscina.isWorkerThread;
+}
