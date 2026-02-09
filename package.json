@@ -49,7 +49,7 @@
     "abort-controller": "^3.0.0",
     "bench-node": "^0.14.0",
     "concat-stream": "^2.0.0",
-    "eslint": "^9.16.0",
+    "eslint": "^10.0.0",
     "expect-type": "^1.2.1",
     "gen-esm-wrapper": "^1.1.1",
     "glob": "^13.0.1",
