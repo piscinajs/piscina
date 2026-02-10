@@ -30,6 +30,6 @@ test('resourceLimits causes task to reject', async () => {
   assert.strictEqual(limits.maxOldGenerationSizeMb, 16);
   assert.strictEqual(limits.maxYoungGenerationSizeMb, 4);
   assert.strictEqual(limits.codeRangeSizeMb, 16);
-  assert.rejects(worker.run(null),
+  await assert.rejects(worker.run(null),
     /Worker terminated due to reaching memory limit: JS heap out of memory/);
 });
