@@ -987,8 +987,8 @@ Looking to support the development of Piscina? Consider sponsoring us on [Open C
 
 ### Bronze Sponsors
 
-<a href="https://www.lambdatest.com/?utm_source=piscinajs&utm_medium=sponsor" target="_blank">
-<img src="https://www.lambdatest.com/blue-logo.png" style="vertical-align: middle;" width="250" height="45" />
+<a href="https://testmu.ai/?utm_source=piscinajs&utm_medium=sponsor" target="_blank">
+<img src="https://assets.testmu.ai/resources/images/logos/black-logo.png" style="vertical-align: middle;" width="250" height="115" />
 </a>
 
 ## Resources
