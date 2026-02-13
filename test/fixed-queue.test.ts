@@ -192,7 +192,7 @@ test('simple integraion with Piscina', async () => {
   });
 
   const result = await pool.run(null);
-  assert.strictEqual(result, 'done');
+  assert.strictEqual(result, true);
 });
 
 test('concurrent calls with Piscina', async () => {

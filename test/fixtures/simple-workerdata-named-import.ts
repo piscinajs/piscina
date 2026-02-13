@@ -1,6 +1,3 @@
-import assert from 'node:assert';
-import { workerData } from '../..';
+import Piscina from '../..';
 
-assert.strictEqual(workerData, 'ABC');
-
-export default function () { return 'done'; }
+export default function () { return Piscina.workerData; }

@@ -5,9 +5,19 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
+    labels:
+      - "backport v5"
+      - "backport v4"
+      - "dependencies"
+      - "github_actions"
 
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
+    labels:
+      - "backport v5"
+      - "backport v4"
+      - "dependencies"
+      - "github_actions"

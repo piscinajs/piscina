@@ -28,4 +28,13 @@ With worker threads now a well-established feature in Node.js, Piscina aims to b
 ✔ Custom task queues\
 ✔ Optional CPU scheduling priorities on Linux
 
+## Sponsors
 
+Looking to support the development of Piscina? Consider sponsoring us on [Open Collective](https://opencollective.com/piscinajs). We appreciate all levels of support!
+
+### Bronze Sponsors
+
+<a href="https://testmu.ai/?utm_source=piscinajs&utm_medium=sponsor" target="_blank" rel="noopener noreferrer">
+<img src="https://assets.testmu.ai/resources/images/logos/black-logo.png" alt="TestMu.ai logo" style={{ verticalAlign: "middle" }} width="250" height="110" className="img-dark"/>
+<img src="https://assets.testmu.ai/resources/images/logos/white-logo.png" alt="TestMu.ai logo" style={{ verticalAlign: "middle" }} width="250" height="110" className="img-light"/>
+</a>

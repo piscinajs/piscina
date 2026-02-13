@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
 import { EventEmitter } from 'node:events';
+
 import Piscina from '..';
 import { version } from '../package.json';
 
@@ -19,27 +20,31 @@ test('Piscina.isWorkerThread has the correct value', () => {
 });
 
 test('Piscina.isWorkerThread has the correct value (worker)', async () => {
-  const worker = new Piscina({
+  const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/simple-isworkerthread.ts')
   });
-  const result = await worker.run(null);
-  assert.strictEqual(result, 'done');
+  const result = await pool.run(null);
+  assert.strictEqual(result, true);
+  
+  await pool.close();
 });
 
 test('Piscina.isWorkerThread has the correct value (worker) with named import', async () => {
-  const worker = new Piscina({
+  const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/simple-isworkerthread-named-import.ts')
   });
-  const result = await worker.run(null);
-  assert.strictEqual(result, 'done');
+  const result = await pool.run(null);
+  assert.strictEqual(result, true);
+  await pool.close();
 });
 
 test('Piscina.isWorkerThread has the correct value (worker) with named import', async () => {
-  const worker = new Piscina({
+  const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/simple-isworkerthread-named-import.ts')
   });
-  const result = await worker.run(null);
-  assert.strictEqual(result, 'done');
+  const result = await pool.run(null);
+  assert.strictEqual(result, true);
+  await pool.close();
 });
 
 test('Piscina instance is an EventEmitter', async () => {
@@ -132,9 +137,11 @@ test('passing valid workerData works', async () => {
     filename: resolve(__dirname, 'fixtures/simple-workerdata.ts'),
     workerData: 'ABC'
   });
-  assert.strictEqual(Piscina.workerData, undefined);
 
-  await pool.run(null);
+  assert.strictEqual(Piscina.workerData, undefined);
+  assert.strictEqual(await pool.run(null), 'ABC')
+
+  await pool.close();
 });
 
 test('passing valid workerData works with named import', async () => {
@@ -143,8 +150,9 @@ test('passing valid workerData works with named import', async () => {
     workerData: 'ABC'
   });
   assert.strictEqual(Piscina.workerData, undefined);
+  assert.strictEqual(await pool.run(null), 'ABC')
 
-  await pool.run(null);
+  await pool.close();
 });
 
 test('passing valid workerData works with named import', async () => {
@@ -153,8 +161,9 @@ test('passing valid workerData works with named import', async () => {
     workerData: 'ABC'
   });
   assert.strictEqual(Piscina.workerData, undefined);
+  assert.strictEqual(await pool.run(null), 'ABC')
 
-  await pool.run(null);
+  await pool.close();
 });
 
 test('passing invalid workerData does not work', () => {
