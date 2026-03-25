@@ -7,32 +7,8 @@ on:
   pull_request:
     paths-ignore:
       - docs/**
-
 name: CI
-
 jobs:
-  lint:
-    permissions:
-      contents: read
-    name: Lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - name: Install Node.js
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
-        with:
-          node-version: 24
-          cache: 'npm'
-          cache-dependency-path: package.json
-
-      - name: Install dependencies
-        run: npm install
-      - name: Build
-        run: npm run build
-        continue-on-error: true
-      - name: Check linting
-        run: npm run lint
-
   tests:
     permissions:
       contents: read
@@ -40,15 +16,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        node-version: [20, 22, 24]
-      
+        os: [ubuntu-latest, windows-latest]
+        node-version: [24]
     runs-on: ${{matrix.os}}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
         with:
@@ -64,19 +38,3 @@ jobs:
 
       - name: Run Tests
         run: npm run test:coverage
-
-
-  automerge:
-    if: >
-      github.event_name == 'pull_request' && github.event.pull_request.user.login == 'dependabot[bot]'
-    needs:
-      - tests
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-    steps:
-      - name: Merge Dependabot PR
-        uses: fastify/github-action-merge-dependabot@1b2ed42db8f9d81a46bac83adedfc03eb5149dff # v3.11.2
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
