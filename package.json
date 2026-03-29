@@ -15,9 +15,10 @@
   "scripts": {
     "build": "tsc && gen-esm-wrapper . dist/esm-wrapper.mjs",
     "lint": "eslint && tsc --noEmit && tsc --project test/tsconfig.json --noEmit",
-    "test": "node scripts/run-tests.js --pattern='test/**/*test.ts'",
-    "test:ci": "npm run build && npm run lint && npm run test:coverage",
-    "test:coverage": "node scripts/run-tests.js --coverage --pattern='test/**/*test.ts'",
+    "test": "node scripts/run-tests.js",
+    "test:jest": "jest --config test/jest/jest.config.js",
+    "test:ci": "npm run build && npm run lint && npm run test:coverage && npm run test:jest",
+    "test:coverage": "node scripts/run-tests.js --coverage",
     "prepack": "npm run build",
     "benchmark": "node --allow-natives-syntax benchmark/index.js --scope all",
     "benchmark:ci": "node --allow-natives-syntax benchmark/index.js --scope all --reporter json | jq '.[] | .name, .opsSec'",
@@ -45,6 +46,7 @@
   ],
   "license": "MIT",
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "@types/node": "^24.0.1",
     "abort-controller": "^3.0.0",
     "bench-node": "^0.14.0",
@@ -53,7 +55,9 @@
     "expect-type": "^1.2.1",
     "gen-esm-wrapper": "^1.1.1",
     "glob": "^13.0.1",
+    "jest": "^30.2.0",
     "neostandard": "^0.13.0",
+    "ts-jest": "^29.4.6",
     "tsx": "^4.20.3",
     "typescript": "5.8.3"
   },
