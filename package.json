@@ -59,7 +59,7 @@
     "neostandard": "^0.13.0",
     "ts-jest": "^29.4.6",
     "tsx": "^4.20.3",
-    "typescript": "5.8.3"
+    "typescript": "6.0.2"
   },
   "optionalDependencies": {
     "@napi-rs/nice": "^1.0.4"
