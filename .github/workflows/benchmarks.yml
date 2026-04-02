@@ -6,11 +6,10 @@ on:
     types:
       - labeled
 
-permissions:
-  contents: write
-
 jobs:
   benchmark-pr:
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     if: >
       (
@@ -56,6 +55,8 @@ jobs:
           echo 'EOF' >> $GITHUB_OUTPUT
 
   benchmark-current:
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     needs: [benchmark-pr]
     name: Benchmark Current Version
@@ -102,6 +103,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
+      contents: read
     steps:
       - name: Comment PR
         uses: thollander/actions-comment-pull-request@24bffb9b452ba05a4f3f77933840a6a841d1b32b # v3.0.1
