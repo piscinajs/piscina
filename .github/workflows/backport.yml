@@ -5,12 +5,11 @@ on:
       - closed
       - labeled
 
-permissions:
-  pull-requests: write
-  contents: write
-
 jobs:
   backport:
+    permissions:
+      pull-requests: write
+      contents: write
     runs-on: ubuntu-latest
     if: >
       github.event.pull_request.merged
@@ -21,6 +20,7 @@ jobs:
           && contains(github.event.label.name, 'backport')
         )
       )
+
     name: Backport
     steps:
       - name: Backport
