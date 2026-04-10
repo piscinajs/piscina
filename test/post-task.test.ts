@@ -1,4 +1,4 @@
-import assert from 'node:assert';
+import * as assert from 'node:assert/strict';
 import { test, TestContext } from 'node:test';
 import { MessageChannel } from 'node:worker_threads';
 import { resolve } from 'node:path';
