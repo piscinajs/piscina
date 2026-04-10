@@ -55,16 +55,23 @@ async function getHandler (filename : string, name : string) : Promise<Function 
     // With our current set of TypeScript options, this is transpiled to
     // `require(filename)`.
     handler = await import(filename);
-    if (typeof handler !== 'function') {
+
+    if (name?.length > 0) {
+      handler = await ((handler as any)[name]);
+    } else if (typeof handler !== 'function') {
       handler = await ((handler as any)[name]);
     }
   } catch {}
+
   if (typeof handler !== 'function') {
     handler = await getImportESM()(pathToFileURL(filename).href);
-    if (typeof handler !== 'function') {
+    if (name?.length > 0) {
+      handler = await ((handler as any)[name]);
+    } else if (typeof handler !== 'function') {
       handler = await ((handler as any)[name]);
     }
   }
+
   if (typeof handler !== 'function') {
     return null;
   }

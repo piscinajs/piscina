@@ -1,6 +1,6 @@
 import { Worker, MessagePort, receiveMessageOnPort, WorkerOptions, Transferable } from 'node:worker_threads';
 import { createHistogram, RecordableHistogram } from 'node:perf_hooks';
-import assert from 'node:assert';
+import * as assert from 'node:assert';
 
 import { RequestMessage, ResponseMessage, StartupMessage } from '../types';
 import { Errors } from '../errors';

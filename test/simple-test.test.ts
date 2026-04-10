@@ -233,7 +233,7 @@ test('named tasks work', async () => {
   assert.strictEqual(await worker.run({}), 'a');
 });
 
-test('named tasks work', async () => {
+test('named tasks work (2)', async () => {
   const worker = new Piscina({
     filename: resolve(__dirname, 'fixtures/multiple.js'),
     name: 'b'
