@@ -16,7 +16,7 @@ fastify.get('/', async () => fastify.runTask({ name: 'James' }));
 // Run the server!
 const start = async () => {
   try {
-    await fastify.listen(3000);
+    await fastify.listen({ port: 3000 });
   } catch (err) {
     process.exit(1);
   }
