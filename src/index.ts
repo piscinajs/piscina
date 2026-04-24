@@ -862,7 +862,7 @@ export default class Piscina<T = any, R = any> extends EventEmitterAsyncResource
 
   get queueSize () : number {
     const pool = this.#pool;
-    return Math.max(pool.taskQueue.size - pool.pendingCapacity(), 0);
+    return Math.max((pool.taskQueue.size + pool.skipQueue.length) - pool.pendingCapacity(), 0);
   }
 
   get completed () : number {
