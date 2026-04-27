@@ -46,6 +46,7 @@ export function isTaskQueue (value: TaskQueue): boolean {
     value !== null &&
     'size' in value &&
     typeof value.shift === 'function' &&
+    (value.unshift === undefined || typeof value.unshift === 'function') &&
     typeof value.remove === 'function' &&
     typeof value.push === 'function'
   );

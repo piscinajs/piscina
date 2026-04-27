@@ -166,3 +166,34 @@ test('Piscina.minThreads should return the max number of threads to be used (cus
 
   assert.strictEqual(pool.minThreads, minThreads);
 });
+
+test('tasks should be executed in order', async () => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/task-logger.js'),
+    minThreads: 1,
+    maxThreads: 1
+  });
+
+  const tasks = new Array(20).fill(0).map((_, i) => ({i}));
+  for (const task of tasks) {
+    pool.run(task, {name: 'run'});
+  }
+
+  await Promise.all(tasks);
+
+  const log = await pool.run({}, {name: 'getLog'});
+  assert.deepEqual(log, tasks);
+});
+
+test('post a task when the queue is empty but all workers are busy', async () => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js'),
+    minThreads: 1,
+    maxThreads: 1
+  });
+
+  const p1 = pool.run('new Promise(resolve => setTimeout(() => resolve(1), 10))');
+  const p2 = pool.run('new Promise(resolve => setTimeout(() => resolve(2), 10))');
+
+  assert.deepEqual(await Promise.all([p1, p2]), [1, 2]);
+});

@@ -243,8 +243,8 @@ class ThreadPool {
         resourceLimits: this.options.resourceLimits,
         workerData: this.options.workerData,
         trackUnmanagedFds: this.options.trackUnmanagedFds
-      }, 
-      port: port1, 
+      },
+      port: port1,
       enableHistogram: this.options.workerHistogram
     }, onMessage.bind(this));
     const message : StartupMessage = {
@@ -255,7 +255,7 @@ class ThreadPool {
       atomics: this.options.atomics!,
       niceIncrement: this.options.niceIncrement
     };
-    
+
     workerInfo.onDestroy(() => {
       this.publicInterface.emit('workerDestroy', workerInfo.interface);
     });
@@ -280,7 +280,7 @@ class ThreadPool {
         this._onWorkerReady(workerInfo);
       });
     }
-    
+
     workerInfo.init(message, [port2]).workerUnref();
     this.workers.add(workerInfo);
 
@@ -292,7 +292,7 @@ class ThreadPool {
       const taskInfo = workerInfo.popTask(taskId);
       this.workers.taskDone(workerInfo);
 
-      
+
       if (taskInfo == null) { /* c8 ignore next */
         const err = new Error(
           `Unexpected message from Worker: ${inspect(message)}`);
@@ -413,14 +413,26 @@ class ThreadPool {
       if (distributed) {
         // If task was distributed, we should continue to distribute more tasks
         continue;
-      } else if (this.workers.size < this.options.maxThreads) {
-        // We spawn if possible
-        // TODO: scheduler will intercept this.
-        this._addNewWorker();
-        continue;
       } else {
-        // If balancer states that pool is busy, we should stop trying to distribute tasks
-        break;
+        // Could not distribute - return the task where we shifted it from
+        if (taskInfo.abortSignal != null) {
+          this.skipQueue.unshift(taskInfo);
+        } else {
+          // Note: pre-existing implementations of the TaskQueue might not provide `unshift` operations. For backward
+          // compatibility, we use `push` in this case, just like it was implemented before. No ordering or fairness
+          // is guaranteed then.
+          (this.taskQueue.unshift ?? this.taskQueue.push).call(this.taskQueue, taskInfo);
+        }
+
+        if (this.workers.size < this.options.maxThreads) {
+          // We spawn if possible
+          // TODO: scheduler will intercept this.
+          this._addNewWorker();
+          continue;
+        } else {
+          // If balancer states that pool is busy, we should stop trying to distribute tasks
+          break;
+        }
       }
     }
 
@@ -462,12 +474,6 @@ class ThreadPool {
       this._maybeDrain();
       // If candidate, let's try to distribute more tasks
       return true;
-    }
-
-    if (task.abortSignal != null) {
-      this.skipQueue.push(task);
-    } else {
-      this.taskQueue.push(task);
     }
 
     return false;
@@ -573,6 +579,12 @@ class ThreadPool {
     const distributed = this._distributeTask(taskInfo, workers);
 
     if (!distributed) {
+      if (taskInfo.abortSignal != null) {
+        this.skipQueue.push(taskInfo);
+      } else {
+        this.taskQueue.push(taskInfo);
+      }
+
       // We spawn if possible
       // TODO: scheduler will intercept this.
       if (this.workers.size < this.options.maxThreads) {
@@ -620,7 +632,7 @@ class ThreadPool {
     if (maxCapacity === currentUsage && queueSize === maxQueueSize) {
       this._needsDrain = true;
       queueMicrotask(() => this.publicInterface.emit('needsDrain'));
-    } 
+    }
   }
 
   async destroy () {
@@ -895,14 +907,14 @@ export default class Piscina<Exports extends Record<string, (payload: any) => an
           this.histogram?.resetWaitTime()
         },
       }
-  
+
       Object.defineProperty(piscinahistogram, 'histogram', {
         value: this.#pool.histogram,
         writable: false,
         enumerable: false,
         configurable: false,
       })
-  
+
       this.#histogram = piscinahistogram;
     };
 

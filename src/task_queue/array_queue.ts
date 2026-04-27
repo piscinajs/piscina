@@ -13,6 +13,10 @@ export class ArrayTaskQueue implements TaskQueue {
     return this.tasks.shift() ?? null;
   }
 
+  unshift (task: Task): void {
+    this.tasks.unshift(task);
+  }
+
   push (task: Task): void {
     this.tasks.push(task);
   }
