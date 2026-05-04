@@ -76,9 +76,10 @@ test('abortable tasks will not share workers (abortable posted second)', async (
   const task1 = pool.run(bufs[0]);
   const ee = new EventEmitter();
   assert.rejects(pool.run(bufs[1], { signal: ee }), /The task has been aborted/);
-  assert.strictEqual(pool.queueSize, 0);
+  assert.strictEqual(pool.queueSize, 1);
 
   ee.emit('abort');
+  assert.strictEqual(pool.queueSize, 0);
 
   // Wake up the thread handling the first task.
   Atomics.store(bufs[0], 0, 1);
