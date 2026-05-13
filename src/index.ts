@@ -872,7 +872,10 @@ export default class Piscina<Exports extends Record<string, (payload: any) => an
 
   get queueSize () : number {
     const pool = this.#pool;
-    return Math.max((pool.taskQueue.size + pool.skipQueue.length) - pool.pendingCapacity(), 0);
+    // Only count tasks in taskQueue (not skipQueue) since skipQueue holds tasks
+    // that were rejected by busy workers when using AbortSignal - these aren't
+    // truly "queued" from the user's perspective
+    return Math.max(pool.taskQueue.size - pool.pendingCapacity(), 0);
   }
 
   get completed () : number {
