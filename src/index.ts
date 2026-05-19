@@ -563,6 +563,13 @@ class ThreadPool {
         }
       } else {
         this.taskQueue.push(taskInfo);
+        // Eagerly spawn additional workers up to maxThreads while there is
+        // queued work. Without this, a cold pool serializes the initial burst
+        // because the next spawn only happens once the first worker is ready.
+        // The balancer still owns distribution once workers become available.
+        if (this.workers.size < this.options.maxThreads) {
+          this._addNewWorker();
+        }
       }
 
       this._maybeDrain();
