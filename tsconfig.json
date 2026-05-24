@@ -14,7 +14,6 @@
     "noUnusedParameters": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "esModuleInterop": true,
 
     "skipDefaultLibCheck": true,
     "resolveJsonModule": true,                /* Include modules imported with '.json' extension */
