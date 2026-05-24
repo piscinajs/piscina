@@ -117,6 +117,7 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
     }
 
     setIdleTimeout (handler: (_: void) => void, ms: number, ...args: any[]) : void {
+      // @ts-expect-error - refering to node.js timers
       this.idleTimeout = setTimeout(handler, ms, ...args).unref();
     }
 
@@ -165,7 +166,7 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
       };
 
       try {
-        this.port.postMessage(message, taskInfo.transferList);
+        this.port.postMessage(message, taskInfo.transferList as Transferable[]);
         queueMicrotask(() => this.clearIdleTimeout())
         taskInfo.workerInfo = this;
         this.taskInfos.set(taskInfo.taskId, taskInfo);
