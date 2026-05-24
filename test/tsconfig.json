@@ -7,7 +7,7 @@
     "strict": false,
     "noUnusedParameters": false,
     "noImplicitAny": false,
-    "types": ["node"]
+    "types": ["node", "jest"]
   },
   "include": [
     "./**/*.ts"
