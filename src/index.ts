@@ -53,7 +53,6 @@ import {
   markMovable,
   getAvailableParallelism,
   maybeFileURLToPath,
-  promiseResolvers
 } from './common';
 const cpuParallelism : number = getAvailableParallelism();
 
@@ -502,7 +501,7 @@ class ThreadPool {
       signal = options.signal ?? null;
     }
 
-    const { promise: ret, resolve, reject } = promiseResolvers();
+    const { promise: ret, resolve, reject } = Promise.withResolvers();
     const taskInfo = new TaskInfo({
       task,
       transferList,
