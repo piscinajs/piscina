@@ -1,4 +1,3 @@
-import type { MessagePort } from 'node:worker_threads';
 import { performance } from 'node:perf_hooks';
 import { AsyncResource } from 'node:async_hooks';
 
@@ -14,14 +13,7 @@ export { ArrayTaskQueue } from './array_queue';
 export { FixedQueue } from './fixed_queue';
 
 export type TaskCallback = (err: Error, result: any) => void
-// Grab the type of `transferList` off `MessagePort`. At the time of writing,
-// only ArrayBuffer and MessagePort are valid, but let's avoid having to update
-// our types here every time Node.js adds support for more objects.
-export type TransferList = MessagePort extends {
-  postMessage: (value: any, transferList: infer T) => any
-}
-  ? T
-  : never
+export type TransferList = StructuredSerializeOptions['transfer']
 export type TransferListItem = TransferList extends Array<infer T> ? T : never
 
 type TaskInfoParameters = {

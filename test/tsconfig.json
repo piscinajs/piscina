@@ -6,7 +6,8 @@
     "noEmit": true,
     "strict": false,
     "noUnusedParameters": false,
-    "noImplicitAny": false
+    "noImplicitAny": false,
+    "types": ["node", "jest"]
   },
   "include": [
     "./**/*.ts"

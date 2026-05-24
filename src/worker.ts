@@ -130,21 +130,20 @@ function atomicsWaitLoop (port : MessagePort, sharedBuffer : Int32Array) {
   // operations without waiting for them to finish, though.
 
   if (useAsyncAtomics === true) {
-    // @ts-expect-error - for some reason not supported by TS
     const { async, value } = Atomics.waitAsync(sharedBuffer, kRequestCountField, lastSeenRequestCount);
 
     // We do not check for result
     /* c8 ignore start */
-    return async === true && value.then(() => {
+    return async === true ? value.then(() => {
       lastSeenRequestCount = Atomics.load(sharedBuffer, kRequestCountField);
 
       // We have to read messages *after* updating lastSeenRequestCount in order
       // to avoid race conditions.
       let entry;
-      while ((entry = receiveMessageOnPort(port)) !== undefined) {
+      while ((entry = receiveMessageOnPort(port)) != null) {
         onMessage(port, sharedBuffer, entry.message);
       }
-    });
+    }) : null;
     /* c8 ignore stop */
   }
 
@@ -160,10 +159,12 @@ function atomicsWaitLoop (port : MessagePort, sharedBuffer : Int32Array) {
     // We have to read messages *after* updating lastSeenRequestCount in order
     // to avoid race conditions.
     let entry;
-    while ((entry = receiveMessageOnPort(port)) !== undefined) {
+    while ((entry = receiveMessageOnPort(port)) != null) {
       onMessage(port, sharedBuffer, entry.message);
     }
   }
+
+  return null;
 }
 
 async function onMessage (
