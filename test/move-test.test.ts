@@ -1,4 +1,4 @@
-import assert from 'node:assert';
+import * as assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { types } from 'node:util';
 import { MessageChannel, MessagePort } from 'node:worker_threads';
