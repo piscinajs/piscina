@@ -10,7 +10,7 @@
     "require": "./dist/main.js"
   },
   "engines": {
-    "node": ">=20.x"
+    "node": ">=22.x"
   },
   "scripts": {
     "build": "tsc && gen-esm-wrapper . dist/esm-wrapper.mjs",
