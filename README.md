@@ -17,7 +17,7 @@
 
 Written in TypeScript.
 
-For Node.js 20.x and higher.
+For Node.js 24.x and higher.
 
 [MIT Licensed][].
 
