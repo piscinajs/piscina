@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
 import { test } from 'node:test';
-import { once } from 'node:events';
 import Piscina from '../dist';
 
 
