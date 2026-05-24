@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [6.0.0-rc.1](https://github.com/piscinajs/piscina/compare/v6.0.0-rc.0...v6.0.0-rc.1) (2026-05-24)
+
+
+### Bug Fixes
+
+* **#1012:** custom name worker functions ([#1047](https://github.com/piscinajs/piscina/issues/1047)) ([8904578](https://github.com/piscinajs/piscina/commit/8904578a79126171a71a8972ee7db3890f1ae387)), closes [#1012](https://github.com/piscinajs/piscina/issues/1012)
+
 ## [6.0.0-rc.0](https://github.com/piscinajs/piscina/compare/v5.0.0...v6.0.0-rc.0) (2026-05-24)
 
 
