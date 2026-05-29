@@ -876,6 +876,14 @@ export default class Piscina<Exports extends Record<string, (payload: any) => an
     return ret;
   }
 
+  get idleThreads () : number {
+    let count = 0;
+    for (const workerInfo of this.#pool.workers.readyItems) {
+      if (workerInfo.currentUsage() === 0) count++;
+    }
+    return count;
+  }
+
   get queueSize () : number {
     const pool = this.#pool;
     return Math.max((pool.taskQueue.size + pool.skipQueue.length) - pool.pendingCapacity(), 0);
