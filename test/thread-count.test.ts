@@ -97,6 +97,33 @@ test('conflicting min/max threads is error', () => {
   }), /options.minThreads and options.maxThreads must not conflict/);
 });
 
+test('idleThreads reflects ready, unoccupied workers', async () => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/sleep.js'),
+    minThreads: 2,
+    maxThreads: 2,
+    concurrentTasksPerWorker: 1
+  });
+
+  // All minThreads workers are warmed and idle from the start.
+  assert.strictEqual(pool.idleThreads, 2);
+
+  const first = pool.run({ time: 100 });
+  // One worker is now busy.
+  assert.strictEqual(pool.idleThreads, 1);
+
+  const second = pool.run({ time: 100 });
+  // Both workers are busy.
+  assert.strictEqual(pool.idleThreads, 0);
+
+  await Promise.all([first, second]);
+  // Workers return to idle once tasks complete.
+  assert.strictEqual(pool.idleThreads, 2);
+
+  await pool.destroy();
+  assert.strictEqual(pool.idleThreads, 0);
+});
+
 test('thread count should be 0 upon destruction', async () => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js'),

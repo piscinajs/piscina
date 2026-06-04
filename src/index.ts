@@ -867,6 +867,14 @@ export default class Piscina<T = any, R = any> extends EventEmitterAsyncResource
     return ret;
   }
 
+  get idleThreads () : number {
+    let count = 0;
+    for (const workerInfo of this.#pool.workers.readyItems) {
+      if (workerInfo.currentUsage() === 0) count++;
+    }
+    return count;
+  }
+
   get queueSize () : number {
     const pool = this.#pool;
     return Math.max(pool.taskQueue.size - pool.pendingCapacity(), 0);
