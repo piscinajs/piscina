@@ -62,6 +62,11 @@ faster or equal to the given value.
 
 An Array of the `Worker` instances used by this pool.
 
+## Property: `idleThreads` (readonly)
+
+The current number of ready (warmed up) Worker threads that are not running any
+task.
+
 ## Property: `queueSize` (readonly)
 
 The current number of tasks waiting to be assigned to a Worker thread.
