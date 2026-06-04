@@ -1,4 +1,4 @@
-import assert from 'node:assert/strict';
+import * as assert from 'node:assert/strict';
 import { resolve } from 'node:path';
 import { spawn } from 'node:child_process';
 import { test } from 'node:test';

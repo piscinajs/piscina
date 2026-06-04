@@ -1,4 +1,4 @@
-import assert from 'node:assert';
+import * as assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
@@ -233,7 +233,7 @@ test('named tasks work', async () => {
   assert.strictEqual(await worker.run({}), 'a');
 });
 
-test('named tasks work', async () => {
+test('named tasks work (2)', async () => {
   const worker = new Piscina({
     filename: resolve(__dirname, 'fixtures/multiple.js'),
     name: 'b'
@@ -242,4 +242,13 @@ test('named tasks work', async () => {
   assert.strictEqual(await worker.run({}, { name: 'a' }), 'a');
   assert.strictEqual(await worker.run({}, { name: 'b' }), 'b');
   assert.strictEqual(await worker.run({}), 'b');
+});
+
+test('cjs#default named export works (#1012)', async () => {
+  const worker = new Piscina({
+    filename: resolve(__dirname, 'fixtures/cjs-default.js'),
+    name: 'default'
+  });
+
+  assert.strictEqual(await worker.run({}), 42);
 });

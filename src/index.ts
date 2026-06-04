@@ -53,7 +53,6 @@ import {
   markMovable,
   getAvailableParallelism,
   maybeFileURLToPath,
-  promiseResolvers
 } from './common';
 const cpuParallelism : number = getAvailableParallelism();
 
@@ -508,7 +507,7 @@ class ThreadPool {
       signal = options.signal ?? null;
     }
 
-    const { promise: ret, resolve, reject } = promiseResolvers();
+    const { promise: ret, resolve, reject } = Promise.withResolvers();
     const taskInfo = new TaskInfo({
       task,
       transferList,
@@ -569,6 +568,13 @@ class ThreadPool {
         }
       } else {
         this.taskQueue.push(taskInfo);
+        // Eagerly spawn additional workers up to maxThreads while there is
+        // queued work. Without this, a cold pool serializes the initial burst
+        // because the next spawn only happens once the first worker is ready.
+        // The balancer still owns distribution once workers become available.
+        if (this.workers.size < this.options.maxThreads) {
+          this._addNewWorker();
+        }
       }
 
       this._maybeDrain();
@@ -880,6 +886,14 @@ export default class Piscina<Exports extends Record<string, (payload: any) => an
     const ret : Worker[] = [];
     for (const workerInfo of this.#pool.workers) { ret.push(workerInfo.worker); }
     return ret;
+  }
+
+  get idleThreads () : number {
+    let count = 0;
+    for (const workerInfo of this.#pool.workers.readyItems) {
+      if (workerInfo.currentUsage() === 0) count++;
+    }
+    return count;
   }
 
   get queueSize () : number {

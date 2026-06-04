@@ -1,10 +1,8 @@
-import assert from 'node:assert/strict';
+import * as assert from 'node:assert/strict';
 import { resolve } from 'node:path';
 import { test } from 'node:test';
-import { once } from 'node:events';
 import Piscina from '../dist';
 
-const nodeVersion = Number(process.versions.node.split('.')[0])
 
 test('workerCreate/workerDestroy should be emitted while managing worker lifecycle', async () => {
   let index = 0;
@@ -54,31 +52,29 @@ test('workerCreate/workerDestroy should be emitted while managing worker lifecyc
   assert.strictEqual(newWorkers, 4);
 });
 
-test('Explicit resource management (dispose)', { skip: nodeVersion !== 24 }, async () => {
+test('Explicit resource management (dispose)', async () => {
   const piscina = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js'),
     maxThreads: 1,
     minThreads: 1,
     concurrentTasksPerWorker: 1,
+  });
+
+  piscina.once('close', () => {
+    assert.ok(true);
   });
 
   {
     using pool = piscina;
     const tasks = [];
-;
-    pool.once('close', () => {
-      assert.ok(true);
-    });
 
     for (let n = 0; n < 10; n++) {
       tasks.push(pool.run('new Promise(resolve => setTimeout(resolve, 5))'));
     }
   }
-
-  await once(piscina, 'close');
 });
 
-test('Explicit resource management (asyncDispose)', { skip: nodeVersion !== 24 }, async () => {
+test('Explicit resource management (asyncDispose)', async () => {
   const piscina = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js'),
     maxThreads: 1,
@@ -86,13 +82,13 @@ test('Explicit resource management (asyncDispose)', { skip: nodeVersion !== 24 }
     concurrentTasksPerWorker: 1,
   });
 
+  piscina.once('close', () => {
+      assert.ok(true);
+  });
+
   {
     await using pool = piscina;
     const tasks = [];
-
-    pool.once('close', () => {
-      assert.ok(true);
-    });
 
     for (let n = 0; n < 10; n++) {
       tasks.push(pool.run('new Promise(resolve => setTimeout(resolve, 5))'));
@@ -115,9 +111,9 @@ test('#805 - Concurrent Aborts', async (t) => {
   const controller2 = new AbortController();
   const controller3 = new AbortController();
 
-  tasks.push(assert.rejects(pool.run('new Promise(resolve => setTimeout(resolve, 5))', { signal: controller.signal })));
-  tasks.push(assert.rejects(pool.run('new Promise(resolve => setTimeout(resolve, 5))', { signal: controller2.signal })));
-  tasks.push(pool.run('new Promise(resolve => setTimeout(resolve, 5))', { signal: controller3.signal }));
+  tasks.push(assert.rejects(pool.run('new Promise(resolve => setTimeout(resolve, 1000))', { signal: controller.signal })));
+  tasks.push(assert.rejects(pool.run('new Promise(resolve => setTimeout(resolve, 1000))', { signal: controller2.signal })));
+  tasks.push(pool.run('new Promise(resolve => setTimeout(resolve, 1000))', { signal: controller3.signal }));
 
 
   controller.abort();
