@@ -404,7 +404,8 @@ class ThreadPool {
                        this.taskQueue.shift() as TaskInfo;
 
       if (workers == null) {
-        workers = [...this.workers].map(workerInfo => workerInfo.interface);
+        workers = [...this.workers.readyItems, ...this.workers.pendingItems]
+          .map(workerInfo => workerInfo.interface);
       }
 
       const distributed = this._distributeTask(taskInfo, workers);
