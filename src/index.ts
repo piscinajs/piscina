@@ -243,8 +243,8 @@ class ThreadPool {
         resourceLimits: this.options.resourceLimits,
         workerData: this.options.workerData,
         trackUnmanagedFds: this.options.trackUnmanagedFds
-      }, 
-      port: port1, 
+      },
+      port: port1,
       enableHistogram: this.options.workerHistogram
     }, onMessage.bind(this));
     const message : StartupMessage = {
@@ -255,7 +255,7 @@ class ThreadPool {
       atomics: this.options.atomics!,
       niceIncrement: this.options.niceIncrement
     };
-    
+
     workerInfo.onDestroy(() => {
       this.publicInterface.emit('workerDestroy', workerInfo.interface);
     });
@@ -280,7 +280,7 @@ class ThreadPool {
         this._onWorkerReady(workerInfo);
       });
     }
-    
+
     workerInfo.init(message, [port2]).workerUnref();
     this.workers.add(workerInfo);
 
@@ -292,7 +292,7 @@ class ThreadPool {
       const taskInfo = workerInfo.popTask(taskId);
       this.workers.taskDone(workerInfo);
 
-      
+
       if (taskInfo == null) { /* c8 ignore next */
         const err = new Error(
           `Unexpected message from Worker: ${inspect(message)}`);
@@ -385,6 +385,15 @@ class ThreadPool {
     workerInfo.destroy();
 
     this.workers.delete(workerInfo);
+  }
+
+  _removeTaskFromQueue (taskInfo : TaskInfo) : void {
+    this.taskQueue.remove(taskInfo);
+
+    const skipQueueIndex = this.skipQueue.indexOf(taskInfo);
+    if (skipQueueIndex !== -1) {
+      this.skipQueue.splice(skipQueueIndex, 1);
+    }
   }
 
   _onWorkerReady (workerInfo : WorkerInfo) : void {
@@ -546,7 +555,7 @@ class ThreadPool {
         } else {
           // Not yet running: Remove it from the queue.
           // Call should be idempotent
-          this.taskQueue.remove(taskInfo);
+          this._removeTaskFromQueue(taskInfo);
         }
       });
 
@@ -900,14 +909,14 @@ export default class Piscina<T = any, R = any> extends EventEmitterAsyncResource
           this.histogram?.resetWaitTime()
         },
       }
-  
+
       Object.defineProperty(piscinahistogram, 'histogram', {
         value: this.#pool.histogram,
         writable: false,
         enumerable: false,
         configurable: false,
       })
-  
+
       this.#histogram = piscinahistogram;
     };
 

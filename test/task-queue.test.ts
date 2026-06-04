@@ -76,6 +76,49 @@ test('will reject items over task queue limit', async () => {
   await pool.destroy();
 });
 
+test('queueSize includes abortable tasks waiting in skipQueue', async () => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/wait-for-notify.ts'),
+    minThreads: 1,
+    maxThreads: 1,
+    maxQueue: 1
+  });
+
+  const buffers = [
+    new Int32Array(new SharedArrayBuffer(4)),
+    new Int32Array(new SharedArrayBuffer(4))
+  ];
+
+  const firstTask = pool.run(buffers[0], { signal: new AbortController().signal });
+  assert.strictEqual(pool.queueSize, 0);
+
+  const secondTask = pool.run(buffers[1], { signal: new AbortController().signal });
+
+  try {
+    assert.strictEqual(pool.queueSize, 1);
+
+    Atomics.store(buffers[0], 0, 1);
+    Atomics.notify(buffers[0], 0, 1);
+
+    await firstTask;
+    assert.strictEqual(pool.queueSize, 0);
+
+    Atomics.store(buffers[1], 0, 1);
+    Atomics.notify(buffers[1], 0, 1);
+
+    await secondTask;
+    assert.strictEqual(pool.queueSize, 0);
+  } finally {
+    for (const buffer of buffers) {
+      Atomics.store(buffer, 0, 1);
+      Atomics.notify(buffer, 0, Infinity);
+    }
+
+    await Promise.allSettled([firstTask, secondTask]);
+    await pool.destroy();
+  }
+});
+
 test('will reject items when task queue is unavailable', async () => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js'),
