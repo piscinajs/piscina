@@ -50,6 +50,7 @@ For Node.js 20.x and higher.
     - [Property: `options` (readonly)](#property-options-readonly)
     - [Property: `runTime` (readonly)](#property-runtime-readonly)
     - [Property: `threads` (readonly)](#property-threads-readonly)
+    - [Property: `idleThreads` (readonly)](#property-idlethreads-readonly)
     - [Property: `queueSize` (readonly)](#property-queuesize-readonly)
     - [Property: `needsDrain` (readonly)](#property-needsdrain-readonly)
     - [Property: `utilization` (readonly)](#property-utilization-readonly)
@@ -601,6 +602,11 @@ faster or equal to the given value.
 ### Property: `threads` (readonly)
 
 An Array of the `Worker` instances used by this pool.
+
+### Property: `idleThreads` (readonly)
+
+The current number of ready (warmed up) Worker threads that are not running any
+task.
 
 ### Property: `queueSize` (readonly)
 
