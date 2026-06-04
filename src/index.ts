@@ -563,6 +563,13 @@ class ThreadPool {
         }
       } else {
         this.taskQueue.push(taskInfo);
+        // Eagerly spawn additional workers up to maxThreads while there is
+        // queued work. Without this, a cold pool serializes the initial burst
+        // because the next spawn only happens once the first worker is ready.
+        // The balancer still owns distribution once workers become available.
+        if (this.workers.size < this.options.maxThreads) {
+          this._addNewWorker();
+        }
       }
 
       queueMicrotask(this._maybeDrain.bind(this))
@@ -858,6 +865,14 @@ export default class Piscina<T = any, R = any> extends EventEmitterAsyncResource
     const ret : Worker[] = [];
     for (const workerInfo of this.#pool.workers) { ret.push(workerInfo.worker); }
     return ret;
+  }
+
+  get idleThreads () : number {
+    let count = 0;
+    for (const workerInfo of this.#pool.workers.readyItems) {
+      if (workerInfo.currentUsage() === 0) count++;
+    }
+    return count;
   }
 
   get queueSize () : number {
