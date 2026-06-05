@@ -73,7 +73,7 @@ test('abortable tasks will not share workers (on worker available)', async () =>
   assert.strictEqual(ret[2], 2);
 });
 
-test('abortable tasks will not share workers (destroy workers)', () => {
+test('abortable tasks will not share workers (destroy workers)', async () => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/sleep.js'),
     maxThreads: 1,
@@ -90,9 +90,12 @@ test('abortable tasks will not share workers (destroy workers)', () => {
     pool.destroy();
   });
 
-  assert.rejects(pool.run({ time: TIMEOUT_MAX, a: 2 }), /Terminating worker thread/);
-  assert.rejects(pool.run({ time: TIMEOUT_MAX, a: 3 }, { signal: new AbortController().signal }),
-    /Terminating worker thread/);
+  await assert.rejects(pool.run({ time: TIMEOUT_MAX, a: 2 }), /Terminating worker thread/);
+  await pool.run({ time: TIMEOUT_MAX, a: 3 }, { signal: new AbortController().signal }).catch(err => {
+    assert.strictEqual(err.message, 'The task has been aborted');
+    assert.strictEqual(err.code, 'PISCINA_ERR_ABORT');
+    assert.strictEqual(err.cause, 'pool is closing');
+  })
 });
 
 test('aborted AbortSignal rejects task immediately', () => {

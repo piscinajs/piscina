@@ -169,7 +169,7 @@ class ThreadPool {
   _needsDrain : boolean;
   start : number = performance.now();
   inProcessPendingMessages : boolean = false;
-  startingUp : boolean = false;
+  _startingUp : boolean = false;
   closingUp : boolean = false;
   workerFailsDuringBootstrap : boolean = false;
   destroying : boolean = false;
@@ -209,10 +209,10 @@ class ThreadPool {
     this.workers.onTaskDone(this._onWorkerTaskDone.bind(this));
     this.maxCapacity = this.options.maxThreads * this.options.concurrentTasksPerWorker;
 
-    this.startingUp = true;
-    this._ensureMinimumWorkers();
-    this.startingUp = false;
+    this._startingUp = true;
     this._needsDrain = false;
+    this._ensureMinimumWorkers();
+    this._startingUp = false;
   }
 
   _ensureMinimumWorkers () : void {
@@ -258,7 +258,7 @@ class ThreadPool {
     workerInfo.onWorkerExit(onWorkerExit.bind(this));
     workerInfo.onPortClose(() => { workerInfo.workerRef(); });
 
-    if (this.startingUp === true) {
+    if (this._startingUp === true) {
       // There is no point in waiting for the initial set of Workers to indicate
       // that they are ready, we just mark them as such from the start.
       workerInfo.markAsReady();
@@ -308,14 +308,13 @@ class ThreadPool {
     }
 
     function onWorkerMessage (this: ThreadPool, message: any) {
-      const isReadyMessage =
-        (message instanceof Object && READY in message) ||
-        (typeof message === 'object' && message !== null && READY in message);
-      if (isReadyMessage) {
+      // is ready message?
+      if (message != null && typeof message === 'object' && message[READY]) {
         onWorkerReady();
-      } else {
-        onEventMessage.call(this, message);
+        return
       }
+
+      onEventMessage.call(this, message);
     }
 
     function onWorkerError (this: ThreadPool, err: Error) {
@@ -408,15 +407,16 @@ class ThreadPool {
       if (distributed) {
         // If task was distributed, we should continue to distribute more tasks
         continue;
-      } else if (this.workers.size < this.options.maxThreads) {
+      } 
+      
+      if (this.workers.size < this.options.maxThreads) {
         // We spawn if possible
         // TODO: scheduler will intercept this.
         this._addNewWorker();
         continue;
-      } else {
-        // If balancer states that pool is busy, we should stop trying to distribute tasks
-        break;
       }
+
+      break;
     }
 
     //If Infinity was sent as a parameter, we skip setting the Timeout that clears the worker
@@ -488,7 +488,7 @@ class ThreadPool {
     }
 
     if (this.closingUp || this.destroying) {
-      return Promise.reject(Errors.AbortError('queue is closing'));
+      return Promise.reject(Errors.AbortError('pool is closing'));
     }
 
     if (typeof filename !== 'string') {
@@ -626,12 +626,12 @@ class ThreadPool {
     this.destroying = true;
     while (this.skipQueue.length > 0) {
       const taskInfo : TaskInfo = this.skipQueue.shift() as TaskInfo;
-      taskInfo.done(Errors.TaskTerminatingWorker());
+      taskInfo.done(Errors.AbortError('pool is being destroyed'));
     }
 
     while (this.taskQueue.size > 0) {
       const taskInfo : TaskInfo = this.taskQueue.shift() as TaskInfo;
-      taskInfo.done(Errors.TaskTerminatingWorker());
+      taskInfo.done(Errors.AbortError('pool is being destroyed'));
     }
 
     const exitEvents : Promise<any[]>[] = [];
@@ -653,7 +653,7 @@ class ThreadPool {
       for (let i = 0; i < skipQueueLength; ++i) {
         const taskInfo : TaskInfo = this.skipQueue.shift() as TaskInfo;
         if (taskInfo.workerInfo == null) {
-          taskInfo.done(Errors.AbortError('Pool is closed'));
+          taskInfo.done(Errors.AbortError('pool is closing'));
         } else {
           this.skipQueue.push(taskInfo);
         }
@@ -663,7 +663,7 @@ class ThreadPool {
       for (let i = 0; i < taskQueueLength; ++i) {
         const taskInfo : TaskInfo = this.taskQueue.shift() as TaskInfo;
         if (taskInfo.workerInfo === null) {
-          taskInfo.done(Errors.AbortError('Pool is closed'));
+          taskInfo.done(Errors.AbortError('pool is closing'));
         } else {
           this.taskQueue.push(taskInfo);
         }

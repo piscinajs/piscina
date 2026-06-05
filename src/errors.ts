@@ -67,21 +67,12 @@ class CloseTimeoutError extends PiscinaError {
   }
 }
 
-class TaskTerminatingWorkerError extends PiscinaError {
-  constructor() {
-    super('Terminating the Worker thread');
-    this.name = 'TaskTerminatingWorkerError';
-    this.code = 'PISCINA_ERR_TASK_TERMINATING_WORKER';
-  }
-}
-
 // Dictionary
 export const Errors = {
   ThreadTermination: () => new ThreadTerminationError(),
   TaskQueueAtLimit: () => new TaskQueueLimitError(),
   NoTaskQueueAvailable: () =>
     new NoTaskQueueAvailableError(),
-  TaskTerminatingWorker: () => new TaskTerminatingWorkerError(),
   CloseTimeout: () => new CloseTimeoutError(),
   ValidationError: (msg: string) => new ValidationError(msg),
   AbortError: (reason?: any) => new AbortError(reason)
