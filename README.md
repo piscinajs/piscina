@@ -419,10 +419,10 @@ This class extends [`EventEmitter`][] from Node.js.
   - `atomics`: (`sync` | `async` | `disabled`) Use the [`Atomics`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Atomics) API for faster communication
     between threads. This is on by default. You can disable `Atomics` globally by
     setting the environment variable `PISCINA_DISABLE_ATOMICS` to `1` .
-    If `atomics` is `sync`, it will cause to pause threads (stoping all execution)
+    If `atomics` is `sync`, it will cause to pause threads (stopping all execution)
     between tasks. Ideally, threads should wait for all operations to finish before
     returning control to the main thread (avoid having open handles within a thread). If still want to have the possibility
-    of having open handles or handle asynchrnous tasks, you can set the environment variable `PISCINA_ENABLE_ASYNC_ATOMICS` to `1` or setting `options.atomics` to `async`.
+    of having open handles or handle asynchronous tasks, you can set the environment variable `PISCINA_ENABLE_ASYNC_ATOMICS` to `1` or setting `options.atomics` to `async`.
 
   > **Note**: The `async` mode comes with performance penalties and can lead to undesired behaviour if open handles are not tracked correctly.
 
@@ -690,8 +690,8 @@ Provides the current version of this library as a semver string.
 
 By default, any value returned by a worker function will be cloned when
 returned back to the Piscina pool, even if that object is capable of
-being transfered. The `Piscina.move()` method can be used to wrap and
-mark transferable values such that they will by transfered rather than
+being transferred. The `Piscina.move()` method can be used to wrap and
+mark transferable values such that they will by transferred rather than
 cloned.
 
 The `value` may be any object supported by Node.js to be transferable
@@ -710,7 +710,7 @@ The `move()` method will throw if the `value` is not transferable.
 
 The object returned by the `move()` method should not be set as a
 nested value in an object. If it is used, the `move()` object itself
-will be cloned as opposed to transfering the object it wraps.
+will be cloned as opposed to transferring the object it wraps.
 
 #### Interface: `Transferable`
 

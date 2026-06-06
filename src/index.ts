@@ -943,7 +943,7 @@ export default class Piscina<Exports extends Record<string, (payload: any) => an
     const capacity = this.duration * this.#pool.options.maxThreads;
     const totalMeanRuntime = (this.#pool.histogram.runTimeSummary.mean / 1000) * count;
 
-    // We calculate the appoximate pool utilization by multiplying
+    // We calculate the approximate pool utilization by multiplying
     // the mean run time of all tasks by the number of runtime
     // samples taken and dividing that by the capacity. The
     // theory here is that capacity represents the absolute upper
