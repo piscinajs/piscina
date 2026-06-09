@@ -4,7 +4,7 @@ import type { PiscinaWorker } from '..';
 export type PiscinaLoadBalancer = (
   task: PiscinaTask,
   workers: PiscinaWorker[]
-) => PiscinaWorker | null; // If candidate is passed, it will be used as the result of the load balancer and ingore the command;
+) => PiscinaWorker | null; // If candidate is passed, it will be used as the result of the load balancer and ignore the command;
 
 export type LeastBusyBalancerOptions = {
   maximumUsage: number;
