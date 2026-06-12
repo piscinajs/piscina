@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { resolve } from 'node:path';
 import { test } from 'node:test';
 import Piscina from '..';
 
@@ -8,10 +9,32 @@ test('filename cannot be non-null/non-string',() => {
   }) as any), /options.filename must be a string or null/);
 });
 
+test('filename is not tampered', async () => {
+  const polluted = { 'filename': 'polluted' };
+  const opts1 = {};
+  const opts2 = { '__proto__': polluted };
+
+  Object.setPrototypeOf(opts1, polluted);
+  await assert.rejects(() => new Piscina(opts2 as any).run({}), 'Error: filename must be provided to run() or in options object');
+  await assert.rejects(() => new Piscina(opts1 as any).run({}), 'Error: filename must be provided to run() or in options object');
+});
+
 test('name cannot be non-null/non-string', () => {
   assert.throws(() => new Piscina(({
     name: 12
   }) as any), /options.name must be a string or null/);
+});
+
+test('name is not tampered',async () => {
+  const polluted = { 'name': 'b' };
+  const opts1 = { filename: resolve(__dirname, './fixtures/multiple.js') };
+  const opts2 = { '__proto__': polluted, filename: resolve(__dirname, './fixtures/multiple.js') };
+
+  const res1 = await new Piscina(opts1 as any).run({});
+  const res2 = await new Piscina(opts2 as any).run({});
+  
+  assert.equal(res1, 'a');
+  assert.equal(res2, 'a');
 });
 
 test('minThreads must be non-negative integer', () => {
