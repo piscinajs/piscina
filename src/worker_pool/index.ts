@@ -117,7 +117,7 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
     }
 
     setIdleTimeout (handler: (_: void) => void, ms: number, ...args: any[]) : void {
-      // @ts-expect-error - refering to node.js timers
+      // @ts-expect-error - referring to node.js timers
       this.idleTimeout = setTimeout(handler, ms, ...args).unref();
     }
 

@@ -79,7 +79,7 @@ const args = [
 let result
 
 // we skip coverage for node 20
-// because this issuse happen https://github.com/nodejs/node/pull/53315
+// because this issue happens https://github.com/nodejs/node/pull/53315
 if (isCoverage && !process.version.startsWith('v20.')) {
   log('Running tests with coverage')
   result = spawnSync(
