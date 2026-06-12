@@ -665,66 +665,67 @@ export default class Piscina<T = any, R = any> extends EventEmitterAsyncResource
   #pool : ThreadPool;
 
   constructor (options : Options = {}) {
-    super({ ...options, name: 'Piscina' });
+    const opts = { ...options, '__proto__': null };
+    super({ ...opts, name: 'Piscina' });
 
-    if (typeof options.filename !== 'string' && options.filename != null) {
+    if (typeof opts.filename !== 'string' && opts.filename != null) {
       throw new TypeError('options.filename must be a string or null');
     }
-    if (typeof options.name !== 'string' && options.name != null) {
+    if (typeof opts.name !== 'string' && opts.name != null) {
       throw new TypeError('options.name must be a string or null');
     }
-    if (options.minThreads !== undefined &&
-        (typeof options.minThreads !== 'number' || options.minThreads < 0)) {
+    if (opts.minThreads !== undefined &&
+        (typeof opts.minThreads !== 'number' || opts.minThreads < 0)) {
       throw new TypeError('options.minThreads must be a non-negative integer');
     }
-    if (options.maxThreads !== undefined &&
-        (typeof options.maxThreads !== 'number' || options.maxThreads < 1)) {
+    if (opts.maxThreads !== undefined &&
+        (typeof opts.maxThreads !== 'number' || opts.maxThreads < 1)) {
       throw new TypeError('options.maxThreads must be a positive integer');
     }
-    if (options.minThreads !== undefined && options.maxThreads !== undefined &&
-        options.minThreads > options.maxThreads) {
+    if (opts.minThreads !== undefined && opts.maxThreads !== undefined &&
+        opts.minThreads > opts.maxThreads) {
       throw new RangeError('options.minThreads and options.maxThreads must not conflict');
     }
-    if (options.idleTimeout !== undefined &&
-        (typeof options.idleTimeout !== 'number' || options.idleTimeout < 0)) {
+    if (opts.idleTimeout !== undefined &&
+        (typeof opts.idleTimeout !== 'number' || opts.idleTimeout < 0)) {
       throw new TypeError('options.idleTimeout must be a non-negative integer');
     }
-    if (options.maxQueue !== undefined &&
-        options.maxQueue !== 'auto' &&
-          (typeof options.maxQueue !== 'number' || options.maxQueue < 0)) {
+    if (opts.maxQueue !== undefined &&
+        opts.maxQueue !== 'auto' &&
+          (typeof opts.maxQueue !== 'number' || opts.maxQueue < 0)) {
       throw new TypeError('options.maxQueue must be a non-negative integer');
     }
-    if (options.concurrentTasksPerWorker !== undefined &&
-        (typeof options.concurrentTasksPerWorker !== 'number' ||
-         options.concurrentTasksPerWorker < 1)) {
+    if (opts.concurrentTasksPerWorker !== undefined &&
+        (typeof opts.concurrentTasksPerWorker !== 'number' ||
+         opts.concurrentTasksPerWorker < 1)) {
       throw new TypeError(
         'options.concurrentTasksPerWorker must be a positive integer');
     }
-    if (options.useAtomics !== undefined &&
-        typeof options.useAtomics !== 'boolean') {
+    if (opts.useAtomics !== undefined &&
+        typeof opts.useAtomics !== 'boolean') {
       throw new TypeError('options.useAtomics must be a boolean value');
     }
-    if (options.resourceLimits !== undefined &&
-        (typeof options.resourceLimits !== 'object' ||
-         options.resourceLimits === null)) {
+    if (opts.resourceLimits !== undefined &&
+        (typeof opts.resourceLimits !== 'object' ||
+         opts.resourceLimits === null)) {
       throw new TypeError('options.resourceLimits must be an object');
     }
-    if (options.taskQueue !== undefined && !isTaskQueue(options.taskQueue)) {
+    if (opts.taskQueue !== undefined && !isTaskQueue(opts.taskQueue)) {
       throw new TypeError('options.taskQueue must be a TaskQueue object');
     }
-    if (options.niceIncrement !== undefined &&
-        (typeof options.niceIncrement !== 'number' || (options.niceIncrement < 0 && process.platform !== 'win32'))) {
+    if (opts.niceIncrement !== undefined &&
+        (typeof opts.niceIncrement !== 'number' || (opts.niceIncrement < 0 && process.platform !== 'win32'))) {
       throw new TypeError('options.niceIncrement must be a non-negative integer on Unix systems');
     }
-    if (options.trackUnmanagedFds !== undefined &&
-        typeof options.trackUnmanagedFds !== 'boolean') {
+    if (opts.trackUnmanagedFds !== undefined &&
+        typeof opts.trackUnmanagedFds !== 'boolean') {
       throw new TypeError('options.trackUnmanagedFds must be a boolean value');
     }
-    if (options.closeTimeout !== undefined && (typeof options.closeTimeout !== 'number' || options.closeTimeout < 0)) {
+    if (opts.closeTimeout !== undefined && (typeof opts.closeTimeout !== 'number' || opts.closeTimeout < 0)) {
       throw new TypeError('options.closeTimeout must be a non-negative integer');
     }
 
-    this.#pool = new ThreadPool(this, options);
+    this.#pool = new ThreadPool(this, opts);
   }
 
   /** @deprecated Use run(task, options) instead **/
