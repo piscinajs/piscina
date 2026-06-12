@@ -202,14 +202,14 @@ The reason `sync-sleep-pooled` and `async-sleep-pooled` yield identical results
 is because, in both cases, the main thread is doing identical work -- that is,
 receiving a request that is dispatched to a worker, waiting about 100 milliseconds,
 the returning the response. The main thread here does not care whether the workers
-are sleeping synchronously or asychronously.
+are sleeping synchronously or asynchronously.
 
 ## Tuning pool performance
 
 It is possible to tune the performance of the Piscina worker pool using a variety
 of options:
 
-* `minThreads` - The minimum number of threads always runnin
+* `minThreads` - The minimum number of threads always running
 * `maxThreads` - The maximum number of threads allowed
 * `idleTimeout` - The number of millisecondsa thread is permitted to remain idle
 * `maxQueue` -- The maximum number of pending work items
