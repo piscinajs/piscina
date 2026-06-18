@@ -991,12 +991,6 @@ Piscina development was initially sponsored by [NearForm Research][].
 
 Looking to support the development of Piscina? Consider sponsoring us on [Open Collective](https://opencollective.com/piscinajs). We appreciate all levels of support!
 
-### Bronze Sponsors
-
-<a href="https://testmu.ai/?utm_source=piscinajs&utm_medium=sponsor" target="_blank">
-<img src="https://assets.testmu.ai/resources/images/logos/black-logo.png" style="vertical-align: middle;" width="250" height="115" />
-</a>
-
 ## Resources
 
 [`Atomics`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Atomics
