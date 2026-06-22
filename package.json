@@ -47,7 +47,7 @@
   "license": "MIT",
   "devDependencies": {
     "@types/jest": "^30.0.0",
-    "@types/node": "^25.9.1",
+    "@types/node": "^26.0.0",
     "abort-controller": "^3.0.0",
     "bench-node": "^0.15.0",
     "concat-stream": "^2.0.0",
