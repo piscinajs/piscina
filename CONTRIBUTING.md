@@ -25,7 +25,7 @@ Declaring formal releases remains the prerogative of the project maintainer.
 ## Previous Versions
 Every version of Piscina has its own branch. All Piscina related changes should be based on the corresponding branch.
 
-Piscina's adhere to one active release line and a maintanance release line within a single year, rotating on a yearly basis.
+Piscina's adhere to one active release line and a maintenance release line within a single year, rotating on a yearly basis.
 
 Version	| Branch | Status
 ------- | ------ | ------

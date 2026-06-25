@@ -724,70 +724,71 @@ export default class Piscina<Exports extends Record<string, (payload: any) => an
   #histogram: PiscinaHistogram | null = null;
 
   constructor (options : Options = {}) {
-    super({ ...options, name: 'Piscina' });
+    const opts = { ...options, '__proto__': null };
+    super({ ...opts, name: 'Piscina' });
 
-    if (typeof options.filename !== 'string' && options.filename != null) {
+    if (typeof opts.filename !== 'string' && opts.filename != null) {
       throw Errors.ValidationError('options.filename must be a string or null');
     }
-    if (typeof options.name !== 'string' && options.name != null) {
+    if (typeof opts.name !== 'string' && opts.name != null) {
       throw Errors.ValidationError('options.name must be a string or null');
     }
-    if (options.minThreads != null &&
-        (typeof options.minThreads !== 'number' || options.minThreads < 0)) {
+    if (opts.minThreads != null &&
+        (typeof opts.minThreads !== 'number' || opts.minThreads < 0)) {
       throw Errors.ValidationError('options.minThreads must be a non-negative integer');
     }
-    if (options.maxThreads != null &&
-        (typeof options.maxThreads !== 'number' || options.maxThreads < 1)) {
+    if (opts.maxThreads != null &&
+        (typeof opts.maxThreads !== 'number' || opts.maxThreads < 1)) {
       throw Errors.ValidationError('options.maxThreads must be a positive integer');
     }
-    if (options.minThreads != null && options.maxThreads != null &&
-        options.minThreads > options.maxThreads) {
+    if (opts.minThreads != null && opts.maxThreads != null &&
+        opts.minThreads > opts.maxThreads) {
       throw Errors.ValidationError('options.minThreads and options.maxThreads must not conflict');
     }
-    if (options.idleTimeout != null &&
-        (typeof options.idleTimeout !== 'number' || options.idleTimeout < 0)) {
+    if (opts.idleTimeout != null &&
+        (typeof opts.idleTimeout !== 'number' || opts.idleTimeout < 0)) {
       throw Errors.ValidationError('options.idleTimeout must be a non-negative integer');
     }
-    if (options.maxQueue != null &&
-        options.maxQueue !== 'auto' &&
-          (typeof options.maxQueue !== 'number' || options.maxQueue < 0)) {
+    if (opts.maxQueue != null &&
+        opts.maxQueue !== 'auto' &&
+          (typeof opts.maxQueue !== 'number' || opts.maxQueue < 0)) {
       throw Errors.ValidationError('options.maxQueue must be a non-negative integer');
     }
-    if (options.concurrentTasksPerWorker != null &&
-        (typeof options.concurrentTasksPerWorker !== 'number' ||
-         options.concurrentTasksPerWorker < 1)) {
+    if (opts.concurrentTasksPerWorker != null &&
+        (typeof opts.concurrentTasksPerWorker !== 'number' ||
+         opts.concurrentTasksPerWorker < 1)) {
       throw Errors.ValidationError(
         'options.concurrentTasksPerWorker must be a positive integer');
     }
-    if (options.atomics != null && (typeof options.atomics !== 'string' ||
-        !['sync', 'async', 'disabled'].includes(options.atomics))) {
+    if (opts.atomics != null && (typeof opts.atomics !== 'string' ||
+        !['sync', 'async', 'disabled'].includes(opts.atomics))) {
       throw Errors.ValidationError('options.atomics should be a value of sync, sync or disabled.');
     }
     if (options.resourceLimits != null && typeof options.resourceLimits !== 'object') {
       throw Errors.ValidationError('options.resourceLimits must be an object');
     }
-    if (options.taskQueue != null && !isTaskQueue(options.taskQueue)) {
+    if (opts.taskQueue != null && !isTaskQueue(opts.taskQueue)) {
       throw Errors.ValidationError('options.taskQueue must be a TaskQueue object');
     }
-    if (options.niceIncrement != null &&
-        (typeof options.niceIncrement !== 'number' || (options.niceIncrement < 0 && process.platform !== 'win32'))) {
+    if (opts.niceIncrement != null &&
+        (typeof opts.niceIncrement !== 'number' || (opts.niceIncrement < 0 && process.platform !== 'win32'))) {
       throw Errors.ValidationError('options.niceIncrement must be a non-negative integer on Unix systems');
     }
-    if (options.trackUnmanagedFds != null &&
-        typeof options.trackUnmanagedFds !== 'boolean') {
+    if (opts.trackUnmanagedFds != null &&
+        typeof opts.trackUnmanagedFds !== 'boolean') {
       throw Errors.ValidationError('options.trackUnmanagedFds must be a boolean value');
     }
-    if (options.closeTimeout != null && (typeof options.closeTimeout !== 'number' || options.closeTimeout < 0)) {
+    if (opts.closeTimeout != null && (typeof opts.closeTimeout !== 'number' || opts.closeTimeout < 0)) {
       throw Errors.ValidationError('options.closeTimeout must be a non-negative integer');
     }
-    if (options.loadBalancer != null && (typeof options.loadBalancer !== 'function' || options.loadBalancer.length < 1)) {
+    if (opts.loadBalancer != null && (typeof opts.loadBalancer !== 'function' || opts.loadBalancer.length < 1)) {
       throw Errors.ValidationError('options.loadBalancer must be a function with at least two args');
     }
-    if (options.workerHistogram != null && (typeof options.workerHistogram !== 'boolean')) {
+    if (opts.workerHistogram != null && (typeof opts.workerHistogram !== 'boolean')) {
       throw Errors.ValidationError('options.workerHistogram must be a boolean');
     }
 
-    this.#pool = new ThreadPool(this, options);
+    this.#pool = new ThreadPool(this, opts);
   }
 
   run <Func extends keyof Exports = 'default'>(task : Parameters<Exports[Func]>[0], options : RunOptions<Func> = kDefaultRunOptions as RunOptions<Func>): Promise<ReturnType<Exports[Func]>> {
@@ -795,12 +796,14 @@ export default class Piscina<Exports extends Record<string, (payload: any) => an
       return Promise.reject(
         Errors.ValidationError('options must be an object'));
     }
+
     const {
       transferList,
-      filename,
-      name,
       signal
     } = options;
+    const filename = Object.prototype.hasOwnProperty.call(options, 'filename') ? options.filename : null;
+    const name = Object.prototype.hasOwnProperty.call(options, 'name') ? options.name : null;
+
     if (transferList !== undefined && !Array.isArray(transferList)) {
       return Promise.reject(
         Errors.ValidationError('transferList argument must be an Array'));
@@ -934,7 +937,7 @@ export default class Piscina<Exports extends Record<string, (payload: any) => an
     const capacity = this.duration * this.#pool.options.maxThreads;
     const totalMeanRuntime = (this.#pool.histogram.runTimeSummary.mean / 1000) * count;
 
-    // We calculate the appoximate pool utilization by multiplying
+    // We calculate the approximate pool utilization by multiplying
     // the mean run time of all tasks by the number of runtime
     // samples taken and dividing that by the capacity. The
     // theory here is that capacity represents the absolute upper

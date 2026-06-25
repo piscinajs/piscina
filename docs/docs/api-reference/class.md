@@ -54,10 +54,10 @@ This class extends [`EventEmitter`](https://nodejs.org/api/events.html) from Nod
   - `atomics`: (`sync` | `async` | `disabled`) Use the [`Atomics`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Atomics) API for faster communication
     between threads. This is on by default. You can disable `Atomics` globally by
     setting the environment variable `PISCINA_DISABLE_ATOMICS` to `1` .
-    If `atomics` is `sync`, it will cause to pause threads (stoping all execution)
+    If `atomics` is `sync`, it will cause to pause threads (stopping all execution)
     between tasks. Ideally, threads should wait for all operations to finish before
     returning control to the main thread (avoid having open handles within a thread). If still want to have the possibility
-    of having open handles or handle asynchrnous tasks, you can set the environment variable `PISCINA_ENABLE_ASYNC_ATOMICS` to `1` or setting `options.atomics` to `async`.
+    of having open handles or handle asynchronous tasks, you can set the environment variable `PISCINA_ENABLE_ASYNC_ATOMICS` to `1` or setting `options.atomics` to `async`.
 
     :::info
     **Note**: The `async` mode comes with performance penalties and can lead to undesired behaviour if open handles are not tracked correctly.
@@ -113,7 +113,7 @@ This class extends [`EventEmitter`](https://nodejs.org/api/events.html) from Nod
 
 :::info
   **Note on Explicit Resource Management**: Piscina does has support for `Symbol.dispose` and `Symbol.asyncDispose` for explicit resource management for its usage with the `using` keyword.
-  This is only avaiable on Node.js 24 and higher.
+  This is only available on Node.js 24 and higher.
 
   For more information, see the [Explicit Resource Management](https://github.com/tc39/proposal-explicit-resource-management).
 :::

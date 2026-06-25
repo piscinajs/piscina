@@ -3,7 +3,7 @@ import { availableParallelism } from 'node:os';
 
 import { kMovable, kTransferable, kValue } from './symbols';
 
-// States wether the worker is ready to receive tasks
+// States whether the worker is ready to receive tasks
 export const READY = '_WORKER_READY';
 
 /**
