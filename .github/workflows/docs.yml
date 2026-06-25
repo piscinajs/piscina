@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*'
 
+permissions: 
+  contents: read
+
 jobs:
   build:
     if: github.event_name == 'workflow_dispatch' || contains(github.ref, 'v5')
