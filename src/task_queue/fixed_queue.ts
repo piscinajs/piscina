@@ -77,6 +77,11 @@ class FixedCircularBuffer {
     this.top = (this.top + 1) & kMask;
   }
 
+  unshift (data:Task) {
+    this.bottom = (this.bottom - 1) & kMask;
+    this.list[this.bottom] = data;
+  }
+
   shift () {
     const nextItem = this.list[this.bottom];
     if (nextItem === undefined) { return null; }
@@ -126,6 +131,16 @@ export class FixedQueue implements TaskQueue {
       this.head = this.head.next = new FixedCircularBuffer();
     }
     this.head.push(data);
+    this.#size++;
+  }
+
+  unshift (data:Task) {
+    if (this.tail.isFull()) {
+      const newTail = new FixedCircularBuffer();
+      newTail.next = this.tail;
+      this.tail = newTail;
+    }
+    this.tail.unshift(data);
     this.#size++;
   }
 

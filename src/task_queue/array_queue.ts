@@ -17,6 +17,10 @@ export class ArrayTaskQueue implements TaskQueue {
     this.tasks.push(task);
   }
 
+  unshift (task: Task): void {
+    this.tasks.unshift(task);
+  }
+
   remove (task: Task): void {
     const index = this.tasks.indexOf(task);
     assert.notStrictEqual(index, -1);

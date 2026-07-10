@@ -70,6 +70,7 @@ interface Options {
   trackUnmanagedFds? : boolean,
   closeTimeout?: number,
   recordTiming?: boolean,
+  stricterFIFO?: boolean,
   loadBalancer?: PiscinaLoadBalancer,
   workerHistogram?: boolean,
 }
@@ -87,6 +88,7 @@ interface FilledOptions extends Options {
   niceIncrement : number,
   closeTimeout : number,
   recordTiming : boolean,
+  stricterFIFO : boolean,
   workerHistogram: boolean,
 }
 
@@ -122,6 +124,7 @@ const kDefaultOptions : FilledOptions = {
   trackUnmanagedFds: true,
   closeTimeout: 30000,
   recordTiming: true,
+  stricterFIFO: false,
   workerHistogram: false
 };
 
@@ -407,8 +410,12 @@ class ThreadPool {
       if (distributed) {
         // If task was distributed, we should continue to distribute more tasks
         continue;
-      } 
-      
+      }
+
+      if (this.options.stricterFIFO) {
+        this._returnUndistributedTask(taskInfo);
+      }
+
       if (this.workers.size < this.options.maxThreads) {
         // We spawn if possible
         // TODO: scheduler will intercept this.
@@ -458,13 +465,30 @@ class ThreadPool {
       return true;
     }
 
-    if (task.abortSignal != null) {
-      this.skipQueue.push(task);
-    } else {
-      this.taskQueue.push(task);
+    if (!this.options.stricterFIFO) {
+      this._returnUndistributedTask(task, /* toTail */ true);
     }
 
     return false;
+  }
+
+  _returnUndistributedTask (task: TaskInfo, toTail = false) : void {
+    if (task.abortSignal != null) {
+      if (toTail || !this.options.stricterFIFO) {
+        this.skipQueue.push(task);
+      } else {
+        this.skipQueue.unshift(task);
+      }
+      return;
+    }
+
+    if (toTail || !this.options.stricterFIFO) {
+      this.taskQueue.push(task);
+    } else if (this.taskQueue.unshift != null) {
+      this.taskQueue.unshift(task);
+    } else {
+      this.taskQueue.push(task);
+    }
   }
 
   runTask (
@@ -571,6 +595,10 @@ class ThreadPool {
     const distributed = this._distributeTask(taskInfo, workers);
 
     if (!distributed) {
+      if (this.options.stricterFIFO) {
+        this._returnUndistributedTask(taskInfo, /* toTail */ true);
+      }
+
       // We spawn if possible
       // TODO: scheduler will intercept this.
       if (this.workers.size < this.options.maxThreads) {
@@ -786,6 +814,9 @@ export default class Piscina<Exports extends Record<string, (payload: any) => an
     }
     if (opts.workerHistogram != null && (typeof opts.workerHistogram !== 'boolean')) {
       throw Errors.ValidationError('options.workerHistogram must be a boolean');
+    }
+    if (opts.stricterFIFO !== undefined && (typeof opts.stricterFIFO !== 'boolean')) {
+      throw new TypeError('options.stricterFIFO must be a boolean');
     }
 
     this.#pool = new ThreadPool(this, opts);
