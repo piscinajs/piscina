@@ -412,10 +412,6 @@ class ThreadPool {
         continue;
       }
 
-      if (this.options.stricterFIFO) {
-        this._returnUndistributedTask(taskInfo);
-      }
-
       if (this.workers.size < this.options.maxThreads) {
         // We spawn if possible
         // TODO: scheduler will intercept this.
@@ -465,16 +461,13 @@ class ThreadPool {
       return true;
     }
 
-    if (!this.options.stricterFIFO) {
-      this._returnUndistributedTask(task, /* toTail */ true);
-    }
-
+    this._returnUndistributedTask(task, !this.options.stricterFIFO);
     return false;
   }
 
   _returnUndistributedTask (task: TaskInfo, toTail = false) : void {
     if (task.abortSignal != null) {
-      if (toTail || !this.options.stricterFIFO) {
+      if (toTail) {
         this.skipQueue.push(task);
       } else {
         this.skipQueue.unshift(task);
@@ -482,7 +475,7 @@ class ThreadPool {
       return;
     }
 
-    if (toTail || !this.options.stricterFIFO) {
+    if (toTail) {
       this.taskQueue.push(task);
     } else if (this.taskQueue.unshift != null) {
       this.taskQueue.unshift(task);
@@ -595,10 +588,6 @@ class ThreadPool {
     const distributed = this._distributeTask(taskInfo, workers);
 
     if (!distributed) {
-      if (this.options.stricterFIFO) {
-        this._returnUndistributedTask(taskInfo, /* toTail */ true);
-      }
-
       // We spawn if possible
       // TODO: scheduler will intercept this.
       if (this.workers.size < this.options.maxThreads) {
