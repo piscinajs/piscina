@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "alwaysStrict": true,
     "types": ["node"],
     "target": "es2024",
     "module": "commonjs",

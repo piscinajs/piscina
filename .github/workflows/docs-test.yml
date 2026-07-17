@@ -4,6 +4,9 @@ on:
     paths:
       - docs/**
 
+permissions: 
+  contents: read
+
 jobs:
   build:
     permissions:

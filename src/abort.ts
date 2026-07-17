@@ -1,43 +1,15 @@
-import type { EventEmitter } from 'node:events';
+const noop = () => {};
 
-interface AbortSignalEventTargetAddOptions {
-  once: boolean;
-}
+export function onabort(
+  abortSignal: AbortSignal,
+  listener: () => void,
+): () => void {
 
-export interface AbortSignalEventTarget {
-  addEventListener: (
-    name: 'abort',
-    listener: () => void,
-    options?: AbortSignalEventTargetAddOptions
-  ) => void;
-  removeEventListener: (name: 'abort', listener: () => void) => void;
-  aborted?: boolean;
-  reason?: unknown;
-}
-
-export interface AbortSignalEventEmitter {
-  off: (name: 'abort', listener: () => void) => void;
-  once: (name: 'abort', listener: () => void) => void;
-}
-
-export type AbortSignalAny = AbortSignalEventTarget | AbortSignalEventEmitter;
-
-export class AbortError extends Error {
-  constructor (reason?: AbortSignalEventTarget['reason']) {
-    super('The task has been aborted', { cause: reason });
+  if (abortSignal.aborted) {
+    listener();
+    return noop;
   }
 
-  get name () {
-    return 'AbortError';
-  }
-}
-
-export function onabort (abortSignal: AbortSignalAny, listener: () => void): () => void {
-  if ('addEventListener' in abortSignal) {
-    abortSignal.addEventListener('abort', listener, { once: true });
-    return () => abortSignal.removeEventListener('abort', listener);
-  } else {
-    abortSignal.once('abort', listener);
-    return () => (abortSignal as EventEmitter).removeListener('abort', listener);
-  }
+  abortSignal.addEventListener("abort", listener, { once: true });
+  return () => abortSignal.removeEventListener("abort", listener);
 }

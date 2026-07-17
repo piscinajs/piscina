@@ -1,3 +1,3 @@
-module.exports.default = async function generate() {
+module.exports = async function generate() {
   return 42;
 }
