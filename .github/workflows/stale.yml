@@ -3,6 +3,9 @@ on:
   schedule:
     - cron: '0 10 * * 0'
 
+permissions: 
+  contents: read
+
 jobs:
   stale:
     permissions:

@@ -38,7 +38,7 @@ test('abort any task enqueued during closing up', async () => {
     assert.doesNotReject(pool.close(), 'close is resolved when running tasks are completed');
     assert.doesNotReject(pool.run({ time: 1000 }).then(null, err => {
       assert.strictEqual(err.message, 'The task has been aborted');
-      assert.strictEqual(err.cause, 'queue is being terminated');
+      assert.strictEqual(err.cause, 'pool is closing');
     }));
   });
 
@@ -78,7 +78,12 @@ test('timed out close operation destroys the pool', async () => {
 
   await Promise.all([
     assert.doesNotReject(once(pool, 'error'), 'error handler is called on timeout'),
-    assert.rejects(task1, /Terminating worker thread/, 'task is aborted due to timeout'),
-    assert.rejects(task2, /Terminating worker thread/, 'task is aborted due to timeout')
+    assert.doesNotReject(task1.catch(err => {
+      assert.strictEqual(err.code, 'PISCINA_ERR_THREAD_TERMINATION');
+    })),
+    assert.doesNotReject(task2.catch(err => {
+      assert.strictEqual(err.code, 'PISCINA_ERR_ABORT');
+      assert.strictEqual(err.cause, 'pool is being destroyed');
+    })),
   ]);
 });

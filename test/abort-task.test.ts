@@ -6,61 +6,6 @@ import { resolve } from 'path';
 
 const TIMEOUT_MAX = 2 ** 31 - 1;
 
-test('tasks can be aborted through AbortController while running', () => {
-  const pool = new Piscina({
-    filename: resolve(__dirname, 'fixtures/notify-then-sleep.ts')
-  });
-
-  const buf = new Int32Array(new SharedArrayBuffer(4));
-  const abortController = new AbortController();
-  assert.rejects(pool.run(buf, { signal: abortController.signal }),
-    /The task has been aborted/);
-
-  Atomics.wait(buf, 0, 0);
-  assert.strictEqual(Atomics.load(buf, 0), 1);
-
-  abortController.abort();
-});
-
-test('tasks can be aborted through EventEmitter while running', () => {
-  const pool = new Piscina({
-    filename: resolve(__dirname, 'fixtures/notify-then-sleep.ts')
-  });
-
-  const buf = new Int32Array(new SharedArrayBuffer(4));
-  const ee = new EventEmitter();
-  assert.rejects(pool.run(buf, { signal: ee }), /The task has been aborted/);
-
-  Atomics.wait(buf, 0, 0);
-  assert.strictEqual(Atomics.load(buf, 0), 1);
-
-  ee.emit('abort');
-});
-
-test('tasks can be aborted through EventEmitter before running', async () => {
-  const pool = new Piscina({
-    filename: resolve(__dirname, 'fixtures/wait-for-notify.js'),
-    maxThreads: 1
-  });
-
-  const bufs = [
-    new Int32Array(new SharedArrayBuffer(4)),
-    new Int32Array(new SharedArrayBuffer(4))
-  ];
-  const ee = new EventEmitter();
-  const task1 = pool.run(bufs[0]);
-  const abortable = pool.run(bufs[1], { signal: ee });
-  assert.strictEqual(pool.queueSize, 1); // Means it's running and abortable enqueued
-  assert.rejects(abortable, /The task has been aborted/);
-
-  ee.emit('abort');
-
-  // Wake up the thread handling the first task.
-  Atomics.store(bufs[0], 0, 1);
-  Atomics.notify(bufs[0], 0, 1);
-  await task1;
-});
-
 test('abortable tasks will not share workers (abortable posted second)', async () => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/wait-for-notify.ts'),
@@ -73,11 +18,11 @@ test('abortable tasks will not share workers (abortable posted second)', async (
     new Int32Array(new SharedArrayBuffer(4))
   ];
   const task1 = pool.run(bufs[0]);
-  const ee = new EventEmitter();
-  assert.rejects(pool.run(bufs[1], { signal: ee }), /The task has been aborted/);
+  const ee = new AbortController();
+  assert.rejects(pool.run(bufs[1], { signal: ee.signal }), /The task has been aborted/);
   assert.strictEqual(pool.queueSize, 1);
 
-  ee.emit('abort');
+  ee.abort();
 
   // Wake up the thread handling the first task.
   Atomics.store(bufs[0], 0, 1);
@@ -93,12 +38,12 @@ test('abortable tasks will not share workers (abortable posted first)', async ()
     concurrentTasksPerWorker: 2
   });
 
-  const ee = new EventEmitter();
-  assert.rejects(pool.run('while(true);', { signal: ee }), /The task has been aborted/);
+  const ee = new AbortController();
+  assert.rejects(pool.run('while(true);', { signal: ee.signal }), /The task has been aborted/);
   const task2 = pool.run('42');
   assert.strictEqual(pool.queueSize, 1);
 
-  ee.emit('abort');
+  ee.abort();
 
   // Wake up the thread handling the second task.
   assert.strictEqual(await task2, 42);
@@ -120,7 +65,7 @@ test('abortable tasks will not share workers (on worker available)', async () =>
   const ret = await Promise.all([
     pool.run({ time: 100, a: 1 }),
     pool.run({ time: 300, a: 2 }),
-    pool.run({ time: 100, a: 3 }, { signal: new EventEmitter() })
+    pool.run({ time: 100, a: 3 }, { signal: new AbortController().signal })
   ]);
 
   assert.strictEqual(ret[0], 0);
@@ -128,7 +73,7 @@ test('abortable tasks will not share workers (on worker available)', async () =>
   assert.strictEqual(ret[2], 2);
 });
 
-test('abortable tasks will not share workers (destroy workers)', () => {
+test('abortable tasks will not share workers (destroy workers)', async () => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/sleep.js'),
     maxThreads: 1,
@@ -145,9 +90,12 @@ test('abortable tasks will not share workers (destroy workers)', () => {
     pool.destroy();
   });
 
-  assert.rejects(pool.run({ time: TIMEOUT_MAX, a: 2 }), /Terminating worker thread/);
-  assert.rejects(pool.run({ time: TIMEOUT_MAX, a: 3 }, { signal: new EventEmitter() }),
-    /Terminating worker thread/);
+  await assert.rejects(pool.run({ time: TIMEOUT_MAX, a: 2 }), /Terminating worker thread/);
+  await pool.run({ time: TIMEOUT_MAX, a: 3 }, { signal: new AbortController().signal }).catch(err => {
+    assert.strictEqual(err.message, 'The task has been aborted');
+    assert.strictEqual(err.code, 'PISCINA_ERR_ABORT');
+    assert.strictEqual(err.cause, 'pool is closing');
+  })
 });
 
 test('aborted AbortSignal rejects task immediately', () => {
@@ -173,13 +121,13 @@ test('task with AbortSignal cleans up properly', async () => {
     filename: resolve(__dirname, 'fixtures/eval.js')
   });
 
-  const ee = new EventEmitter();
+  const ee = new AbortController();
 
-  await pool.run('1+1', { signal: ee });
+  await pool.run('1+1', { signal: ee.signal });
 
   const { getEventListeners } = EventEmitter as any;
   if (typeof getEventListeners === 'function') {
-    assert.strictEqual(getEventListeners(ee, 'abort').length, 0);
+    assert.strictEqual(getEventListeners(ee.signal, 'abort').length, 0);
   }
 
   const controller = new AbortController();

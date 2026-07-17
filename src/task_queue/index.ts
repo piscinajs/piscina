@@ -4,7 +4,7 @@ import { AsyncResource } from 'node:async_hooks';
 import type { WorkerInfo } from '../worker_pool';
 import type { Task, TaskQueue, PiscinaTask } from './common';
 
-import { onabort, type AbortSignalAny } from '../abort';
+import { onabort } from '../abort';
 import { isMovable } from '../common';
 import { kTransferable, kValue, kQueueOptions } from '../symbols';
 
@@ -21,7 +21,7 @@ type TaskInfoParameters = {
   transferList : TransferList;
   filename : string;
   name : string;
-  abortSignal : AbortSignalAny | null;
+  abortSignal : AbortSignal | null;
   triggerAsyncId : number;
 }
 
@@ -63,7 +63,7 @@ export class TaskInfo extends AsyncResource implements Task {
     filename : string;
     name : string;
     taskId : string;
-    abortSignal : AbortSignalAny | null;
+    abortSignal : AbortSignal | null;
     workerInfo : WorkerInfo | null = null;
     created : number;
     started : number;
@@ -114,7 +114,7 @@ export class TaskInfo extends AsyncResource implements Task {
       };
     }
 
-    setAbortListener(signal: AbortSignalAny) : void {
+    setAbortListener(signal: AbortSignal) : void {
       this._abortCleaner = onabort(signal, this._abortListener);
     }
 
