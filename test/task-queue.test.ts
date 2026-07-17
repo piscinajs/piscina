@@ -49,31 +49,45 @@ test('will put items into a task queue until they can run', async () => {
   await Promise.all(results);
 });
 
-test('will reject items over task queue limit', async () => {
+test('will reject items over task queue limit', async (t) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js'),
     minThreads: 0,
     maxThreads: 1,
     maxQueue: 2
   });
+  const promises = [];
 
   assert.strictEqual(pool.threads.length, 0);
   assert.strictEqual(pool.queueSize, 0);
 
-  assert.rejects(pool.run('while (true) {}'), /Terminating worker thread/);
+  promises.push(pool.run('while (true) {}').catch(err => {
+    assert.strictEqual(err.code, 'PISCINA_ERR_ABORT');
+    assert.strictEqual(err.cause, 'pool is being destroyed');
+  }));
   assert.strictEqual(pool.threads.length, 1);
   assert.strictEqual(pool.queueSize, 0);
 
-  assert.rejects(pool.run('while (true) {}'), /Terminating worker thread/);
+  promises.push(pool.run('while (true) {}').catch(err => {
+    assert.strictEqual(err.code, 'PISCINA_ERR_ABORT');
+    assert.strictEqual(err.cause, 'pool is being destroyed');
+  }));
   assert.strictEqual(pool.threads.length, 1);
   assert.strictEqual(pool.queueSize, 1);
 
-  assert.rejects(pool.run('while (true) {}'), /Terminating worker thread/);
+  promises.push(pool.run('while (true) {}').catch(err => {
+    assert.strictEqual(err.code, 'PISCINA_ERR_ABORT');
+    assert.strictEqual(err.cause, 'pool is being destroyed');
+  }));
   assert.strictEqual(pool.threads.length, 1);
   assert.strictEqual(pool.queueSize, 2);
 
-  assert.rejects(pool.run('while (true) {}'), /Task queue is at limit/);
+  promises.push(pool.run('while (true) {}').catch(err => {
+    assert.strictEqual(err.code, 'PISCINA_ERR_TASK_QUEUE_LIMIT');
+  }));
+
   await pool.destroy();
+  await Promise.all(promises);
 });
 
 test('will reject items when task queue is unavailable', async () => {
@@ -83,16 +97,21 @@ test('will reject items when task queue is unavailable', async () => {
     maxThreads: 1,
     maxQueue: 0
   });
+  const promises = [];
 
   assert.strictEqual(pool.threads.length, 0);
   assert.strictEqual(pool.queueSize, 0);
 
-  assert.rejects(pool.run('while (true) {}'), /Terminating worker thread/);
+  promises.push(pool.run('while (true) {}').catch(err => {
+    assert.strictEqual(err.code, 'PISCINA_ERR_ABORT');
+    assert.strictEqual(err.cause, 'pool is being destroyed');
+  }));
   assert.strictEqual(pool.threads.length, 1);
   assert.strictEqual(pool.queueSize, 0);
 
-  assert.rejects(pool.run('while (true) {}'), /No task queue available and all Workers are busy/);
+  promises.push(assert.rejects(pool.run('while (true) {}'), /No task queue available and all Workers are busy/));
   await pool.destroy();
+  await Promise.all(promises);
 });
 
 test('will reject items when task queue is unavailable (fixed thread count)', async () => {

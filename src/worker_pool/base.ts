@@ -1,4 +1,4 @@
-import * as assert from 'node:assert';
+import assert from 'node:assert';
 
 export abstract class AsynchronouslyCreatedResource {
     onreadyListeners : (() => void)[] | null = [];

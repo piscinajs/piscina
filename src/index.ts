@@ -37,11 +37,6 @@ import {
   LeastBusyBalancer
 } from './worker_pool';
 import {
-  AbortSignalAny,
-  AbortSignalEventTarget,
-  AbortError,
-} from './abort';
-import {
   PiscinaHistogram,
   PiscinaHistogramHandler,
 } from './histogram';
@@ -98,14 +93,14 @@ interface FilledOptions extends Options {
 interface RunOptions<Func = string> {
   transferList? : TransferList,
   filename? : string | null,
-  signal? : AbortSignalAny | null,
+  signal? : AbortSignal | null,
   name? : Func | null
 }
 
 interface FilledRunOptions<Func extends string = string> extends RunOptions<Func> {
   transferList : TransferList | never,
   filename : string | null,
-  signal : AbortSignalAny | null,
+  signal : AbortSignal | null,
   name : Func | null
 }
 
@@ -174,7 +169,7 @@ class ThreadPool {
   _needsDrain : boolean;
   start : number = performance.now();
   inProcessPendingMessages : boolean = false;
-  startingUp : boolean = false;
+  _startingUp : boolean = false;
   closingUp : boolean = false;
   workerFailsDuringBootstrap : boolean = false;
   destroying : boolean = false;
@@ -214,10 +209,10 @@ class ThreadPool {
     this.workers.onTaskDone(this._onWorkerTaskDone.bind(this));
     this.maxCapacity = this.options.maxThreads * this.options.concurrentTasksPerWorker;
 
-    this.startingUp = true;
-    this._ensureMinimumWorkers();
-    this.startingUp = false;
+    this._startingUp = true;
     this._needsDrain = false;
+    this._ensureMinimumWorkers();
+    this._startingUp = false;
   }
 
   _ensureMinimumWorkers () : void {
@@ -263,7 +258,7 @@ class ThreadPool {
     workerInfo.onWorkerExit(onWorkerExit.bind(this));
     workerInfo.onPortClose(() => { workerInfo.workerRef(); });
 
-    if (this.startingUp === true) {
+    if (this._startingUp === true) {
       // There is no point in waiting for the initial set of Workers to indicate
       // that they are ready, we just mark them as such from the start.
       workerInfo.markAsReady();
@@ -313,14 +308,13 @@ class ThreadPool {
     }
 
     function onWorkerMessage (this: ThreadPool, message: any) {
-      const isReadyMessage =
-        (message instanceof Object && READY in message) ||
-        (typeof message === 'object' && message !== null && READY in message);
-      if (isReadyMessage) {
+      // is ready message?
+      if (message != null && typeof message === 'object' && message[READY]) {
         onWorkerReady();
-      } else {
-        onEventMessage.call(this, message);
+        return
       }
+
+      onEventMessage.call(this, message);
     }
 
     function onWorkerError (this: ThreadPool, err: Error) {
@@ -413,15 +407,16 @@ class ThreadPool {
       if (distributed) {
         // If task was distributed, we should continue to distribute more tasks
         continue;
-      } else if (this.workers.size < this.options.maxThreads) {
+      } 
+      
+      if (this.workers.size < this.options.maxThreads) {
         // We spawn if possible
         // TODO: scheduler will intercept this.
         this._addNewWorker();
         continue;
-      } else {
-        // If balancer states that pool is busy, we should stop trying to distribute tasks
-        break;
       }
+
+      break;
     }
 
     //If Infinity was sent as a parameter, we skip setting the Timeout that clears the worker
@@ -447,8 +442,7 @@ class ThreadPool {
   }
 
   _distributeTask (task: TaskInfo, workers: PiscinaWorker[]): boolean {
-    // We need to verify if the task is aborted already or not
-    // otherwise we might be distributing aborted tasks to workers
+    // We need to verify if the task is aborted already
     if (task.aborted) return true;
 
     const candidate = this.balancer(task.interface, workers);
@@ -478,7 +472,8 @@ class ThreadPool {
     options : RunOptions<string>) : Promise<any> {
     let {
       filename,
-      name
+      name,
+      signal,
     } = options;
     const {
       transferList = []
@@ -486,21 +481,21 @@ class ThreadPool {
     filename = filename ?? this.options.filename;
     name = name ??  this.options.name;
 
+    // If the AbortSignal has an aborted property and it's truthy,
+    // reject immediately.
+    if (signal?.aborted === true) {
+      return Promise.reject(Errors.AbortError(signal.reason));
+    }
+
+    if (this.closingUp || this.destroying) {
+      return Promise.reject(Errors.AbortError('pool is closing'));
+    }
+
     if (typeof filename !== 'string') {
-      return Promise.reject(Errors.FilenameNotProvided());
+      return Promise.reject(Errors.ValidationError('filename must be provided to run() or in options object'));
     }
 
     filename = maybeFileURLToPath(filename);
-
-    let signal: AbortSignalAny | null;
-    if (this.closingUp || this.destroying) {
-      const closingUpAbortController = new AbortController();
-      closingUpAbortController.abort('queue is being terminated');
-
-      signal = closingUpAbortController.signal;
-    } else {
-      signal = options.signal ?? null;
-    }
 
     const { promise: ret, resolve, reject } = Promise.withResolvers();
     const taskInfo = new TaskInfo({
@@ -508,14 +503,16 @@ class ThreadPool {
       transferList,
       filename,
       name,
-      abortSignal: signal,
+      abortSignal: signal ?? null,
       triggerAsyncId: this.publicInterface.asyncResource.asyncId()
     },
     (err : Error | null, result : any) => {
         this.completed++;
-        if (taskInfo.started) {
+
+        if (taskInfo.started != null) {
           this.histogram?.recordRunTime(performance.now() - taskInfo.started);
         }
+
         if (err !== null) {
           reject(err);
         } else {
@@ -526,28 +523,22 @@ class ThreadPool {
     });
 
     if (signal != null) {
-      // If the AbortSignal has an aborted property and it's truthy,
-      // reject immediately.
-      if ((signal as AbortSignalEventTarget).aborted) {
-        reject!(new AbortError((signal as AbortSignalEventTarget).reason));
-        return ret;
-      }
-
       taskInfo.onAbort(() => {
         // Call reject() first to make sure we always reject with the AbortError
         // if the task is aborted, not with an Error from the possible
         // thread termination below.
-        reject(new AbortError((signal as AbortSignalEventTarget).reason));
+        reject(Errors.AbortError(signal.reason));
 
         if (taskInfo.workerInfo != null) {
           // Already running: We cancel the Worker this is running on.
           this._removeWorker(taskInfo.workerInfo);
           this._ensureMinimumWorkers();
-        } else {
-          // Not yet running: Remove it from the queue.
-          // Call should be idempotent
-          this.taskQueue.remove(taskInfo);
+          return;
         }
+
+        // Not yet running: Remove it from the queue.
+        // Call should be idempotent
+        this.taskQueue.remove(taskInfo);
       });
 
       taskInfo.setAbortListener(signal);
@@ -557,9 +548,9 @@ class ThreadPool {
       const totalCapacity = this.options.maxQueue + this.pendingCapacity();
       if (this.taskQueue.size >= totalCapacity) {
         if (this.options.maxQueue === 0) {
-          reject!(Errors.NoTaskQueueAvailable());
+          reject(Errors.NoTaskQueueAvailable());
         } else {
-          reject!(Errors.TaskQueueAtLimit());
+          reject(Errors.TaskQueueAtLimit());
         }
       } else {
         this.taskQueue.push(taskInfo);
@@ -587,8 +578,9 @@ class ThreadPool {
       }
 
       // We reject if no task queue set and no more pending capacity.
+      // TODO(@metcoder95): maybe auto expand the queue if no task queue set and we're at capacity?
       if (this.options.maxQueue <= 0 && this.pendingCapacity() === 0) {
-        reject!(Errors.NoTaskQueueAvailable());
+        reject(Errors.NoTaskQueueAvailable());
       }
     };
 
@@ -634,11 +626,12 @@ class ThreadPool {
     this.destroying = true;
     while (this.skipQueue.length > 0) {
       const taskInfo : TaskInfo = this.skipQueue.shift() as TaskInfo;
-      taskInfo.done(new Error('Terminating worker thread'));
+      taskInfo.done(Errors.AbortError('pool is being destroyed'));
     }
+
     while (this.taskQueue.size > 0) {
       const taskInfo : TaskInfo = this.taskQueue.shift() as TaskInfo;
-      taskInfo.done(new Error('Terminating worker thread'));
+      taskInfo.done(Errors.AbortError('pool is being destroyed'));
     }
 
     const exitEvents : Promise<any[]>[] = [];
@@ -657,20 +650,20 @@ class ThreadPool {
 
     if (options.force) {
       const skipQueueLength = this.skipQueue.length;
-      for (let i = 0; i < skipQueueLength; i++) {
+      for (let i = 0; i < skipQueueLength; ++i) {
         const taskInfo : TaskInfo = this.skipQueue.shift() as TaskInfo;
-        if (taskInfo.workerInfo === null) {
-          taskInfo.done(new AbortError('pool is closed'));
+        if (taskInfo.workerInfo == null) {
+          taskInfo.done(Errors.AbortError('pool is closing'));
         } else {
           this.skipQueue.push(taskInfo);
         }
       }
 
       const taskQueueLength = this.taskQueue.size;
-      for (let i = 0; i < taskQueueLength; i++) {
+      for (let i = 0; i < taskQueueLength; ++i) {
         const taskInfo : TaskInfo = this.taskQueue.shift() as TaskInfo;
         if (taskInfo.workerInfo === null) {
-          taskInfo.done(new AbortError('pool is closed'));
+          taskInfo.done(Errors.AbortError('pool is closing'));
         } else {
           this.taskQueue.push(taskInfo);
         }
@@ -735,66 +728,64 @@ export default class Piscina<Exports extends Record<string, (payload: any) => an
     super({ ...opts, name: 'Piscina' });
 
     if (typeof opts.filename !== 'string' && opts.filename != null) {
-      throw new TypeError('options.filename must be a string or null');
+      throw Errors.ValidationError('options.filename must be a string or null');
     }
     if (typeof opts.name !== 'string' && opts.name != null) {
-      throw new TypeError('options.name must be a string or null');
+      throw Errors.ValidationError('options.name must be a string or null');
     }
-    if (opts.minThreads !== undefined &&
+    if (opts.minThreads != null &&
         (typeof opts.minThreads !== 'number' || opts.minThreads < 0)) {
-      throw new TypeError('options.minThreads must be a non-negative integer');
+      throw Errors.ValidationError('options.minThreads must be a non-negative integer');
     }
-    if (opts.maxThreads !== undefined &&
+    if (opts.maxThreads != null &&
         (typeof opts.maxThreads !== 'number' || opts.maxThreads < 1)) {
-      throw new TypeError('options.maxThreads must be a positive integer');
+      throw Errors.ValidationError('options.maxThreads must be a positive integer');
     }
-    if (opts.minThreads !== undefined && opts.maxThreads !== undefined &&
+    if (opts.minThreads != null && opts.maxThreads != null &&
         opts.minThreads > opts.maxThreads) {
-      throw new RangeError('options.minThreads and options.maxThreads must not conflict');
+      throw Errors.ValidationError('options.minThreads and options.maxThreads must not conflict');
     }
-    if (opts.idleTimeout !== undefined &&
+    if (opts.idleTimeout != null &&
         (typeof opts.idleTimeout !== 'number' || opts.idleTimeout < 0)) {
-      throw new TypeError('options.idleTimeout must be a non-negative integer');
+      throw Errors.ValidationError('options.idleTimeout must be a non-negative integer');
     }
-    if (opts.maxQueue !== undefined &&
+    if (opts.maxQueue != null &&
         opts.maxQueue !== 'auto' &&
           (typeof opts.maxQueue !== 'number' || opts.maxQueue < 0)) {
-      throw new TypeError('options.maxQueue must be a non-negative integer');
+      throw Errors.ValidationError('options.maxQueue must be a non-negative integer');
     }
-    if (opts.concurrentTasksPerWorker !== undefined &&
+    if (opts.concurrentTasksPerWorker != null &&
         (typeof opts.concurrentTasksPerWorker !== 'number' ||
          opts.concurrentTasksPerWorker < 1)) {
-      throw new TypeError(
+      throw Errors.ValidationError(
         'options.concurrentTasksPerWorker must be a positive integer');
     }
     if (opts.atomics != null && (typeof opts.atomics !== 'string' ||
         !['sync', 'async', 'disabled'].includes(opts.atomics))) {
-      throw new TypeError('options.atomics should be a value of sync, sync or disabled.');
+      throw Errors.ValidationError('options.atomics should be a value of sync, sync or disabled.');
     }
-    if (opts.resourceLimits !== undefined &&
-        (typeof opts.resourceLimits !== 'object' ||
-         opts.resourceLimits === null)) {
-      throw new TypeError('options.resourceLimits must be an object');
+    if (options.resourceLimits != null && typeof options.resourceLimits !== 'object') {
+      throw Errors.ValidationError('options.resourceLimits must be an object');
     }
-    if (opts.taskQueue !== undefined && !isTaskQueue(opts.taskQueue)) {
-      throw new TypeError('options.taskQueue must be a TaskQueue object');
+    if (opts.taskQueue != null && !isTaskQueue(opts.taskQueue)) {
+      throw Errors.ValidationError('options.taskQueue must be a TaskQueue object');
     }
-    if (opts.niceIncrement !== undefined &&
+    if (opts.niceIncrement != null &&
         (typeof opts.niceIncrement !== 'number' || (opts.niceIncrement < 0 && process.platform !== 'win32'))) {
-      throw new TypeError('options.niceIncrement must be a non-negative integer on Unix systems');
+      throw Errors.ValidationError('options.niceIncrement must be a non-negative integer on Unix systems');
     }
-    if (opts.trackUnmanagedFds !== undefined &&
+    if (opts.trackUnmanagedFds != null &&
         typeof opts.trackUnmanagedFds !== 'boolean') {
-      throw new TypeError('options.trackUnmanagedFds must be a boolean value');
+      throw Errors.ValidationError('options.trackUnmanagedFds must be a boolean value');
     }
-    if (opts.closeTimeout !== undefined && (typeof opts.closeTimeout !== 'number' || opts.closeTimeout < 0)) {
-      throw new TypeError('options.closeTimeout must be a non-negative integer');
+    if (opts.closeTimeout != null && (typeof opts.closeTimeout !== 'number' || opts.closeTimeout < 0)) {
+      throw Errors.ValidationError('options.closeTimeout must be a non-negative integer');
     }
-    if (opts.loadBalancer !== undefined && (typeof opts.loadBalancer !== 'function' || opts.loadBalancer.length < 1)) {
-      throw new TypeError('options.loadBalancer must be a function with at least two args');
+    if (opts.loadBalancer != null && (typeof opts.loadBalancer !== 'function' || opts.loadBalancer.length < 1)) {
+      throw Errors.ValidationError('options.loadBalancer must be a function with at least two args');
     }
-    if (opts.workerHistogram !== undefined && (typeof opts.workerHistogram !== 'boolean')) {
-      throw new TypeError('options.workerHistogram must be a boolean');
+    if (opts.workerHistogram != null && (typeof opts.workerHistogram !== 'boolean')) {
+      throw Errors.ValidationError('options.workerHistogram must be a boolean');
     }
 
     this.#pool = new ThreadPool(this, opts);
@@ -803,7 +794,7 @@ export default class Piscina<Exports extends Record<string, (payload: any) => an
   run <Func extends keyof Exports = 'default'>(task : Parameters<Exports[Func]>[0], options : RunOptions<Func> = kDefaultRunOptions as RunOptions<Func>): Promise<ReturnType<Exports[Func]>> {
     if (options === null || typeof options !== 'object') {
       return Promise.reject(
-        new TypeError('options must be an object'));
+        Errors.ValidationError('options must be an object'));
     }
 
     const {
@@ -815,33 +806,33 @@ export default class Piscina<Exports extends Record<string, (payload: any) => an
 
     if (transferList !== undefined && !Array.isArray(transferList)) {
       return Promise.reject(
-        new TypeError('transferList argument must be an Array'));
+        Errors.ValidationError('transferList argument must be an Array'));
     }
     if (filename != null && typeof filename !== 'string') {
       return Promise.reject(
-        new TypeError('filename argument must be a string'));
+        Errors.ValidationError('filename argument must be a string'));
     }
     if (name != null && typeof name !== 'string') {
-      return Promise.reject(new TypeError('name argument must be a string'));
+      return Promise.reject(Errors.ValidationError('name argument must be a string'));
     }
     if (signal != null && typeof signal !== 'object') {
       return Promise.reject(
-        new TypeError('signal argument must be an object'));
+        Errors.ValidationError('signal argument must be an object'));
     }
 
     return this.#pool.runTask(task, { transferList, filename, name, signal });
   }
 
   async close (options : CloseOptions = kDefaultCloseOptions) {
-    if (options === null || typeof options !== 'object') {
-      throw TypeError('options must be an object');
+    if (options == null || typeof options !== 'object') {
+      throw Errors.ValidationError('options must be an object');
     }
 
     let { force } = options;
 
-    if (force !== undefined && typeof force !== 'boolean') {
+    if (force != null && typeof force !== 'boolean') {
       return Promise.reject(
-        new TypeError('force argument must be a boolean'));
+        Errors.ValidationError('force argument must be a boolean'));
     }
     force ??= kDefaultCloseOptions.force;
 

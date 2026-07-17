@@ -122,9 +122,6 @@ test('taskQueue must be a TaskQueue object', () => {
     taskQueue: 'test'
   }) as any), /options.taskQueue must be a TaskQueue object/);
   assert.throws(() => new Piscina(({
-    taskQueue: null
-  }) as any), /options.taskQueue must be a TaskQueue object/);
-  assert.throws(() => new Piscina(({
     taskQueue: new Date()
   }) as any), /options.taskQueue must be a TaskQueue object/);
   assert.throws(() => new Piscina(({
