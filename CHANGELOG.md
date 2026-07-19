@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [5.3.0](https://github.com/piscinajs/piscina/compare/v5.2.0...v5.3.0) (2026-07-19)
+
+
+### Features
+
+* add stricterFIFO option for queue fairness ([#1100](https://github.com/piscinajs/piscina/issues/1100)) ([#1113](https://github.com/piscinajs/piscina/issues/1113)) ([8b79055](https://github.com/piscinajs/piscina/commit/8b79055060796ff380641ae0d4b318f635d173f4))
+
 ## [5.2.0](https://github.com/piscinajs/piscina/compare/v5.1.4...v5.2.0) (2026-06-12)
 
 
