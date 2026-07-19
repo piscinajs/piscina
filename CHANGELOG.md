@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [6.0.0-rc.3](https://github.com/piscinajs/piscina/compare/v6.0.0-rc.2...v6.0.0-rc.3) (2026-07-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* enable stricter FIFO by default (#1114)
+* baseline preparations (#1062) (#1108)
+
+### Features
+
+* add stricterFIFO option for queue fairness ([#1112](https://github.com/piscinajs/piscina/issues/1112)) ([f7f058e](https://github.com/piscinajs/piscina/commit/f7f058e0703605bb344c9f287e11befc815035b5))
+* baseline preparations ([#1062](https://github.com/piscinajs/piscina/issues/1062)) ([#1108](https://github.com/piscinajs/piscina/issues/1108)) ([f290ec8](https://github.com/piscinajs/piscina/commit/f290ec8c4d93cb7341d7093ed857ecb4db1ffc58))
+* enable stricter FIFO by default ([#1114](https://github.com/piscinajs/piscina/issues/1114)) ([af6bb3e](https://github.com/piscinajs/piscina/commit/af6bb3eb771fc990aef4d0d18740812108e13105))
+
 ## [6.0.0-rc.2](https://github.com/piscinajs/piscina/compare/v6.0.0-rc.0...v6.0.0-rc.2) (2026-06-12)
 
 
