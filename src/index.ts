@@ -76,6 +76,7 @@ interface Options {
   trackUnmanagedFds? : boolean,
   closeTimeout?: number,
   recordTiming?: boolean,
+  stricterFIFO?: boolean,
   loadBalancer?: PiscinaLoadBalancer,
   workerHistogram?: boolean,
 }
@@ -93,6 +94,7 @@ interface FilledOptions extends Options {
   niceIncrement : number,
   closeTimeout : number,
   recordTiming : boolean,
+  stricterFIFO : boolean,
   workerHistogram: boolean,
 }
 
@@ -128,6 +130,7 @@ const kDefaultOptions : FilledOptions = {
   trackUnmanagedFds: true,
   closeTimeout: 30000,
   recordTiming: true,
+  stricterFIFO: false,
   workerHistogram: false
 };
 
@@ -422,7 +425,9 @@ class ThreadPool {
       if (distributed) {
         // If task was distributed, we should continue to distribute more tasks
         continue;
-      } else if (this.workers.size < this.options.maxThreads) {
+      }
+
+      if (this.workers.size < this.options.maxThreads) {
         // We spawn if possible
         // TODO: scheduler will intercept this.
         this._addNewWorker();
@@ -473,13 +478,27 @@ class ThreadPool {
       return true;
     }
 
+    this._returnUndistributedTask(task, !this.options.stricterFIFO);
+    return false;
+  }
+
+  _returnUndistributedTask (task: TaskInfo, toTail = false) : void {
     if (task.abortSignal != null) {
-      this.skipQueue.push(task);
+      if (toTail) {
+        this.skipQueue.push(task);
+      } else {
+        this.skipQueue.unshift(task);
+      }
+      return;
+    }
+
+    if (toTail) {
+      this.taskQueue.push(task);
+    } else if (this.taskQueue.unshift != null) {
+      this.taskQueue.unshift(task);
     } else {
       this.taskQueue.push(task);
     }
-
-    return false;
   }
 
   runTask (
@@ -794,6 +813,9 @@ export default class Piscina<T = any, R = any> extends EventEmitterAsyncResource
     }
     if (opts.workerHistogram !== undefined && (typeof opts.workerHistogram !== 'boolean')) {
       throw new TypeError('options.workerHistogram must be a boolean');
+    }
+    if (opts.stricterFIFO !== undefined && (typeof opts.stricterFIFO !== 'boolean')) {
+      throw new TypeError('options.stricterFIFO must be a boolean');
     }
 
     this.#pool = new ThreadPool(this, opts);
