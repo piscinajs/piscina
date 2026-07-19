@@ -105,6 +105,10 @@ This class extends [`EventEmitter`](https://nodejs.org/api/events.html) from Nod
   - `workerHistogram`: (`boolean`) By default `false`. It will hint the Worker pool to record statistics for each individual Worker
   - `loadBalancer`: ([`PiscinaLoadBalancer`](#piscinaloadbalancer)) By default, Piscina uses a least-busy algorithm. The `loadBalancer`
     option can be used to provide an alternative implementation. See [Custom Load Balancers](../advanced-topics/loadbalancer.mdx) for additional detail.
+  - `stricterFIFO`: (`boolean`) When `true`, tasks that cannot be dispatched
+    immediately are returned to the front of the queue instead of the back.
+    This avoids head-of-line blocking under sustained load (especially with a
+    single worker). Defaults to `true`.
 
 :::caution
   Use caution when setting resource limits. Setting limits that are too low may
