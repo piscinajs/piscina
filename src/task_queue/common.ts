@@ -5,6 +5,7 @@ export interface TaskQueue {
     shift(): Task | null;
     remove(task: Task): void;
     push(task: Task): void;
+    unshift?(task: Task): void;
 }
 
 // Public Interface
