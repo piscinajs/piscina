@@ -466,7 +466,7 @@ This class extends [`EventEmitter`][] from Node.js.
   - `stricterFIFO`: (`boolean`) When `true`, tasks that cannot be dispatched
     immediately are returned to the front of the queue instead of the back.
     This avoids head-of-line blocking under sustained load (especially with a
-    single worker). Defaults to `false`.
+    single worker). Defaults to `true`.
 
 Use caution when setting resource limits. Setting limits that are too low may
 result in the `Piscina` worker threads being unusable.

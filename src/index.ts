@@ -124,7 +124,7 @@ const kDefaultOptions : FilledOptions = {
   trackUnmanagedFds: true,
   closeTimeout: 30000,
   recordTiming: true,
-  stricterFIFO: false,
+  stricterFIFO: true,
   workerHistogram: false
 };
 
