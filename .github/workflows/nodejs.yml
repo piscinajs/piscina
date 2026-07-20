@@ -1,37 +1,85 @@
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - current
+      - next
+      - 'v*'
+  pull_request:
+    paths-ignore:
+      - docs/**
 
 name: CI
 
+permissions: 
+  contents: read
+
 jobs:
   lint:
+    permissions:
+      contents: read
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - name: Install Node.js 14
-        uses: actions/setup-node@v1
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Install Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: v14.x
+          node-version: 'lts/*'
+          cache: 'npm'
+          cache-dependency-path: package.json
+
       - name: Install dependencies
         run: npm install
+      - name: Build
+        run: npm run build
+        continue-on-error: true
       - name: Check linting
         run: npm run lint
 
-  test:
-    name: Test
+  tests:
+    permissions:
+      contents: read
+    name: Tests
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        node-version: [12.x, 13.x, 14.x]
+        node-version: [22, 24, 26]
+      
     runs-on: ${{matrix.os}}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: package.json
+
       - name: Install Dependencies
         run: npm install
-      - name: Test
-        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Run Tests
+        run: npm run test:coverage
+
+
+  automerge:
+    if: >
+      github.event_name == 'pull_request' && github.event.pull_request.user.login == 'dependabot[bot]'
+    needs:
+      - tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Merge Dependabot PR
+        uses: fastify/github-action-merge-dependabot@73ec4cbb5e56df5591eae286972d5b2201ffe90f # v3.15.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}

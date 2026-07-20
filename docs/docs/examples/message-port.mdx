@@ -1,0 +1,101 @@
+---
+id: Message Port
+sidebar_position: 6
+---
+
+import { WorkerWrapperComponent } from "@site/src/components/WorkerWrapper.mdx";
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+
+Worker threads can receive `MessagePort` objects, enabling direct communication channels with the main thread. This feature is useful for scenarios that require continuous communication or transfer of large data sets between threads.
+
+The example below shows how to use `MessagePort` with Piscina.
+
+<Tabs>
+<TabItem value="Javascript">
+
+```javascript title="index.js"
+'use strict';
+
+const Piscina = require('piscina');
+const { resolve } = require('path');
+const { MessageChannel } = require('worker_threads');
+
+const piscina = new Piscina({
+  filename: resolve(__dirname, 'worker.js')
+});
+
+(async function () {
+  const channel = new MessageChannel();
+  channel.port2.on('message', (message) => {
+    console.log(message);
+    channel.port2.close();
+  });
+  await piscina.run({ port: channel.port1 }, { transferList: [channel.port1] });
+})();
+```
+
+</TabItem>
+
+<TabItem value="Typescript">
+
+```typescript title="index.ts"
+import Piscina from "piscina";
+import { resolve } from "path";
+import { filename } from "./worker";
+import { TransferListItem } from "piscina/dist/types";
+
+const piscina = new Piscina({
+  filename: resolve(__dirname, "./workerWrapper.js"),
+  workerData: { fullpath: filename },
+});
+
+interface CustomMessagePort extends MessagePort {
+  on(event: string, listener: (message: any) => void): void;
+}
+(async function () {
+  const channel = new MessageChannel();
+  (channel.port2 as CustomMessagePort).on('message', (message: string) => {
+    console.log(message);
+    channel.port2.close();
+  });
+  await piscina.run({ port: channel.port1 }, { transferList:[channel.port1] as TransferListItem});
+})();
+```
+<WorkerWrapperComponent/>
+</TabItem>
+</Tabs>
+
+The worker file receives the `MessagePort` and uses it to send a message back to the main thread:
+
+<Tabs>
+<TabItem value="Javascript">
+
+```javascript title="worker.js"
+'use strict';
+
+module.exports = ({ port }) => {
+  port.postMessage('hello from the worker pool');
+};
+```
+
+</TabItem>
+
+<TabItem value="Typescript">
+
+```typescript title="worker.ts"
+import { MessagePort } from 'worker_threads';
+
+interface WorkerInput {
+  port: MessagePort;
+}
+
+export default ({ port }: WorkerInput): void => {
+  port.postMessage('hello from the worker pool');
+};
+```
+
+</TabItem>
+</Tabs>
+
+You can also check out this example on [github](https://github.com/piscinajs/piscina/tree/current/examples/message_port).

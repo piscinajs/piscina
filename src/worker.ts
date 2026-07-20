@@ -1,64 +1,90 @@
-import { parentPort, MessagePort, receiveMessageOnPort, workerData } from 'worker_threads';
-import { pathToFileURL } from 'url';
-import {
-  commonState,
+import { parentPort, MessagePort, receiveMessageOnPort, workerData } from 'node:worker_threads';
+import { pathToFileURL } from 'node:url';
+import { performance } from 'node:perf_hooks';
+
+import type {
   ReadyMessage,
   RequestMessage,
   ResponseMessage,
-  StartupMessage,
+  StartupMessage
+} from './types';
+import {
   kResponseCountField,
   kRequestCountField,
-  isMovable,
   kTransferable,
   kValue
+} from './symbols';
+import {
+  READY,
+  commonState,
+  isMovable
 } from './common';
 
 commonState.isWorkerThread = true;
 commonState.workerData = workerData;
 
+/* c8 ignore next*/
+function noop (): void {}
+
 const handlerCache : Map<string, Function> = new Map();
-let useAtomics : boolean = true;
+let useAtomics : boolean = process.env.PISCINA_DISABLE_ATOMICS !== '1';
+let useAsyncAtomics : boolean = process.env.PISCINA_ENABLE_ASYNC_ATOMICS === '1';
 
 // Get `import(x)` as a function that isn't transpiled to `require(x)` by
 // TypeScript for dual ESM/CJS support.
-const importESM : (specifier : string) => Promise<any> =
-  // eslint-disable-next-line no-eval
-  eval('(specifier) => import(specifier)');
+// Load this lazily, so that there is no warning about the ESM loader being
+// experimental (on Node v12.x) until we actually try to use it.
+let importESMCached : (specifier : string) => Promise<any> | undefined;
+function getImportESM () {
+  if (importESMCached === undefined) {
+    // eslint-disable-next-line no-new-func
+    importESMCached = new Function('specifier', 'return import(specifier)') as typeof importESMCached;
+  }
+  return importESMCached;
+}
 
 // Look up the handler function that we call when a task is posted.
 // This is either going to be "the" export from a file, or the default export.
-async function getHandler (filename : string) : Promise<Function | null> {
-  let handler = handlerCache.get(filename);
-  if (handler !== undefined) {
+async function getHandler (filename : string, name : string) : Promise<Function | null> {
+  let handler = handlerCache.get(`${filename}/${name}`);
+  if (handler != null) {
     return handler;
   }
 
   try {
-    handler = await importESM(pathToFileURL(filename).href);
-    if (typeof handler !== 'function') {
-      handler = await (handler as any).default;
-    }
-  } catch {}
-  if (typeof handler !== 'function') {
     // With our current set of TypeScript options, this is transpiled to
     // `require(filename)`.
     handler = await import(filename);
-    if (typeof handler !== 'function') {
-      handler = await (handler as any).default;
+
+    if (name?.length > 0) {
+      handler = await ((handler as any)[name]);
+    } else if (typeof handler !== 'function') {
+      handler = await ((handler as any)[name]);
+    }
+  } catch {}
+
+  if (typeof handler !== 'function') {
+    handler = await getImportESM()(pathToFileURL(filename).href);
+    if (name?.length > 0) {
+      handler = await ((handler as any)[name]);
+    } else if (typeof handler !== 'function') {
+      handler = await ((handler as any)[name]);
     }
   }
+
   if (typeof handler !== 'function') {
     return null;
   }
 
   // Limit the handler cache size. This should not usually be an issue and is
   // only provided for pathological cases.
+  /* c8 ignore next */
   if (handlerCache.size > 1000) {
     const [[key]] = handlerCache;
     handlerCache.delete(key);
   }
 
-  handlerCache.set(filename, handler);
+  handlerCache.set(`${filename}/${name}`, handler);
   return handler;
 }
 
@@ -66,35 +92,38 @@ async function getHandler (filename : string) : Promise<Function | null> {
 // us the MessagePort used for receiving tasks, a SharedArrayBuffer for fast
 // communication using Atomics, and the name of the default filename for tasks
 // (so we can pre-load and cache the handler).
-parentPort!.on('message', (message : StartupMessage) => {
-  useAtomics = message.useAtomics;
-  const { port, sharedBuffer, filename, niceIncrement } = message;
-  (async function () {
-    try {
-      if (niceIncrement !== 0 && process.platform === 'linux') {
-        // ts-ignore because the dependency is not installed on Windows.
-        // @ts-ignore
-        (await import('nice-napi')).default(niceIncrement);
-      }
-    } catch {}
+parentPort!.on('message', async (message: StartupMessage) => {
+  const { port, sharedBuffer, filename, name, niceIncrement } = message;
 
-    if (filename !== null) {
-      await getHandler(filename);
+  if (niceIncrement !== 0) {
+    (await import('@napi-rs/nice').catch(noop))?.nice(niceIncrement);
+  }
+
+  try {
+    if (filename != null) {
+      await getHandler(filename, name);
     }
 
-    const readyMessage : ReadyMessage = { ready: true };
+    const readyMessage : ReadyMessage = { [READY]: true };
+    useAtomics = useAtomics !== false && message.atomics !== 'disabled';
+    useAsyncAtomics = useAtomics !== false && (useAsyncAtomics || message.atomics === 'async');
     parentPort!.postMessage(readyMessage);
 
     port.on('message', onMessage.bind(null, port, sharedBuffer));
-    atomicsWaitLoop(port, sharedBuffer);
-  })().catch(throwInNextTick);
+    if (useAtomics) {
+      const res = atomicsWaitLoop(port, sharedBuffer);
+
+      if (res?.then != null) await res;
+    }
+  } catch (error) {
+    throwInNextTick(error as Error);
+  }
 });
 
 let currentTasks : number = 0;
 let lastSeenRequestCount : number = 0;
-function atomicsWaitLoop (port : MessagePort, sharedBuffer : Int32Array) {
-  if (!useAtomics) return;
 
+function atomicsWaitLoop (port : MessagePort, sharedBuffer : Int32Array) {
   // This function is entered either after receiving the startup message, or
   // when we are done with a task. In those situations, the *only* thing we
   // expect to happen next is a 'message' on `port`.
@@ -106,48 +135,73 @@ function atomicsWaitLoop (port : MessagePort, sharedBuffer : Int32Array) {
   // The one catch is that this stops asynchronous operations that are still
   // running from proceeding. Generally, tasks should not spawn asynchronous
   // operations without waiting for them to finish, though.
+
+  if (useAsyncAtomics === true) {
+    const { async, value } = Atomics.waitAsync(sharedBuffer, kRequestCountField, lastSeenRequestCount);
+
+    // We do not check for result
+    /* c8 ignore start */
+    return async === true ? value.then(() => {
+      lastSeenRequestCount = Atomics.load(sharedBuffer, kRequestCountField);
+
+      // We have to read messages *after* updating lastSeenRequestCount in order
+      // to avoid race conditions.
+      let entry;
+      while ((entry = receiveMessageOnPort(port)) != null) {
+        onMessage(port, sharedBuffer, entry.message);
+      }
+    }) : null;
+    /* c8 ignore stop */
+  }
+
   while (currentTasks === 0) {
     // Check whether there are new messages by testing whether the current
     // number of requests posted by the parent thread matches the number of
     // requests received.
+    // We do not check for result
     Atomics.wait(sharedBuffer, kRequestCountField, lastSeenRequestCount);
+
     lastSeenRequestCount = Atomics.load(sharedBuffer, kRequestCountField);
 
     // We have to read messages *after* updating lastSeenRequestCount in order
     // to avoid race conditions.
     let entry;
-    while ((entry = receiveMessageOnPort(port)) !== undefined) {
+    while ((entry = receiveMessageOnPort(port)) != null) {
       onMessage(port, sharedBuffer, entry.message);
     }
   }
+
+  return null;
 }
 
-function onMessage (
+async function onMessage (
   port : MessagePort,
   sharedBuffer : Int32Array,
   message : RequestMessage) {
   currentTasks++;
-  const { taskId, task, filename } = message;
+  const { taskId, task, filename, name } = message;
+  let response : ResponseMessage;
+  let transferList : any[] = [];
+  const start = message.histogramEnabled === 1 ? performance.now() : null;
 
-  (async function () {
-    let response : ResponseMessage;
-    const transferList : any[] = [];
-    try {
-      const handler = await getHandler(filename);
-      if (handler === null) {
-        throw new Error(`No handler function exported from ${filename}`);
-      }
-      let result = await handler(task);
-      if (isMovable(result)) {
-        transferList.concat(result[kTransferable]);
-        result = result[kValue];
-      }
-      response = {
-        taskId,
-        result: result,
-        error: null
-      };
+  try {
+    const handler = await getHandler(filename, name);
+    if (handler === null) {
+      throw new Error(`No handler function exported from ${filename}`);
+    }
+    let result = await handler(task);
+    if (isMovable(result)) {
+      transferList = transferList.concat(result[kTransferable]);
+      result = result[kValue];
+    }
+    response = {
+      taskId,
+      result,
+      error: null,
+      time: start == null ? null : Math.round(performance.now() - start)
+    };
 
+    if (useAtomics && !useAsyncAtomics) {
       // If the task used e.g. console.log(), wait for the stream to drain
       // before potentially entering the `Atomics.wait()` loop, and before
       // returning the result so that messages will always be printed even
@@ -155,29 +209,39 @@ function onMessage (
       if (process.stdout.writableLength > 0) {
         await new Promise((resolve) => process.stdout.write('', resolve));
       }
+
       if (process.stderr.writableLength > 0) {
         await new Promise((resolve) => process.stderr.write('', resolve));
       }
-    } catch (error) {
-      response = {
-        taskId,
-        result: null,
-        // It may be worth taking a look at the error cloning algorithm we
-        // use in Node.js core here, it's quite a bit more flexible
-        error
-      };
     }
-    currentTasks--;
+  } catch (error) {
+    response = {
+      taskId,
+      result: null,
+      // It may be worth taking a look at the error cloning algorithm we
+      // use in Node.js core here, it's quite a bit more flexible
+      error: <Error>error,
+      time: start == null ? null : Math.round(performance.now() - start)
+    };
+  }
+  currentTasks--;
 
+  try {
     // Post the response to the parent thread, and let it know that we have
     // an additional message available. If possible, use Atomics.wait()
     // to wait for the next message.
     port.postMessage(response, transferList);
     Atomics.add(sharedBuffer, kResponseCountField, 1);
-    atomicsWaitLoop(port, sharedBuffer);
-  })().catch(throwInNextTick);
+    if (useAtomics) {
+      const res = atomicsWaitLoop(port, sharedBuffer);
+
+      if (res?.then != null) await res;
+    }
+  } catch (error) {
+    throwInNextTick(error as Error);
+  }
 }
 
 function throwInNextTick (error : Error) {
-  process.nextTick(() => { throw error; });
+  queueMicrotask(() => { throw error; });
 }

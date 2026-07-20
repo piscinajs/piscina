@@ -11,7 +11,7 @@ const pool = new Piscina();
 
 (async () => {
   console.log(await Promise.all([
-    pool.runTask({ a: 2, b: 3 }, resolve(__dirname, 'add_worker')),
-    pool.runTask({ a: 2, b: 3 }, resolve(__dirname, 'multiply_worker'))
+    pool.run({ a: 2, b: 3 }, { filename: resolve(__dirname, 'add_worker') }),
+    pool.run({ a: 2, b: 3 }, { filename: resolve(__dirname, 'multiply_worker') })
   ]));
 })();

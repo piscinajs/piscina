@@ -43,7 +43,7 @@ stream
   .on('data', (data) => {
     const line = data.toString('utf8');
     progress.incSubmitted();
-    pool.runTask(line)
+    pool.run(line)
       .then(() => {
         progress.incCompleted();
       })

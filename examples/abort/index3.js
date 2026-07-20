@@ -13,7 +13,7 @@ const piscina = new Piscina({
   // Use a timer to limit task processing length
   const t = setTimeout(() => ee.emit('abort'), 500);
   try {
-    await piscina.runTask({ a: 4, b: 6 }, ee);
+    await piscina.run({ a: 4, b: 6 }, { signal: ee });
   } catch (err) {
     console.log('The task timed out');
   } finally {

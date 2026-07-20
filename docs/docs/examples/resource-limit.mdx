@@ -1,0 +1,110 @@
+---
+id: Resource Limits
+sidebar_position: 15
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+import { WorkerWrapperComponent } from '@site/src/components/WorkerWrapper.mdx';
+
+Piscina allows you to set resource limits on worker threads to prevent them from consuming excessive memory. The example below will show you how to configure and use resource limits to handle out-of-memory scenarios.
+
+The main file sets up a Piscina instance with specific resource limits:
+
+- `maxOldGenerationSizeMb`: Limits the maximum size of the old generation in the V8 heap to 16 MB.
+- `maxYoungGenerationSizeMb`: Limits the maximum size of the young generation in the V8 heap to 4 MB.
+- `codeRangeSizeMb`: Limits the size of the code range to 16 MB.
+
+<Tabs>
+<TabItem value="Javascript">
+
+```javascript title="index.js"
+'use strict';
+
+const Piscina = require('piscina');
+const { resolve } = require('path');
+const { strictEqual } = require('assert');
+
+const piscina = new Piscina({
+  filename: resolve(__dirname, 'worker.js'),
+  resourceLimits: {
+    maxOldGenerationSizeMb: 16,
+    maxYoungGenerationSizeMb: 4,
+    codeRangeSizeMb: 16
+  }
+});
+
+(async function () {
+  try {
+    await piscina.run();
+  } catch (err) {
+    console.log('Worker terminated due to resource limits');
+    strictEqual(err.code, 'ERR_WORKER_OUT_OF_MEMORY');
+  }
+})();
+```
+
+</TabItem>
+<TabItem value="Typescript">
+
+```typescript title="index.ts"
+import Piscina from 'piscina';
+import { resolve } from 'path';
+import { strictEqual } from 'assert';
+import { filename } from './worker';
+
+const piscina = new Piscina({
+  filename: resolve(__dirname, 'workerWrapper.js'),
+  workerData: { fullpath: filename },
+  resourceLimits: {
+    maxOldGenerationSizeMb: 16,
+    maxYoungGenerationSizeMb: 4,
+    codeRangeSizeMb: 16
+  }
+});
+
+(async function () {
+  try {
+    await piscina.run({}, { name: 'memoryLeak' });
+  } catch (err) {
+    console.log('Worker terminated due to resource limits');
+    strictEqual((err as any).code, 'ERR_WORKER_OUT_OF_MEMORY');
+  }
+})();
+```
+<WorkerWrapperComponent/>
+</TabItem>
+</Tabs>
+
+The worker file contains a function that deliberately causes a memory leak by creating an infinitely growing array. This will eventually exceed the memory limits set in the main file.
+
+<Tabs>
+<TabItem value="Javascript">
+
+```javascript title="worker.js"
+'use strict';
+
+module.exports = () => {
+  const array = [];
+  while (true) {
+    array.push([array]);
+  }
+};
+```
+
+</TabItem>
+<TabItem value="Typescript">
+```typescript title="worker.ts"
+export const filename = __filename;
+
+export function memoryLeak(): void {
+  const array: any[] = [];
+  while (true) {
+    array.push([array]);
+  }
+}
+```
+</TabItem>
+</Tabs>
+
+You can also check out this example on [github](https://github.com/piscinajs/piscina/tree/current/examples/resourceLimits).

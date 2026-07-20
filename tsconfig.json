@@ -1,11 +1,11 @@
 {
   "compilerOptions": {
-    "target": "es2018",
+    "alwaysStrict": true,
+    "types": ["node"],
+    "target": "es2024",
     "module": "commonjs",
-    "moduleResolution": "node",
-    "lib": ["es2018"],
     "outDir": "dist",
-    "rootDir": ".",
+    "rootDir": "./src",
     "declaration": true,
     "sourceMap": true,
 
@@ -15,8 +15,8 @@
     "noUnusedParameters": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "esModuleInterop": true,
 
+    "skipDefaultLibCheck": true,
     "resolveJsonModule": true,                /* Include modules imported with '.json' extension */
     "forceConsistentCasingInFileNames": true  /* Disallow inconsistently-cased references to the same file. */
   },

@@ -37,11 +37,11 @@ const pool = new Piscina({
 (async () => {
   // Submit 5 concurrent tasks
   console.log(await Promise.all([
-    pool.runTask(),
-    pool.runTask(),
-    pool.runTask(),
-    pool.runTask(),
-    pool.runTask()
+    pool.run(),
+    pool.run(),
+    pool.run(),
+    pool.run(),
+    pool.run()
   ]));
 })();
 ```

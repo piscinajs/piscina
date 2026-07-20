@@ -1,0 +1,143 @@
+---
+id: Typescript
+sidebar_position: 4
+---
+import {WorkerWrapperComponent} from '@site/src/components/WorkerWrapper.mdx';
+
+Although Piscina itself is written in TypeScript and supports TypeScript out of the box, complication arises when trying to use `.ts` files directly as worker files because Node.js does not support TypeScript natively.
+
+To work around this, you would typically need to compile your TypeScript worker files to JavaScript first, and then point Piscina’s `filename` option to the compiled JavaScript files.  Consider the following methods:
+
+## Method 1: Using a Worker Wrapper File and `ts_node`
+
+The worker wrapper checks if the provided file path ends with `.ts` and registers the `ts-node` compiler to handle TypeScript files.
+
+<WorkerWrapperComponent/>
+
+In your `worker.ts`:
+
+```typescript title='worker.ts'
+
+import { resolve } from 'path';
+
+export const filename = resolve(__filename);
+
+interface Inputs {
+  a: number;
+  b: number;
+}
+
+export function addNumbers({ a, b }: Inputs): number {
+  return a + b;
+}
+```
+
+Inside the main application:
+
+```typescript title='main.ts'
+
+import Piscina from 'piscina';
+import { resolve } from 'path';
+import { filename } from './worker';
+
+const piscina = new Piscina({
+  filename: resolve(__dirname, './workerWrapper.js'),
+  workerData: { fullpath: filename },
+});
+
+(async () => {
+  const result = await piscina.run({ a: 2, b: 3 }, { name: 'addNumbers' });
+  console.log('Result:', result);
+})();
+```
+
+## Method 2: Inline Worker Code
+
+Alternatively, you can include the worker code in the same file as your main code and use the `isMainThread` flag from `worker_threads` to determine whether the code is running in the main thread or the worker thread.
+
+```typescript title="main.ts"
+
+import Piscina from 'piscina';
+import { isMainThread } from 'worker_threads';
+
+interface Inputs {
+  a: number;
+  b: number;
+}
+
+if (isMainThread) {
+  const piscina = new Piscina({ filename: __filename });
+
+  (async () => {
+    const task: Inputs = { a: 1, b: 2 };
+    console.log(await piscina.run(task));
+  })();
+} else {
+  export default ({ a, b }: Inputs): number => {
+    return a + b;
+  };
+}
+```
+You can also check out this example on [github](https://github.com/piscinajs/piscina/tree/current/examples/typescript).
+
+## Method 3: Node.js Native TypeScript Support
+
+Starting with Node.js 23.6.0+, you can run TypeScript files directly using Node.js's [experimental TypeScript support](https://nodejs.org/api/typescript.html). This eliminates the need for external TypeScript compilers or build steps.
+
+For Node.js versions 22.6.0 to 23.5.0, you need to explicitly enable the `--experimental-strip-types` flag. However, starting from Node.js 23.6.0+, type stripping is enabled by default.
+
+```typescript title='worker.ts'
+
+interface Inputs {
+  a: number;
+  b: number;
+}
+
+export function addNumbers({ a, b }: Inputs): number {
+  return a + b;
+}
+```
+
+```typescript title='main.ts'
+
+import Piscina from 'piscina';
+
+const piscina = new Piscina({
+  filename: new URL("./worker.ts", import.meta.url).href,
+});
+
+(async () => {
+  const result = await piscina.run({ a: 2, b: 3 }, { name: 'addNumbers' });
+  console.log('Result:', result);
+})();
+```
+
+## Using generics
+
+You can use generics to the types for the worker function:
+
+```typescript title='worker.ts'
+
+interface Inputs {
+  a: number;
+  b: number;
+}
+
+export default function addNumbers({ a, b }: Inputs): number {
+  return a + b;
+}
+```
+
+```typescript title='main.ts'
+
+import Piscina from 'piscina';
+
+const piscina = new Piscina<typeof import("./worker.ts")>({
+  filename: new URL("./worker.ts", import.meta.url).href,
+});
+
+(async () => {
+  const result = await piscina.run({ a: 2, b: 3 });
+  console.log('Result:', result);
+})();
+```

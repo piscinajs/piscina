@@ -11,7 +11,9 @@ const piscina = new Piscina({
 (async function () {
   const abortController = new AbortController();
   try {
-    const task = piscina.runTask({ a: 4, b: 6 }, abortController.signal);
+    const task = piscina.run(
+      { a: 4, b: 6 },
+      { signal: abortController.signal });
     abortController.abort();
     await task;
   } catch (err) {

@@ -1,5 +1,6 @@
 .nyc_output
+.vscode
 node_modules
-package-lock.json
 dist
-coverage
+lcov.info
+.worktrees

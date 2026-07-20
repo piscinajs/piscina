@@ -1,0 +1,136 @@
+---
+id: Named Tasks
+sidebar_position: 12
+---
+
+import { WorkerWrapperComponent } from "@site/src/components/WorkerWrapper.mdx";
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+
+Piscina supports running named tasks within a single worker file. This example demonstrates how to use a dispatcher pattern to execute different operations based on the task name.
+
+<Tabs>
+<TabItem value="Javascript">
+
+```javascript title="index.js"
+'use strict';
+
+const Piscina = require('piscina');
+const { resolve } = require('path');
+const { makeTask } = require('./helper');
+
+const piscina = new Piscina({
+  filename: resolve(__dirname, 'worker.js')
+});
+
+(async function () {
+  const result = await Promise.all([
+    piscina.run(makeTask('add', 4, 6)),
+    piscina.run(makeTask('sub', 4, 6))
+  ]);
+  console.log(result);
+})();
+```
+</TabItem>
+
+<TabItem value="Typescript">
+
+```typescript title="index.ts"
+import Piscina from "piscina";
+import { resolve } from "path";
+import { filename } from "./worker";
+import { makeTask } from "./helper";
+
+const piscina = new Piscina({
+  filename: resolve(__dirname, "./workerWrapper.js"),
+  workerData: { fullpath: filename },
+});
+(async function () {
+  const result = await Promise.all([
+    piscina.run(makeTask('add', 4, 6)),
+    piscina.run(makeTask('sub', 4, 6))
+  ]);
+  console.log(result);
+})();
+```
+
+</TabItem>
+</Tabs>
+
+The worker file uses a dispatcher to handle different operations:
+
+<Tabs>
+<TabItem value="Javascript">
+
+```javascript title="worker.js"
+'use strict';
+
+const { dispatcher } = require('./helper');
+
+module.exports = dispatcher({
+  add (a, b) { return a + b; },
+  sub (a, b) { return a - b; }
+});
+```
+</TabItem>
+
+<TabItem value="Typescript">
+
+```typescript title="worker.ts"
+import { dispatcher } from './helper';
+
+export default dispatcher({
+  add (a: number, b: number): number { return a + b; },
+  sub (a: number, b: number): number { return a - b; }
+});
+```
+
+</TabItem>
+</Tabs>
+
+The helper file provides utility functions for creating tasks and dispatching them:
+
+<Tabs>
+<TabItem value="Javascript">
+
+```javascript title="helper.js"
+function makeTask (op, ...args) {
+  return { op, args };
+}
+
+function dispatcher (obj) {
+  return async ({ op, args }) => {
+    return await obj[op](...args);
+  };
+}
+
+module.exports = {
+  dispatcher,
+  makeTask
+};
+```
+</TabItem>
+
+<TabItem value="Typescript">
+
+```typescript title="helper.ts"
+type Task = {
+  op: string;
+  args: any[];
+};
+
+export function makeTask (op: string, ...args: any[]): Task {
+  return { op, args };
+}
+
+export function dispatcher (obj: Record<string, Function>) {
+  return async ({ op, args }: Task) => {
+    return await obj[op](...args);
+  };
+}
+```
+
+</TabItem>
+</Tabs>
+
+You can also check out this example on [github](https://github.com/piscinajs/piscina/tree/current/examples/named).

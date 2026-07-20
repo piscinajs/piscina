@@ -1,56 +1,41 @@
-import type { MessagePort } from 'worker_threads';
+import { fileURLToPath, URL } from 'node:url';
+import { availableParallelism } from 'node:os';
 
-export interface StartupMessage {
-  filename : string | null;
-  port : MessagePort;
-  sharedBuffer : Int32Array;
-  useAtomics : boolean;
-  niceIncrement : number;
+import { kMovable, kTransferable, kValue } from './symbols';
+
+// States whether the worker is ready to receive tasks
+export const READY = '_WORKER_READY';
+
+/**
+ * True if the object implements the Transferable interface
+ *
+ * @export
+ * @param {unknown} value
+ * @return {*}  {boolean}
+ */
+export function isTransferable (value: unknown): boolean {
+  return (
+    value != null &&
+    typeof value === 'object' &&
+    kTransferable in value &&
+    kValue in value
+  );
 }
 
-export interface RequestMessage {
-  taskId : number;
-  task : any;
-  filename: string;
-}
-
-export interface ReadyMessage {
-  ready: true
-};
-
-export interface ResponseMessage {
-  taskId : number;
-  result : any;
-  error: Error | null;
-}
-
-export const commonState = {
-  isWorkerThread: false,
-  workerData: undefined
-};
-
-// Internal symbol used to mark Transferable objects returned
-// by the Piscina.move() function
-const kMovable = Symbol('Piscina.kMovable');
-export const kTransferable = Symbol.for('Piscina.transferable');
-export const kValue = Symbol.for('Piscina.valueOf');
-export const kQueueOptions = Symbol.for('Piscina.queueOptions');
-
-// True if the object implements the Transferable interface
-export function isTransferable (value : any) : boolean {
-  return value != null &&
-         typeof value === 'object' &&
-         kTransferable in value &&
-         kValue in value;
-}
-
-// True if object implements Transferable and has been returned
-// by the Piscina.move() function
-export function isMovable (value : any) : boolean {
+/**
+ * True if object implements Transferable and has been returned
+ * by the Piscina.move() function
+ *
+ * TODO: narrow down the type of value
+ * @export
+ * @param {(unknown & PiscinaMovable)} value
+ * @return {*}  {boolean}
+ */
+export function isMovable (value: any): boolean {
   return isTransferable(value) && value[kMovable] === true;
 }
 
-export function markMovable (value : object) : void {
+export function markMovable (value: {}): void {
   Object.defineProperty(value, kMovable, {
     enumerable: false,
     configurable: true,
@@ -59,31 +44,18 @@ export function markMovable (value : object) : void {
   });
 }
 
-export interface Transferable {
-  readonly [kTransferable] : object;
-  readonly [kValue] : object;
+// State of Piscina pool
+export const commonState = {
+  isWorkerThread: false,
+  workerData: undefined
+};
+
+export function maybeFileURLToPath (filename : string) : string {
+  return filename.startsWith('file:')
+    ? fileURLToPath(new URL(filename))
+    : filename;
 }
 
-export interface Task {
-  readonly [kQueueOptions] : object | null;
+export function getAvailableParallelism () : number {
+  return availableParallelism();
 }
-
-export interface TaskQueue {
-  readonly size : number;
-  shift () : Task | null;
-  remove (task : Task) : void;
-  push (task : Task) : void;
-}
-
-export function isTaskQueue (value : any) : boolean {
-  return typeof value === 'object' &&
-         value !== null &&
-         'size' in value &&
-         typeof value.shift === 'function' &&
-         typeof value.remove === 'function' &&
-         typeof value.push === 'function';
-}
-
-export const kRequestCountField = 0;
-export const kResponseCountField = 1;
-export const kFieldCount = 2;

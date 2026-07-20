@@ -11,7 +11,7 @@ const piscina = new Piscina({
 (async function () {
   const ee = new EventEmitter();
   try {
-    const task = piscina.runTask({ a: 4, b: 6 }, ee);
+    const task = piscina.run({ a: 4, b: 6 }, { signal: ee });
     ee.emit('abort');
     await task;
   } catch (err) {

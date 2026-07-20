@@ -1,8 +1,13 @@
 {
   "extends": "../tsconfig",
   "compilerOptions": {
+    "rootDir": ".",
+    "allowJs": true,
+    "noEmit": true,
     "strict": false,
-    "noImplicitAny": false
+    "noUnusedParameters": false,
+    "noImplicitAny": false,
+    "types": ["node", "jest"]
   },
   "include": [
     "./**/*.ts"

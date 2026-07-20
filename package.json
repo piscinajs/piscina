@@ -1,23 +1,37 @@
 {
   "name": "piscina",
-  "version": "1.6.2",
+  "version": "5.1.1",
   "description": "A fast, efficient Node.js Worker Thread Pool implementation",
-  "main": "./dist/src/index.js",
+  "main": "./dist/main.js",
+  "types": "./dist/index.d.ts",
   "exports": {
+    "types": "./dist/index.d.ts",
     "import": "./dist/esm-wrapper.mjs",
-    "require": "./dist/src/index.js"
+    "require": "./dist/main.js"
   },
-  "types": "./dist/src/index.d.ts",
+  "engines": {
+    "node": ">=22.x"
+  },
   "scripts": {
-    "build": "tsc && gen-esm-wrapper . dist/esm-wrapper.mjs",
-    "lint": "standardx \"**/*.{ts,mjs,js,cjs}\" | snazzy",
-    "test": "npm run lint && npm run build && npm run test-only",
-    "test-only": "tap",
-    "prepack": "npm run build"
+    "build": "tsc --project tsconfig.json && gen-esm-wrapper . dist/esm-wrapper.mjs",
+    "build:clean": "rm -rf dist",
+    "lint": "eslint && tsc --noEmit && tsc --project test/tsconfig.json --noEmit",
+    "test": "node scripts/run-tests.js",
+    "test:jest": "jest --config test/jest/jest.config.js",
+    "test:ci": "npm run build && npm run lint && npm run test:coverage && npm run test:jest",
+    "test:coverage": "node scripts/run-tests.js --coverage",
+    "prepack": "npm run build",
+    "benchmark": "node --allow-natives-syntax benchmark/index.js --scope all",
+    "benchmark:ci": "node --allow-natives-syntax benchmark/index.js --scope all --reporter json | jq '.[] | .name, .opsSec'",
+    "benchmark:simple": "node --allow-natives-syntax benchmark/index.js --scope simple:all",
+    "benchmark:simple:default": "node --allow-natives-syntax benchmark/index.js --scope simple",
+    "benchmark:simple:async": "node --allow-natives-syntax benchmark/index.js --scope simple:async",
+    "benchmark:startup": "node --allow-natives-syntax benchmark/index.js --scope startup",
+    "benchmark:queue": "node --allow-natives-syntax benchmark/index.js --scope queue"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/piscinajs/piscina"
+    "url": "git+https://github.com/piscinajs/piscina.git"
   },
   "keywords": [
     "fast",
@@ -28,47 +42,35 @@
   "author": "James M Snell <jasnell@gmail.com>",
   "contributors": [
     "Anna Henningsen <anna@addaleax.net>",
-    "Matteo Collina <matteo.collina@gmail.com>"
+    "Matteo Collina <matteo.collina@gmail.com>",
+    "Carlos Fuentes <me@metcoder.dev>"
   ],
   "license": "MIT",
   "devDependencies": {
-    "@types/node": "^14.0.6",
-    "@typescript-eslint/eslint-plugin": "^3.1.0",
-    "@typescript-eslint/parser": "^3.1.0",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^26.0.0",
     "abort-controller": "^3.0.0",
+    "bench-node": "^0.15.0",
     "concat-stream": "^2.0.0",
-    "gen-esm-wrapper": "^1.0.6",
-    "snazzy": "^8.0.0",
-    "standardx": "^5.0.0",
-    "tap": "^14.10.7",
-    "typescript": "^3.9.3"
-  },
-  "dependencies": {
-    "eventemitter-asyncresource": "^1.0.0",
-    "hdr-histogram-js": "^1.2.0",
-    "hdr-histogram-percentiles-obj": "^2.0.1"
+    "eslint": "^9.16.0",
+    "expect-type": "^1.2.1",
+    "gen-esm-wrapper": "^1.1.1",
+    "glob": "^13.0.1",
+    "jest": "^30.2.0",
+    "neostandard": "^0.13.0",
+    "ts-jest": "^29.4.6",
+    "tsx": "^4.20.3",
+    "typescript": "^6.0.3"
   },
   "optionalDependencies": {
-    "nice-napi": "^1.0.2"
+    "@napi-rs/nice": "^1.0.4"
   },
-  "eslintConfig": {
-    "rules": {
-      "semi": [
-        "error",
-        "always"
-      ],
-      "no-unused-vars": "off",
-      "@typescript-eslint/no-unused-vars": "error"
-    },
-    "globals": {
-      "SharedArrayBuffer": true,
-      "Atomics": true
-    }
+  "bugs": {
+    "url": "https://github.com/piscinajs/piscina/issues"
   },
-  "standardx": {
-    "parser": "@typescript-eslint/parser",
-    "plugins": [
-      "@typescript-eslint/eslint-plugin"
-    ]
+  "homepage": "https://github.com/piscinajs/piscina#readme",
+  "directories": {
+    "example": "examples",
+    "test": "test"
   }
 }

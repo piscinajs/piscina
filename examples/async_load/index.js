@@ -7,7 +7,7 @@ const { resolve } = require('path');
 
 (async () => {
   await Promise.all([
-    pool.runTask({}, resolve(__dirname, 'worker')),
-    pool.runTask({}, resolve(__dirname, 'worker.mjs'))
+    pool.run({}, { filename: resolve(__dirname, 'worker') }),
+    pool.run({}, { filename: resolve(__dirname, 'worker.mjs') })
   ]);
 })();

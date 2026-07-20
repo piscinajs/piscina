@@ -1,0 +1,79 @@
+---
+id: ES Module
+sidebar_position: 5
+---
+
+import { WorkerWrapperComponent } from "@site/src/components/WorkerWrapper.mdx";
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+
+Piscina supports ES modules (ESM) out of the box. This example demonstrates how to use Piscina with ES modules in both the main script and the worker file.
+
+<Tabs>
+<TabItem value="Javascript">
+
+```javascript title="index.mjs"
+import { Piscina } from "piscina";
+
+const piscina = new Piscina({
+  filename: new URL("./worker.mjs", import.meta.url).href,
+});
+
+(async () => {
+  const result = await piscina.run({ a: 4, b: 6 });
+  console.log(result);
+})(); // Prints 10
+```
+
+</TabItem>
+
+<TabItem value="Typescript">
+
+```typescript title="index.ts"
+import Piscina from "piscina";
+import { resolve } from "path";
+import { filename } from "./worker";
+
+const piscina = new Piscina({
+  filename: resolve(__dirname, "./workerWrapper.js"),
+  workerData: { fullpath: filename },
+});
+(async () => {
+  const result = await piscina.run({ a: 4, b: 6 });
+  console.log(result);
+})();
+```
+
+</TabItem>
+
+</Tabs>
+The worker file is a simple ES module that exports a default function:
+
+<Tabs>
+<TabItem value="Javascript">
+
+```javascript title="worker.mjs"
+export default ({ a, b }) => {
+  return a + b;
+};
+```
+
+</TabItem>
+
+<TabItem value="Typescript">
+
+```typescript title="worker.ts"
+interface Input {
+  a: number;
+  b: number;
+}
+
+export default ({ a, b }: Input): number => {
+  return a + b;
+};
+```
+
+</TabItem>
+</Tabs>
+
+You can also check out this example on [github](https://github.com/piscinajs/piscina/tree/current/examples/es-module).

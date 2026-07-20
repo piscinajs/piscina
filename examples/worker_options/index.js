@@ -12,6 +12,6 @@ const piscina = new Piscina({
 });
 
 (async function () {
-  const result = await piscina.runTask({ a: 4, b: 6 });
+  const result = await piscina.run({ a: 4, b: 6 });
   console.log(result); // Prints 10
 })();
