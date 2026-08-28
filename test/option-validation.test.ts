@@ -153,3 +153,59 @@ test('trackUnmanagedFds must be a boolean', () => {
     trackUnmanagedFds: 'string'
   }) as any), /options.trackUnmanagedFds must be a boolean/);
 });
+
+test('execArgv is not tampered', async () => {
+  (Object.prototype as any).execArgv = ['--not-a-real-flag']
+
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js'),
+    minThreads: 1,
+    maxThreads: 1
+  })
+
+  try {
+    assert.strictEqual(pool.options.execArgv, undefined)
+    assert.strictEqual(await pool.run('42'), 42)
+  } finally {
+    delete (Object.prototype as any).execArgv
+    await pool.close()
+  }
+})
+
+test('loadBalancer is not tampered', async () => {
+  let called = false
+  ;(Object.prototype as any).loadBalancer = () => { called = true; return null }
+
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js'),
+    minThreads: 1,
+    maxThreads: 1
+  })
+
+  try {
+    assert.strictEqual(pool.options.loadBalancer, undefined)
+    assert.strictEqual(await pool.run('42'), 42)
+    assert.strictEqual(called, false)
+  } finally {
+    delete (Object.prototype as any).loadBalancer
+    await pool.close()
+  }
+})
+
+test('env is not tampered', async () => {
+  (Object.prototype as any).env = { NODE_OPTIONS: '--title=polluted' }
+
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js'),
+    minThreads: 1,
+    maxThreads: 1
+  })
+
+  try {
+    assert.strictEqual(pool.options.env, undefined)
+    assert.strictEqual(await pool.run('42'), 42)
+  } finally {
+    delete (Object.prototype as any).env
+    await pool.close()
+  }
+})
