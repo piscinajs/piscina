@@ -2,6 +2,35 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [6.0.0-rc.5](https://github.com/piscinajs/piscina/compare/v6.0.0-rc.2...v6.0.0-rc.5) (2026-08-28)
+
+
+### ⚠ BREAKING CHANGES
+
+* for consumers that call Object.prototype methods
+directly on pool.options (e.g. pool.options.hasOwnProperty(...)).
+
+* fix: use sanitized options for resourceLimits validation
+
+* fix: sanitize run/close options with withNullPrototype
+
+Use the existing withNullPrototype helper instead of getOwn; address feedback from @metcoder95
+
+* fix: avoid re-linking Object.prototype in Piscina constructor
+
+(cherry picked from commit bebbda255c2981cecddd36b171b94be2fd41c9a6)
+* enable stricter FIFO by default (#1114)
+* baseline preparations (#1062) (#1108)
+
+### Features
+
+* add stricterFIFO option for queue fairness ([#1112](https://github.com/piscinajs/piscina/issues/1112)) ([f7f058e](https://github.com/piscinajs/piscina/commit/f7f058e0703605bb344c9f287e11befc815035b5))
+* baseline preparations ([#1062](https://github.com/piscinajs/piscina/issues/1062)) ([#1108](https://github.com/piscinajs/piscina/issues/1108)) ([f290ec8](https://github.com/piscinajs/piscina/commit/f290ec8c4d93cb7341d7093ed857ecb4db1ffc58))
+* enable stricter FIFO by default ([#1114](https://github.com/piscinajs/piscina/issues/1114)) ([af6bb3e](https://github.com/piscinajs/piscina/commit/af6bb3eb771fc990aef4d0d18740812108e13105))
+
+
+* Merge commit from fork ([5be7bbb](https://github.com/piscinajs/piscina/commit/5be7bbb19e3787bb698862cd516121a578d690f7))
+
 ## [6.0.0-rc.4](https://github.com/piscinajs/piscina/compare/v6.0.0-rc.2...v6.0.0-rc.4) (2026-08-21)
 
 
