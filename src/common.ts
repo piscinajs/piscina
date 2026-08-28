@@ -101,3 +101,9 @@ export function getAvailableParallelism () : number {
     return 1;
   }
 }
+
+// Copy own properties onto a prototype-less object, so that options are never
+// resolved through a polluted prototype chain.
+export function withNullPrototype<T extends object>(source: T, overrides?: Partial<T>): T {
+  return Object.assign(Object.create(null), source, overrides)
+}

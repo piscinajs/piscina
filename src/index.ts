@@ -48,7 +48,8 @@ import {
   createHistogramSummary,
   toHistogramIntegerNano,
   getAvailableParallelism,
-  maybeFileURLToPath
+  maybeFileURLToPath,
+  withNullPrototype,
 } from './common';
 const cpuParallelism : number = getAvailableParallelism();
 
@@ -178,7 +179,12 @@ class ThreadPool {
 
     const filename =
       options.filename ? maybeFileURLToPath(options.filename) : null;
-    this.options = { ...kDefaultOptions, ...options, filename, maxQueue: 0 };
+    this.options = withNullPrototype({
+      ...kDefaultOptions,
+      ...options,
+      filename,
+      maxQueue: 0,
+    });
 
     if (this.options.recordTiming) {
       this.runTime = createHistogram();
@@ -665,8 +671,8 @@ export default class Piscina<T = any, R = any> extends EventEmitterAsyncResource
   #pool : ThreadPool;
 
   constructor (options : Options = {}) {
-    const opts = { ...options, '__proto__': null };
-    super({ ...opts, name: 'Piscina' });
+    const opts = withNullPrototype(options);
+    super(withNullPrototype(opts, { name: 'Piscina' }));
 
     if (typeof opts.filename !== 'string' && opts.filename != null) {
       throw new TypeError('options.filename must be a string or null');
@@ -781,12 +787,14 @@ export default class Piscina<T = any, R = any> extends EventEmitterAsyncResource
       return Promise.reject(
         new TypeError('options must be an object'));
     }
+    const opts = withNullPrototype(options);
     const {
       transferList,
+      signal,
       filename,
-      name,
-      signal
-    } = options;
+      name
+    } = opts;
+
     if (transferList !== undefined && !Array.isArray(transferList)) {
       return Promise.reject(
         new TypeError('transferList argument must be an Array'));
@@ -809,6 +817,8 @@ export default class Piscina<T = any, R = any> extends EventEmitterAsyncResource
     if (options === null || typeof options !== 'object') {
       throw TypeError('options must be an object');
     }
+
+    options = withNullPrototype(options);
 
     let { force } = options;
 
