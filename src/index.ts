@@ -48,6 +48,7 @@ import {
   markMovable,
   getAvailableParallelism,
   maybeFileURLToPath,
+  withNullPrototype,
 } from './common';
 const cpuParallelism : number = getAvailableParallelism();
 
@@ -185,7 +186,12 @@ class ThreadPool {
 
     const filename =
       options.filename ? maybeFileURLToPath(options.filename) : null;
-    this.options = { ...kDefaultOptions, ...options, filename, maxQueue: 0 };
+    this.options = withNullPrototype({
+      ...kDefaultOptions,
+      ...options,
+      filename,
+      maxQueue: 0,
+    });
 
     if (this.options.recordTiming) {
       this.histogram = new PiscinaHistogramHandler();
@@ -741,8 +747,8 @@ export default class Piscina<Exports extends Record<string, (payload: any) => an
   #histogram: PiscinaHistogram | null = null;
 
   constructor (options : Options = {}) {
-    const opts = { ...options, '__proto__': null };
-    super({ ...opts, name: 'Piscina' });
+    const opts = withNullPrototype(options);
+    super(withNullPrototype(opts, { name: 'Piscina' }));
 
     if (typeof opts.filename !== 'string' && opts.filename != null) {
       throw Errors.ValidationError('options.filename must be a string or null');
@@ -781,7 +787,7 @@ export default class Piscina<Exports extends Record<string, (payload: any) => an
         !['sync', 'async', 'disabled'].includes(opts.atomics))) {
       throw Errors.ValidationError('options.atomics should be a value of sync, sync or disabled.');
     }
-    if (options.resourceLimits != null && typeof options.resourceLimits !== 'object') {
+    if (opts.resourceLimits != null && typeof opts.resourceLimits !== 'object') {
       throw Errors.ValidationError('options.resourceLimits must be an object');
     }
     if (opts.taskQueue != null && !isTaskQueue(opts.taskQueue)) {
@@ -817,12 +823,12 @@ export default class Piscina<Exports extends Record<string, (payload: any) => an
         Errors.ValidationError('options must be an object'));
     }
 
-    const {
-      transferList,
-      signal
-    } = options;
-    const filename = Object.prototype.hasOwnProperty.call(options, 'filename') ? options.filename : null;
-    const name = Object.prototype.hasOwnProperty.call(options, 'name') ? options.name : null;
+    options = withNullPrototype(options);
+
+    const transferList = options.transferList;
+    const signal = options.signal ?? null;
+    const filename = options.filename ?? null;
+    const name = options.name ?? null;
 
     if (transferList !== undefined && !Array.isArray(transferList)) {
       return Promise.reject(
@@ -847,6 +853,8 @@ export default class Piscina<Exports extends Record<string, (payload: any) => an
     if (options == null || typeof options !== 'object') {
       throw Errors.ValidationError('options must be an object');
     }
+
+    options = withNullPrototype(options);
 
     let { force } = options;
 
