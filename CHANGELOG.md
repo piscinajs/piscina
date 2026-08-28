@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [4.9.4](https://github.com/piscinajs/piscina/compare/v4.9.3...v4.9.4) (2026-08-28)
+
+
+### ⚠ BREAKING CHANGES
+
+* for consumers that call Object.prototype methods
+directly on pool.options (e.g. pool.options.hasOwnProperty(...)).
+
+* fix: use sanitized options for resourceLimits validation
+
+* fix: sanitize run/close options with withNullPrototype
+
+Use the existing withNullPrototype helper instead of getOwn; address feedback from @metcoder95
+
+* fix: avoid re-linking Object.prototype in Piscina constructor
+
+(cherry picked from commit bebbda255c2981cecddd36b171b94be2fd41c9a6)
+
+* Merge commit from fork ([0cb12fc](https://github.com/piscinajs/piscina/commit/0cb12fca37f526065b072592afe954574dcc656f))
+
 ### [4.9.3](https://github.com/piscinajs/piscina/compare/v4.9.2...v4.9.3) (2026-06-12)
 
 ### [4.9.2](https://github.com/piscinajs/piscina/compare/v4.9.1...v4.9.2) (2025-03-18)
