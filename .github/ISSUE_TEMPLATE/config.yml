@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/piscinajs/piscina/security/advisories/new
+    about: Do not open public issues that might have security implications. Report them privately here. See SECURITY.md.
