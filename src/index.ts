@@ -411,7 +411,9 @@ class ThreadPool {
           .map(workerInfo => workerInfo.interface);
       }
 
-      const distributed = this._distributeTask(taskInfo, workers);
+      // The task was taken from the head of its queue, so with stricterFIFO
+      // it has to go back to the head to keep its place.
+      const distributed = this._distributeTask(taskInfo, workers, !this.options.stricterFIFO);
 
       if (distributed) {
         // If task was distributed, we should continue to distribute more tasks
@@ -450,7 +452,7 @@ class ThreadPool {
     }
   }
 
-  _distributeTask (task: TaskInfo, workers: PiscinaWorker[]): boolean {
+  _distributeTask (task: TaskInfo, workers: PiscinaWorker[], toTail: boolean): boolean {
     // We need to verify if the task is aborted already
     if (task.aborted) return true;
 
@@ -467,7 +469,7 @@ class ThreadPool {
       return true;
     }
 
-    this._returnUndistributedTask(task, !this.options.stricterFIFO);
+    this._returnUndistributedTask(task, toTail);
     return false;
   }
 
@@ -591,7 +593,8 @@ class ThreadPool {
     }
 
     const workers = [...this.workers.readyItems].map(workerInfo => workerInfo.interface);
-    const distributed = this._distributeTask(taskInfo, workers);
+    // A new task has never been queued, so it always goes to the tail.
+    const distributed = this._distributeTask(taskInfo, workers, true);
 
     if (!distributed) {
       // We spawn if possible
