@@ -8,6 +8,7 @@ import { Errors } from '../errors';
 import { TaskInfo } from '../task_queue';
 import { kFieldCount, kRequestCountField, kResponseCountField, kWorkerData } from '../symbols';
 import { PiscinaHistogramHandler, PiscinaHistogramSummary } from '../histogram';
+import { taskDoneChannel } from '../diagnostics';
 
 import { AsynchronouslyCreatedResource, AsynchronouslyCreatedResourcePool } from './base';
 export * from './balancer';
@@ -43,6 +44,14 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
     histogram: RecordableHistogram | null;
     terminating = false;
     destroyed = false;
+    // When the Worker was first known to have booted: its READY message or
+    // its first response, whichever was handled first. A task handed over
+    // before then started no earlier than this; used when the Worker never
+    // reports the task's start (it was aborted or crashed).
+    bootedAt : number | null = null;
+    // threadId reads as -1 once the thread exits, which is when an exit
+    // removes the Worker; keep the original for its interface.
+    threadId : number;
 
     constructor (
       {
@@ -55,6 +64,7 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
       super();
       const { filename, ...workerOpts } = worker;
       this.worker = new Worker(filename, workerOpts);
+      this.threadId = this.worker.threadId;
       this.port = port;
       this.onMessage = onMessage;
       this.port.on('message', this._handleResponse.bind(this));
@@ -65,7 +75,7 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
     }
 
     get id (): number {
-      return this.worker.threadId;
+      return this.threadId;
     }
 
     onWorkerMessage(handler: (msg: any) => void): void {
@@ -99,8 +109,9 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
       return this;
     }
 
-    destroy () : void {
-      if (this.terminating || this.destroyed) return;
+    // Returns false if the Worker was already being or had been destroyed.
+    destroy () : boolean {
+      if (this.terminating || this.destroyed) return false;
 
       this.terminating = true;
       this.clearIdleTimeout();
@@ -114,6 +125,7 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
       this.terminating = false;
       this.destroyed = true;
       this.markAsDestroyed();
+      return true;
     }
 
     setIdleTimeout (handler: (_: void) => void, ms: number, ...args: any[]) : void {
@@ -151,7 +163,8 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
       }
     }
 
-    postTask (taskInfo : TaskInfo) {
+    // Returns false if the task could not be posted; it is then already done.
+    postTask (taskInfo : TaskInfo) : boolean {
       // Avoid duplicates
       assert(!this.taskInfos.has(taskInfo.taskId));
       // Avoid posting when pool is shutting down or worker already destroyed
@@ -162,7 +175,8 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
         taskId: taskInfo.taskId,
         filename: taskInfo.filename,
         name: taskInfo.name,
-        histogramEnabled: this.histogram != null ? 1 : 0
+        histogramEnabled: this.histogram != null ? 1 : 0,
+        reportStartTime: taskDoneChannel.hasSubscribers ? 1 : 0
       };
 
       try {
@@ -176,10 +190,12 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
         // if it is waiting for one.
         Atomics.add(this.sharedBuffer, kRequestCountField, 1);
         Atomics.notify(this.sharedBuffer, kRequestCountField, 1);
+        return true;
       } catch (err) {
         // This would mostly happen if e.g. message contains unserializable data
         // or transferList is invalid.
         taskInfo.done(<Error>err);
+        return false;
       }
     }
 
@@ -225,7 +241,7 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
       const worker = this;
       return {
         get id () {
-          return worker.worker.threadId;
+          return worker.threadId;
         },
         get currentUsage () {
           return worker.currentUsage();

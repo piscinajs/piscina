@@ -42,6 +42,21 @@ import {
 } from './histogram';
 import { Errors } from './errors';
 import {
+  taskSubmitChannel,
+  taskStartChannel,
+  taskDoneChannel,
+  newWorkerChannel,
+  evictWorkerChannel,
+  drainChannel,
+  PiscinaWorkerEvictReason,
+  PiscinaTaskSubmitMessage,
+  PiscinaTaskStartMessage,
+  PiscinaTaskDoneMessage,
+  PiscinaNewWorkerMessage,
+  PiscinaEvictWorkerMessage,
+  PiscinaDrainMessage
+} from './diagnostics';
+import {
   READY,
   commonState,
   isTransferable,
@@ -275,11 +290,13 @@ class ThreadPool {
       // attach event listeners before the event is emitted.
       queueMicrotask(() => {
         this.publicInterface.emit('workerCreate', workerInfo.interface);
+        this._publishNewWorker(workerInfo);
         this._onWorkerReady(workerInfo);
       });
     } else {
       workerInfo.onReady(() => {
         this.publicInterface.emit('workerCreate', workerInfo.interface);
+        this._publishNewWorker(workerInfo);
         this._onWorkerReady(workerInfo);
       });
     }
@@ -289,6 +306,13 @@ class ThreadPool {
 
     function onMessage (this: ThreadPool, message : ResponseMessage) {
       const { taskId, result } = message;
+      const workerStartedAt = message.startTime == null
+        ? null
+        : performance.now() - Number(process.hrtime.bigint() - message.startTime) / 1e6;
+      // A response proves the Worker booted, even if its READY message, sent
+      // on another port, has not been handled yet. Set this before taskDone()
+      // hands the Worker its next task.
+      workerInfo.bootedAt ??= workerStartedAt ?? performance.now();
       // In case of success: Call the callback that was passed to `runTask`,
       // remove the `TaskInfo` associated with the Worker, which marks it as
       // free again.
@@ -301,6 +325,7 @@ class ThreadPool {
           `Unexpected message from Worker: ${inspect(message)}`);
         this.publicInterface.emit('error', err);
       } else {
+        taskInfo.workerStartedAt = workerStartedAt;
         taskInfo.done(message.error, result);
       }
 
@@ -308,6 +333,7 @@ class ThreadPool {
     }
 
     function onWorkerReady () {
+      workerInfo.bootedAt ??= performance.now();
       workerInfo.currentUsage() === 0 && workerInfo.unref();
       workerInfo.isReady() === false && workerInfo.markAsReady();
     }
@@ -346,7 +372,7 @@ class ThreadPool {
 
     // Remove the worker from the list and potentially start a new Worker to
     // replace the current one.
-    this._removeWorker(workerInfo);
+    this._removeWorker(workerInfo, 'error');
 
     if (workerInfo.isReady() && !this.workerFailsDuringBootstrap) {
       this._ensureMinimumWorkers();
@@ -383,10 +409,80 @@ class ThreadPool {
     }
   }
 
-  _removeWorker (workerInfo : WorkerInfo) : void {
-    workerInfo.destroy();
+  _removeWorker (workerInfo : WorkerInfo, reason : PiscinaWorkerEvictReason) : void {
+    // A removed Worker also exits and comes back here through _onError;
+    // destroy() reports whether this is the first removal.
+    const removed = workerInfo.destroy();
 
     this.workers.delete(workerInfo);
+
+    if (removed && evictWorkerChannel.hasSubscribers) {
+      const message : PiscinaEvictWorkerMessage = {
+        pool: this.publicInterface,
+        worker: workerInfo.interface,
+        reason
+      };
+      evictWorkerChannel.publish(message);
+    }
+  }
+
+  _publishNewWorker (workerInfo : WorkerInfo) : void {
+    if (!newWorkerChannel.hasSubscribers) return;
+
+    const message : PiscinaNewWorkerMessage = {
+      pool: this.publicInterface,
+      worker: workerInfo.interface
+    };
+    newWorkerChannel.publish(message);
+  }
+
+  // Task events are published in the task's async scope, so subscribers see
+  // the run() caller's context wherever piscina happens to be running.
+  _publishTaskStart (taskInfo : TaskInfo, workerInfo : WorkerInfo) : void {
+    if (!taskStartChannel.hasSubscribers) return;
+
+    const message : PiscinaTaskStartMessage = {
+      pool: this.publicInterface,
+      task: taskInfo.interface,
+      worker: workerInfo.interface,
+      workerReady: workerInfo.bootedAt !== null
+    };
+    taskInfo.runInAsyncScope(taskStartChannel.publish, taskStartChannel, message);
+  }
+
+  _publishTaskDone (taskInfo : TaskInfo, error : unknown) : void {
+    // Some tasks reach two terminal paths (e.g. aborted while in the
+    // skipQueue, then flushed by destroy()); report only the first.
+    if (taskInfo.donePublished) return;
+    taskInfo.donePublished = true;
+
+    if (!taskDoneChannel.hasSubscribers) return;
+
+    // workerInfo is only set once postTask() has posted the task.
+    const { workerInfo } = taskInfo;
+    const started = workerInfo !== null;
+    let waitTime : number | null = null;
+    let runTime : number | null = null;
+    if (started) {
+      const runStart = taskInfo.workerStartedAt ??
+        Math.max(taskInfo.started, workerInfo.bootedAt ?? 0);
+      waitTime = runStart - taskInfo.created;
+      runTime = performance.now() - runStart;
+    }
+
+    const message : PiscinaTaskDoneMessage = {
+      pool: this.publicInterface,
+      task: taskInfo.interface,
+      queued: taskInfo.queued,
+      started,
+      waitTime,
+      runTime,
+      error,
+      aborted: taskInfo.aborted,
+      queueSize: this.publicInterface.queueSize,
+      idleThreads: this.publicInterface.idleThreads
+    };
+    taskInfo.runInAsyncScope(taskDoneChannel.publish, taskDoneChannel, message);
   }
 
   _onWorkerReady (workerInfo : WorkerInfo) : void {
@@ -446,7 +542,7 @@ class ThreadPool {
         }
 
         if (this.workers.size > this.options.minThreads) {
-          this._removeWorker(workerInfo);
+          this._removeWorker(workerInfo, 'idle');
         }
       }, this.options.idleTimeout);
     }
@@ -463,7 +559,10 @@ class ThreadPool {
       const now = performance.now();
       this.histogram?.recordWaitTime(now - task.created)
       task.started = now;
-      candidate[kWorkerData].postTask(task);
+      const workerInfo = candidate[kWorkerData];
+      if (workerInfo.postTask(task)) {
+        this._publishTaskStart(task, workerInfo);
+      }
       this._maybeDrain();
       // If candidate, let's try to distribute more tasks
       return true;
@@ -474,6 +573,8 @@ class ThreadPool {
   }
 
   _returnUndistributedTask (task: TaskInfo, toTail = false) : void {
+    task.queued = true;
+
     if (task.abortSignal != null) {
       if (toTail) {
         this.skipQueue.push(task);
@@ -544,6 +645,7 @@ class ThreadPool {
           resolve(result);
         }
 
+        this._publishTaskDone(taskInfo, err);
         this._maybeDrain();
     });
 
@@ -552,11 +654,12 @@ class ThreadPool {
         // Call reject() first to make sure we always reject with the AbortError
         // if the task is aborted, not with an Error from the possible
         // thread termination below.
-        reject(Errors.AbortError(signal.reason));
+        const abortError = Errors.AbortError(signal.reason);
+        reject(abortError);
 
         if (taskInfo.workerInfo != null) {
           // Already running: We cancel the Worker this is running on.
-          this._removeWorker(taskInfo.workerInfo);
+          this._removeWorker(taskInfo.workerInfo, 'abort');
           this._ensureMinimumWorkers();
           return;
         }
@@ -564,20 +667,31 @@ class ThreadPool {
         // Not yet running: Remove it from the queue.
         // Call should be idempotent
         this.taskQueue.remove(taskInfo);
+        this._publishTaskDone(taskInfo, abortError);
       });
 
       taskInfo.setAbortListener(signal);
     }
 
+    if (taskSubmitChannel.hasSubscribers) {
+      const message : PiscinaTaskSubmitMessage = {
+        pool: this.publicInterface,
+        task: taskInfo.interface,
+        queueSize: this.publicInterface.queueSize
+      };
+      taskSubmitChannel.publish(message);
+    }
+
     if (this.taskQueue.size > 0) {
       const totalCapacity = this.options.maxQueue + this.pendingCapacity();
       if (this.taskQueue.size >= totalCapacity) {
-        if (this.options.maxQueue === 0) {
-          reject(Errors.NoTaskQueueAvailable());
-        } else {
-          reject(Errors.TaskQueueAtLimit());
-        }
+        const error = this.options.maxQueue === 0
+          ? Errors.NoTaskQueueAvailable()
+          : Errors.TaskQueueAtLimit();
+        reject(error);
+        this._publishTaskDone(taskInfo, error);
       } else {
+        taskInfo.queued = true;
         this.taskQueue.push(taskInfo);
         // Eagerly spawn additional workers up to maxThreads while there is
         // queued work. Without this, a cold pool serializes the initial burst
@@ -606,7 +720,9 @@ class ThreadPool {
       // We reject if no task queue set and no more pending capacity.
       // TODO(@metcoder95): maybe auto expand the queue if no task queue set and we're at capacity?
       if (this.options.maxQueue <= 0 && this.pendingCapacity() === 0) {
-        reject(Errors.NoTaskQueueAvailable());
+        const error = Errors.NoTaskQueueAvailable();
+        reject(error);
+        this._publishTaskDone(taskInfo, error);
       }
     };
 
@@ -634,7 +750,13 @@ class ThreadPool {
     if (this._needsDrain === true) {
       if (queueSize === 0) {
         this._needsDrain = false;
-        queueMicrotask(() => this.publicInterface.emit('drain'));
+        queueMicrotask(() => {
+          this.publicInterface.emit('drain');
+          if (drainChannel.hasSubscribers) {
+            const message : PiscinaDrainMessage = { pool: this.publicInterface };
+            drainChannel.publish(message);
+          }
+        });
       }
       return;
     }
@@ -664,7 +786,7 @@ class ThreadPool {
     while (this.workers.size > 0) {
       const [workerInfo] = this.workers;
       exitEvents.push(once(workerInfo.worker, 'exit'));
-      this._removeWorker(workerInfo);
+      this._removeWorker(workerInfo, 'destroy');
     }
 
     await Promise.allSettled(exitEvents);
@@ -1042,6 +1164,13 @@ export {
   Piscina,
   PiscinaTask,
   TaskQueue,
+  PiscinaWorkerEvictReason,
+  PiscinaTaskSubmitMessage,
+  PiscinaTaskStartMessage,
+  PiscinaTaskDoneMessage,
+  PiscinaNewWorkerMessage,
+  PiscinaEvictWorkerMessage,
+  PiscinaDrainMessage,
   kTransferable as transferableSymbol,
   kValue as valueSymbol,
   kQueueOptions as queueOptionsSymbol,

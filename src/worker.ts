@@ -183,6 +183,7 @@ async function onMessage (
   let response : ResponseMessage;
   let transferList : any[] = [];
   const start = message.histogramEnabled === 1 ? performance.now() : null;
+  const startTime = message.reportStartTime === 1 ? process.hrtime.bigint() : null;
 
   try {
     const handler = await getHandler(filename, name);
@@ -198,7 +199,8 @@ async function onMessage (
       taskId,
       result,
       error: null,
-      time: start == null ? null : Math.round(performance.now() - start)
+      time: start == null ? null : Math.round(performance.now() - start),
+      startTime
     };
 
     if (useAtomics && !useAsyncAtomics) {
@@ -221,7 +223,8 @@ async function onMessage (
       // It may be worth taking a look at the error cloning algorithm we
       // use in Node.js core here, it's quite a bit more flexible
       error: <Error>error,
-      time: start == null ? null : Math.round(performance.now() - start)
+      time: start == null ? null : Math.round(performance.now() - start),
+      startTime
     };
   }
   currentTasks--;
