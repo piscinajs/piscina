@@ -548,6 +548,18 @@ by number of tasks enqueued that are pending of execution.
 
 A `'message'` event is emitted whenever a message is received from a worker thread.
 
+### Diagnostics channels
+
+Piscina publishes task and pool events on
+[`node:diagnostics_channel`](https://nodejs.org/api/diagnostics_channel.html):
+`piscina:task:submit`, `piscina:task:start`, `piscina:task:done`,
+`piscina:pool:new_worker`, `piscina:pool:evict_worker` and
+`piscina:pool:drain`. `piscina:task:done` reports each task's wait and run
+time, so you can see how often and how long tasks wait for a free worker. See
+the
+[Diagnostics channels docs](https://piscinajs.dev/api-reference/Events#diagnostics-channels)
+for the messages.
+
 ### Property: `completed` (readonly)
 
 The current number of completed tasks.
