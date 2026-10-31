@@ -66,6 +66,9 @@ export class TaskInfo extends AsyncResource implements Task {
     created : number;
     started : number;
     aborted = false;
+    queued = false;
+    donePublished = false;
+    workerStartedAt : number | null = null;
     _abortListener: (() => void) = () => { this.aborted = true; };
     _abortCleaner: (() => void) | null = null;
 
@@ -127,11 +130,13 @@ export class TaskInfo extends AsyncResource implements Task {
     onResponse(_result: any) {}
 
     done (err : Error | null, result? : any) : void {
+      // If an abort signal was used, remove the listener from it when
+      // done to make sure we do not accidentally leak. Do it first: the
+      // callback publishes piscina:task:done, and a subscriber that aborts
+      // the signal must not terminate the Worker's next task.
+      this._abortCleaner?.();
       this.runInAsyncScope(this.callback, null, err, result);
       this.emitDestroy(); // `TaskInfo`s are used only once.
-      // If an abort signal was used, remove the listener from it when
-      // done to make sure we do not accidentally leak.
-      this._abortCleaner?.();
     }
 
     get [kQueueOptions] () : {} | null {
