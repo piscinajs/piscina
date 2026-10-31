@@ -233,12 +233,11 @@ class ThreadPool {
     }
   }
 
-  // Start workers for tasks that are still queued after a worker was removed.
-  // Queued tasks are otherwise only handed out when a worker becomes available,
-  // so with no worker left (e.g. minThreads: 0) they would wait for the next
-  // run() call.
-  _ensureWorkersForQueuedTasks () : void {
-    this._ensureMinimumWorkers();
+  // Start workers, up to maxThreads, for tasks that are still queued after a
+  // worker was removed. Queued tasks are otherwise only handed out when a
+  // worker becomes available, so with no worker left (e.g. minThreads: 0) they
+  // would wait for the next run() call.
+  _deliverQueuedTasks () : void {
     if (this.closingUp || this.destroying) {
       return;
     }
@@ -366,7 +365,8 @@ class ThreadPool {
     this._removeWorker(workerInfo);
 
     if (workerInfo.isReady() && !this.workerFailsDuringBootstrap) {
-      this._ensureWorkersForQueuedTasks();
+      this._ensureMinimumWorkers();
+      this._deliverQueuedTasks();
     } else {
       // Do not start new workers over and over if they already fail during
       // bootstrap, there's no point.
@@ -574,7 +574,8 @@ class ThreadPool {
         if (taskInfo.workerInfo != null) {
           // Already running: We cancel the Worker this is running on.
           this._removeWorker(taskInfo.workerInfo);
-          this._ensureWorkersForQueuedTasks();
+          this._ensureMinimumWorkers();
+          this._deliverQueuedTasks();
           return;
         }
 
