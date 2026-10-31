@@ -625,6 +625,9 @@ class ThreadPool {
 
       // We reject if no task queue set and no more pending capacity.
       if (this.options.maxQueue <= 0 && this.pendingCapacity() === 0) {
+        // _distributeTask already put the task back in a queue; take it out
+        // so it doesn't run after we reject it.
+        this._removeTaskFromQueue(taskInfo);
         reject!(Errors.NoTaskQueueAvailable());
       }
     };
