@@ -183,6 +183,7 @@ async function onMessage (
   let response : ResponseMessage;
   let transferList : any[] = [];
   const start = message.histogramEnabled === 1 ? performance.now() : null;
+  // The parent only asks for this while piscina:task:done has subscribers.
   const startTime = message.reportStartTime === 1 ? process.hrtime.bigint() : null;
 
   try {
