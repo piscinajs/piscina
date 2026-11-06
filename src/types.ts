@@ -18,6 +18,7 @@ export interface RequestMessage {
   filename: string
   name: string
   histogramEnabled: number
+  reportStartTime: number
 }
 
 export interface ReadyMessage {
@@ -29,6 +30,9 @@ export interface ResponseMessage {
   result: any
   error: Error | null
   time: number | null
+  // process.hrtime.bigint() when the task began. Unlike performance.now(),
+  // its clock is shared by every thread, so the parent can compare it.
+  startTime: bigint | null
 }
 export const commonState = {
   isWorkerThread: false,
