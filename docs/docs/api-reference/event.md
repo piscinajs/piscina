@@ -89,9 +89,18 @@ subscriber can read the caller's `AsyncLocalStorage` stores.
 - `queueSize` and `idleThreads` are the pool's values when the message is
   published. A finished task's worker takes the next queued task before
   `piscina:task:done` is published, so these values already include it.
-- `reason` is one of `'idle'` (removed after `idleTimeout`), `'abort'` (its
-  task was aborted), `'error'` (the worker errored or exited), or `'destroy'`
-  (`destroy()` or `close()`). A worker that fails while starting up gets
+- `reason` is an `Error` that says why the worker was removed:
+  - the worker's own error if it errored or exited, the same one its tasks
+    were rejected with;
+  - the `AbortError` its task was rejected with if that task was aborted
+    (`code: 'PISCINA_ERR_ABORT'`);
+  - `code: 'PISCINA_ERR_WORKER_IDLE'` if it was idle for longer than
+    `idleTimeout`;
+  - `code: 'PISCINA_ERR_POOL_DESTROYED'` after `destroy()` or `close()`. If
+    `close()` timed out, its `cause` is the timeout error
+    (`code: 'PISCINA_ERR_CLOSE_TIMEOUT'`).
+
+  A worker that fails while starting up gets
   `piscina:pool:evict_worker` without a `piscina:pool:new_worker`, just as it
   gets `'workerDestroy'` without `'workerCreate'`.
 - Whether a task's `piscina:task:done` comes before or after its worker's

@@ -4,8 +4,6 @@ import type Piscina from './index';
 import type { PiscinaTask } from './task_queue';
 import type { PiscinaWorker } from './worker_pool';
 
-export type PiscinaWorkerEvictReason = 'idle' | 'abort' | 'error' | 'destroy';
-
 export interface PiscinaTaskSubmitMessage {
   readonly pool: Piscina;
   readonly task: PiscinaTask;
@@ -40,7 +38,7 @@ export interface PiscinaNewWorkerMessage {
 export interface PiscinaEvictWorkerMessage {
   readonly pool: Piscina;
   readonly worker: PiscinaWorker;
-  readonly reason: PiscinaWorkerEvictReason;
+  readonly reason: Error;
 }
 
 export interface PiscinaDrainMessage {

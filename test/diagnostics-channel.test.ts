@@ -46,9 +46,7 @@ function recordTaskEvents (t: TestContext, pool: Piscina, als?: AsyncLocalStorag
   return events;
 }
 
-function idsAndReasons (evictions: PiscinaEvictWorkerMessage[]) {
-  return evictions.map(({ worker, reason }) => ({ id: worker.id, reason }));
-}
+type PiscinaError = Error & { code: string };
 
 function doneFor (dones: PiscinaTaskDoneMessage[], submit: PiscinaTaskSubmitMessage) {
   return dones.filter(done => done.task.taskId === submit.task.taskId);
@@ -179,14 +177,15 @@ test('reports an abort while running once, as an abort eviction', async (t: Test
   const threadId = thread.threadId;
   const exited = once(thread, 'exit');
   const ee = new AbortController();
-  const aborted = assert.rejects(
-    pool.run('new Promise(resolve => setTimeout(resolve, 1000))', { signal: ee.signal }),
-    /The task has been aborted/);
+  const rejection = pool.run('new Promise(resolve => setTimeout(resolve, 1000))', { signal: ee.signal })
+    .catch((error: unknown) => error);
   ee.abort();
-  await aborted;
+  const abortError = await rejection;
   await exited;
 
-  assert.deepStrictEqual(idsAndReasons(evictions), [{ id: threadId, reason: 'abort' }]);
+  assert.match((abortError as Error).message, /The task has been aborted/);
+  assert.deepStrictEqual(evictions.map(e => e.worker.id), [threadId]);
+  assert.strictEqual(evictions[0].reason, abortError);
   assert.strictEqual(dones.length, 1);
   assert.strictEqual(dones[0].started, true);
   assert.strictEqual(dones[0].aborted, true);
@@ -233,7 +232,25 @@ test('publishes done for every task flushed by destroy()', async (t: TestContext
   for (const submit of submits) {
     assert.strictEqual(doneFor(dones, submit).length, 1);
   }
-  assert.deepStrictEqual(evictions.map(e => e.reason), ['destroy']);
+  assert.strictEqual(evictions.length, 1);
+  assert.strictEqual((evictions[0].reason as PiscinaError).code, 'PISCINA_ERR_POOL_DESTROYED');
+  assert.strictEqual(evictions[0].reason.cause, undefined);
+});
+
+test('gives the close() timeout as the cause of its evictions', async (t: TestContext) => {
+  const pool = new Piscina({ filename: evalFile, maxThreads: 1, closeTimeout: 5 });
+  await pool.run('0');
+  const evictions = record<PiscinaEvictWorkerMessage>(t, 'piscina:pool:evict_worker', () => pool);
+  pool.on('error', () => {});
+
+  const task = pool.run('new Promise(resolve => setTimeout(resolve, 1000))').catch(() => {});
+  await pool.close();
+  await task;
+
+  assert.strictEqual(evictions.length, 1);
+  const reason = evictions[0].reason as PiscinaError;
+  assert.strictEqual(reason.code, 'PISCINA_ERR_POOL_DESTROYED');
+  assert.strictEqual((reason.cause as PiscinaError).code, 'PISCINA_ERR_CLOSE_TIMEOUT');
 });
 
 test('reports a crashed worker as an error eviction', async (t: TestContext) => {
@@ -247,9 +264,10 @@ test('reports a crashed worker as an error eviction', async (t: TestContext) => 
   await assert.rejects(pool.run('process.exit(1)'), /worker exited with code: 1/);
 
   // The thread has exited by the time this eviction is published.
-  assert.deepStrictEqual(idsAndReasons(evictions), [{ id: threadId, reason: 'error' }]);
   assert.strictEqual(dones.length, 1);
   assert.match((dones[0].error as Error).message, /worker exited with code: 1/);
+  assert.deepStrictEqual(evictions.map(e => e.worker.id), [threadId]);
+  assert.strictEqual(evictions[0].reason, dones[0].error);
   await pool.destroy();
 });
 
@@ -276,7 +294,7 @@ test('reports an idle worker removal as an idle eviction', async (t: TestContext
   await pool.run('42');
   await new Promise(resolve => setTimeout(resolve, 300));
 
-  assert.deepStrictEqual(evictions.map(e => e.reason), ['idle']);
+  assert.deepStrictEqual(evictions.map(e => (e.reason as PiscinaError).code), ['PISCINA_ERR_WORKER_IDLE']);
   await pool.destroy();
 });
 

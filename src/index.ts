@@ -49,7 +49,6 @@ import {
   newWorkerChannel,
   evictWorkerChannel,
   drainChannel,
-  PiscinaWorkerEvictReason,
   PiscinaTaskSubmitMessage,
   PiscinaTaskStartMessage,
   PiscinaTaskDoneMessage,
@@ -373,7 +372,7 @@ class ThreadPool {
 
     // Remove the worker from the list and potentially start a new Worker to
     // replace the current one.
-    this._removeWorker(workerInfo, 'error');
+    this._removeWorker(workerInfo, () => err);
 
     if (workerInfo.isReady() && !this.workerFailsDuringBootstrap) {
       this._ensureMinimumWorkers();
@@ -410,7 +409,7 @@ class ThreadPool {
     }
   }
 
-  _removeWorker (workerInfo : WorkerInfo, reason : PiscinaWorkerEvictReason) : void {
+  _removeWorker (workerInfo : WorkerInfo, getReason : () => Error) : void {
     // A removed Worker also exits and comes back here through _onError;
     // only the first removal is an eviction.
     const firstRemoval = !workerInfo.terminating && !workerInfo.destroyed;
@@ -423,7 +422,7 @@ class ThreadPool {
       evictWorkerChannel.publish({
         pool: this.publicInterface,
         worker: workerInfo.interface,
-        reason
+        reason: getReason()
       } satisfies PiscinaEvictWorkerMessage);
     }
   }
@@ -541,7 +540,7 @@ class ThreadPool {
         }
 
         if (this.workers.size > this.options.minThreads) {
-          this._removeWorker(workerInfo, 'idle');
+          this._removeWorker(workerInfo, Errors.WorkerIdle);
         }
       }, this.options.idleTimeout);
     }
@@ -658,7 +657,7 @@ class ThreadPool {
 
         if (taskInfo.workerInfo != null) {
           // Already running: We cancel the Worker this is running on.
-          this._removeWorker(taskInfo.workerInfo, 'abort');
+          this._removeWorker(taskInfo.workerInfo, () => abortError);
           this._ensureMinimumWorkers();
           return;
         }
@@ -767,7 +766,7 @@ class ThreadPool {
     } 
   }
 
-  async destroy () {
+  async destroy (cause?: unknown) {
     this.destroying = true;
     while (this.skipQueue.length > 0) {
       const taskInfo : TaskInfo = this.skipQueue.shift() as TaskInfo;
@@ -780,10 +779,11 @@ class ThreadPool {
     }
 
     const exitEvents : Promise<any[]>[] = [];
+    const getReason = () => Errors.PoolDestroyed(cause);
     while (this.workers.size > 0) {
       const [workerInfo] = this.workers;
       exitEvents.push(once(workerInfo.worker, 'exit'));
-      this._removeWorker(workerInfo, 'destroy');
+      this._removeWorker(workerInfo, getReason);
     }
 
     await Promise.allSettled(exitEvents);
@@ -849,15 +849,17 @@ class ThreadPool {
       throw Errors.CloseTimeout();
     };
 
+    let closeError : unknown;
     try {
       await Promise.race([
         onPoolFlushed(),
         throwOnTimeOut(this.options.closeTimeout)
       ]);
     } catch (error) {
+      closeError = error;
       this.publicInterface.emit('error', error);
     } finally {
-      await this.destroy();
+      await this.destroy(closeError);
       this.publicInterface.emit('close');
       this.closingUp = false;
     }
@@ -1165,7 +1167,6 @@ export {
   Piscina,
   PiscinaTask,
   TaskQueue,
-  PiscinaWorkerEvictReason,
   PiscinaTaskSubmitMessage,
   PiscinaTaskStartMessage,
   PiscinaTaskDoneMessage,
