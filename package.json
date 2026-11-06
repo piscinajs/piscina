@@ -55,7 +55,7 @@
     "eslint": "^9.16.0",
     "expect-type": "^1.2.1",
     "gen-esm-wrapper": "^1.1.1",
-    "glob": "^13.0.1",
+    "glob": "^14.0.3",
     "jest": "^30.2.0",
     "neostandard": "^0.13.0",
     "ts-jest": "^29.4.6",
