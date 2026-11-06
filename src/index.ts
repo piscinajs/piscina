@@ -419,23 +419,21 @@ class ThreadPool {
     this.workers.delete(workerInfo);
 
     if (firstRemoval && evictWorkerChannel.hasSubscribers) {
-      const message : PiscinaEvictWorkerMessage = {
+      evictWorkerChannel.publish({
         pool: this.publicInterface,
         worker: workerInfo.interface,
         reason
-      };
-      evictWorkerChannel.publish(message);
+      } satisfies PiscinaEvictWorkerMessage);
     }
   }
 
   _publishNewWorker (workerInfo : WorkerInfo) : void {
     if (!newWorkerChannel.hasSubscribers) return;
 
-    const message : PiscinaNewWorkerMessage = {
+    newWorkerChannel.publish({
       pool: this.publicInterface,
       worker: workerInfo.interface
-    };
-    newWorkerChannel.publish(message);
+    } satisfies PiscinaNewWorkerMessage);
   }
 
   // Task events are published in the task's async scope, so subscribers see
@@ -443,13 +441,12 @@ class ThreadPool {
   _publishTaskStart (taskInfo : TaskInfo, workerInfo : WorkerInfo) : void {
     if (!taskStartChannel.hasSubscribers) return;
 
-    const message : PiscinaTaskStartMessage = {
+    taskInfo.runInAsyncScope(taskStartChannel.publish, taskStartChannel, {
       pool: this.publicInterface,
       task: taskInfo.interface,
       worker: workerInfo.interface,
       workerReady: workerInfo.bootedAt !== null
-    };
-    taskInfo.runInAsyncScope(taskStartChannel.publish, taskStartChannel, message);
+    } satisfies PiscinaTaskStartMessage);
   }
 
   _publishTaskDone (taskInfo : TaskInfo, error : unknown) : void {
@@ -472,7 +469,7 @@ class ThreadPool {
       runTime = performance.now() - runStart;
     }
 
-    const message : PiscinaTaskDoneMessage = {
+    taskInfo.runInAsyncScope(taskDoneChannel.publish, taskDoneChannel, {
       pool: this.publicInterface,
       task: taskInfo.interface,
       queued: taskInfo.queued,
@@ -483,8 +480,7 @@ class ThreadPool {
       aborted: taskInfo.aborted,
       queueSize: this.publicInterface.queueSize,
       idleThreads: this.publicInterface.idleThreads
-    };
-    taskInfo.runInAsyncScope(taskDoneChannel.publish, taskDoneChannel, message);
+    } satisfies PiscinaTaskDoneMessage);
   }
 
   _onWorkerReady (workerInfo : WorkerInfo) : void {
@@ -676,12 +672,11 @@ class ThreadPool {
     }
 
     if (taskSubmitChannel.hasSubscribers) {
-      const message : PiscinaTaskSubmitMessage = {
+      taskSubmitChannel.publish({
         pool: this.publicInterface,
         task: taskInfo.interface,
         queueSize: this.publicInterface.queueSize
-      };
-      taskSubmitChannel.publish(message);
+      } satisfies PiscinaTaskSubmitMessage);
     }
 
     if (this.taskQueue.size > 0) {
@@ -755,8 +750,7 @@ class ThreadPool {
         queueMicrotask(() => {
           this.publicInterface.emit('drain');
           if (drainChannel.hasSubscribers) {
-            const message : PiscinaDrainMessage = { pool: this.publicInterface };
-            drainChannel.publish(message);
+            drainChannel.publish({ pool: this.publicInterface } satisfies PiscinaDrainMessage);
           }
         });
       }
