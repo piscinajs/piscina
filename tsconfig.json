@@ -18,7 +18,8 @@
     "esModuleInterop": true,
 
     "resolveJsonModule": true,                /* Include modules imported with '.json' extension */
-    "forceConsistentCasingInFileNames": true  /* Disallow inconsistently-cased references to the same file. */
+    "forceConsistentCasingInFileNames": true,  /* Disallow inconsistently-cased references to the same file. */
+    "removeComments": true
   },
   "include": ["src"],
 }
