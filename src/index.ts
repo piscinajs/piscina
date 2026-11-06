@@ -411,12 +411,14 @@ class ThreadPool {
 
   _removeWorker (workerInfo : WorkerInfo, reason : PiscinaWorkerEvictReason) : void {
     // A removed Worker also exits and comes back here through _onError;
-    // destroy() reports whether this is the first removal.
-    const removed = workerInfo.destroy();
+    // only the first removal is an eviction.
+    const firstRemoval = !workerInfo.terminating && !workerInfo.destroyed;
+
+    workerInfo.destroy();
 
     this.workers.delete(workerInfo);
 
-    if (removed && evictWorkerChannel.hasSubscribers) {
+    if (firstRemoval && evictWorkerChannel.hasSubscribers) {
       const message : PiscinaEvictWorkerMessage = {
         pool: this.publicInterface,
         worker: workerInfo.interface,

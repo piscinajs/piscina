@@ -109,9 +109,8 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
       return this;
     }
 
-    // Returns false if the Worker was already being or had been destroyed.
-    destroy () : boolean {
-      if (this.terminating || this.destroyed) return false;
+    destroy () : void {
+      if (this.terminating || this.destroyed) return;
 
       this.terminating = true;
       this.clearIdleTimeout();
@@ -125,7 +124,6 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
       this.terminating = false;
       this.destroyed = true;
       this.markAsDestroyed();
-      return true;
     }
 
     setIdleTimeout (handler: (_: void) => void, ms: number, ...args: any[]) : void {
