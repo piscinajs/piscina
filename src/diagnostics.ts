@@ -47,9 +47,19 @@ export interface PiscinaDrainMessage {
   readonly pool: Piscina;
 }
 
-export const taskSubmitChannel = channel('piscina:task:submit');
-export const taskStartChannel = channel('piscina:task:start');
-export const taskDoneChannel = channel('piscina:task:done');
-export const newWorkerChannel = channel('piscina:pool:new_worker');
-export const evictWorkerChannel = channel('piscina:pool:evict_worker');
-export const drainChannel = channel('piscina:pool:drain');
+/** Names of the `node:diagnostics_channel` channels that Piscina publishes on. */
+export const channels = {
+  taskSubmit: 'piscina:task:submit',
+  taskStart: 'piscina:task:start',
+  taskDone: 'piscina:task:done',
+  newWorker: 'piscina:pool:new_worker',
+  evictWorker: 'piscina:pool:evict_worker',
+  drain: 'piscina:pool:drain'
+} as const;
+
+export const taskSubmitChannel = channel(channels.taskSubmit);
+export const taskStartChannel = channel(channels.taskStart);
+export const taskDoneChannel = channel(channels.taskDone);
+export const newWorkerChannel = channel(channels.newWorker);
+export const evictWorkerChannel = channel(channels.evictWorker);
+export const drainChannel = channel(channels.drain);

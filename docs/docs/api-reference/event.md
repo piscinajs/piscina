@@ -46,7 +46,8 @@ Piscina also publishes task and pool events on
 Messages are only built while a channel has subscribers, so an unused channel
 costs a single check. Channels are shared by every pool in the process: use
 `message.pool` to tell pools apart. To label metrics per pool, map each pool
-to a name, for example with a `WeakMap`.
+to a name, for example with a `WeakMap`. The channel names are exported as
+`channels` (also `Piscina.channels`), eg. `channels.taskDone`.
 
 | Channel | Published when | Message |
 | --- | --- | --- |
@@ -103,11 +104,11 @@ is reported as an uncaught exception and does not affect the task.
 
 ```js
 const { subscribe } = require('node:diagnostics_channel');
-const { Piscina } = require('piscina');
+const { Piscina, channels } = require('piscina');
 
 const pool = new Piscina({ filename: require.resolve('./worker.js') });
 
-subscribe('piscina:task:done', ({ pool: source, queued, waitTime, task }) => {
+subscribe(channels.taskDone, ({ pool: source, queued, waitTime, task }) => {
   if (source !== pool || !queued) return;
   console.log(`task ${task.taskId} waited ${waitTime ?? 'without starting'} ms`);
 });

@@ -555,8 +555,8 @@ Piscina publishes task and pool events on
 `piscina:task:submit`, `piscina:task:start`, `piscina:task:done`,
 `piscina:pool:new_worker`, `piscina:pool:evict_worker` and
 `piscina:pool:drain`. `piscina:task:done` reports each task's wait and run
-time, so you can see how often and how long tasks wait for a free worker. See
-the
+time, so you can see how often and how long tasks wait for a free worker. The
+names are exported as `channels` (eg. `channels.taskDone`). See the
 [Diagnostics channels docs](https://piscinajs.dev/api-reference/Events#diagnostics-channels)
 for the messages.
 

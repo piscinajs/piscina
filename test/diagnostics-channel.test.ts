@@ -6,6 +6,7 @@ import { resolve } from 'node:path';
 import { test } from 'node:test';
 import type { TestContext } from 'node:test';
 import Piscina, {
+  channels,
   PiscinaTaskSubmitMessage,
   PiscinaTaskStartMessage,
   PiscinaTaskDoneMessage,
@@ -52,6 +53,26 @@ function idsAndReasons (evictions: PiscinaEvictWorkerMessage[]) {
 function doneFor (dones: PiscinaTaskDoneMessage[], submit: PiscinaTaskSubmitMessage) {
   return dones.filter(done => done.task.taskId === submit.task.taskId);
 }
+
+test('exports the channel names', async (t: TestContext) => {
+  assert.strictEqual(Piscina.channels, channels);
+  const pool = new Piscina({ filename: evalFile, maxQueue: 1, maxThreads: 1 });
+  const received = new Set<string>();
+  for (const name of Object.values(channels)) {
+    const onMessage = (message: unknown) => {
+      if ((message as { pool: Piscina }).pool === pool) received.add(name);
+    };
+    subscribe(name, onMessage);
+    t.after(() => unsubscribe(name, onMessage));
+  }
+
+  // The second task fills the queue, so the pool drains once it empties.
+  await Promise.all([pool.run('1'), pool.run('2')]);
+  await new Promise(resolve => setImmediate(resolve));
+  await pool.destroy();
+
+  assert.deepStrictEqual([...received].sort(), Object.values(channels).sort());
+});
 
 test('publishes submit, start and done for a task that runs right away', async (t: TestContext) => {
   const pool = new Piscina({ filename: evalFile, maxThreads: 1 });

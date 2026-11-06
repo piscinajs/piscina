@@ -42,6 +42,7 @@ import {
 } from './histogram';
 import { Errors } from './errors';
 import {
+  channels,
   taskSubmitChannel,
   taskStartChannel,
   taskDoneChannel,
@@ -1131,6 +1132,10 @@ export default class Piscina<Exports extends Record<string, (payload: any) => an
     return ArrayTaskQueue;
   }
 
+  static get channels () {
+    return channels;
+  }
+
   static move (val : Transferable | TransferListItem | ArrayBufferView | ArrayBuffer | MessagePort) {
     if (val != null && typeof val === 'object' && typeof val !== 'function') {
       if (!isTransferable(val)) {
@@ -1173,6 +1178,7 @@ export {
   version,
   FixedQueue,
   ArrayTaskQueue,
+  channels,
   move,
   isWorkerThread,
   workerData
