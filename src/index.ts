@@ -552,18 +552,19 @@ class ThreadPool {
         // Call reject() first to make sure we always reject with the AbortError
         // if the task is aborted, not with an Error from the possible
         // thread termination below.
-        reject(Errors.AbortError(signal.reason));
-
         if (taskInfo.workerInfo != null) {
+          reject(Errors.AbortError(signal.reason));
           // Already running: We cancel the Worker this is running on.
           this._removeWorker(taskInfo.workerInfo);
           this._ensureMinimumWorkers();
           return;
         }
 
-        // Not yet running: Remove it from the queue.
-        // Call should be idempotent
+        // Not yet running: Remove it from the queue and settle it through done(),
+        // which is what detaches the abort listener and destroys the async
+        // resource. Calling should be idempotent.
         this.taskQueue.remove(taskInfo);
+        taskInfo.done(Errors.AbortError(signal.reason));
       });
 
       taskInfo.setAbortListener(signal);
@@ -572,10 +573,13 @@ class ThreadPool {
     if (this.taskQueue.size > 0) {
       const totalCapacity = this.options.maxQueue + this.pendingCapacity();
       if (this.taskQueue.size >= totalCapacity) {
+        // Settle through done(), not reject(): done() is what removes the abort
+        // listener and destroys the async resource. Rejecting directly leaked
+        // both, once per refused task, for as long as the caller's signal lived.
         if (this.options.maxQueue === 0) {
-          reject(Errors.NoTaskQueueAvailable());
+          taskInfo.done(Errors.NoTaskQueueAvailable());
         } else {
-          reject(Errors.TaskQueueAtLimit());
+          taskInfo.done(Errors.TaskQueueAtLimit());
         }
       } else {
         this.taskQueue.push(taskInfo);
@@ -606,7 +610,7 @@ class ThreadPool {
       // We reject if no task queue set and no more pending capacity.
       // TODO(@metcoder95): maybe auto expand the queue if no task queue set and we're at capacity?
       if (this.options.maxQueue <= 0 && this.pendingCapacity() === 0) {
-        reject(Errors.NoTaskQueueAvailable());
+        taskInfo.done(Errors.NoTaskQueueAvailable());
       }
     };
 

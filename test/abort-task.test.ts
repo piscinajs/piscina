@@ -230,3 +230,74 @@ test('tasks can be aborted through AbortController while running', async () => {
     assert.strictEqual(error.cause, reason);
   }
 });
+
+test('queue-limit rejections detach their abort listener and destroy the task', async () => {
+  const { getEventListeners } = await import('node:events');
+  const { createHook } = await import('node:async_hooks');
+
+  // Every TaskInfo is an async resource. One that never gets done() stays alive
+  // and keeps its payload reachable, which is what a shared signal exposes.
+  const live = new Set<number>();
+  const hook = createHook({
+    init (id, type) { if (type === 'Piscina.Task') live.add(id); },
+    destroy (id) { live.delete(id); }
+  }).enable();
+
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/sleep.js'),
+    maxThreads: 1,
+    maxQueue: 1
+  });
+
+  try {
+    await pool.run(0);
+    const ctl = new AbortController();
+    const running = pool.run(100);
+    const queued = pool.run(0);
+    const rejected = await Promise.allSettled(
+      Array.from({ length: 10 }, () => pool.run(0, { signal: ctl.signal }))
+    );
+    await Promise.all([running, queued]);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    assert.strictEqual(rejected.filter((r) => r.status === 'rejected').length, 10);
+    assert.strictEqual(getEventListeners(ctl.signal, 'abort').length, 0);
+    assert.strictEqual(live.size, 0);
+  } finally {
+    hook.disable();
+    await pool.destroy();
+  }
+});
+
+test('a task aborted while queued detaches its listener and destroys the task', async () => {
+  const { getEventListeners } = await import('node:events');
+  const { createHook } = await import('node:async_hooks');
+
+  const live = new Set<number>();
+  const hook = createHook({
+    init (id, type) { if (type === 'Piscina.Task') live.add(id); },
+    destroy (id) { live.delete(id); }
+  }).enable();
+
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/sleep.js'),
+    maxThreads: 1,
+    maxQueue: 2
+  });
+
+  try {
+    const ctl = new AbortController();
+    const running = pool.run(100);
+    const queued = pool.run(100, { signal: ctl.signal });
+    ctl.abort();
+    await assert.rejects(queued, /The task has been aborted/);
+    await running;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    assert.strictEqual(getEventListeners(ctl.signal, 'abort').length, 0);
+    assert.strictEqual(live.size, 0);
+  } finally {
+    hook.disable();
+    await pool.destroy();
+  }
+});
