@@ -1,0 +1,121 @@
+---
+id: Multiple Workers in One File
+sidebar_position: 9
+---
+
+import { WorkerWrapperComponent } from "@site/src/components/WorkerWrapper.mdx";
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+
+Piscina allows you to define multiple worker functions within a single file. This approach can be useful when you have related tasks that you want to keep in one module.
+
+In the example below, for each task, `pool.run()` is called with two arguments:
+- The task data `({ a: 2, b: 3 })`
+- An options object specifying the name of the function to use.
+
+<Tabs>
+<TabItem value="Javascript">
+
+```javascript title="index.js"
+'use strict';
+
+const Piscina = require('piscina');
+const { resolve } = require('path');
+
+const pool = new Piscina({ filename: resolve(__dirname, 'worker.js') });
+
+(async () => {
+  console.log(await Promise.all([
+    pool.run({ a: 2, b: 3 }, { name: 'add' }),
+    pool.run({ a: 2, b: 3 }, { name: 'multiply' })
+  ]));
+})();
+```
+
+```javascript title="index.mjs"
+import { Piscina } from 'piscina';
+
+const pool = new Piscina({
+  filename: new URL('./worker.mjs', import.meta.url).href
+});
+
+console.log(await Promise.all([
+  pool.run({ a: 2, b: 3 }, { name: 'add' }),
+  pool.run({ a: 2, b: 3 }, { name: 'multiply' })
+]));
+
+```
+
+</TabItem>
+
+<TabItem value="Typescript">
+
+```typescript title="index.ts"
+import Piscina from 'piscina';
+import { resolve } from 'path';
+
+interface TaskInput {
+  a: number;
+  b: number;
+}
+
+const pool = new Piscina({ filename: resolve(__dirname, 'worker.ts') });
+
+(async () => {
+  console.log(await Promise.all([
+    pool.run<number, TaskInput>({ a: 2, b: 3 }, { name: 'add' }),
+    pool.run<number, TaskInput>({ a: 2, b: 3 }, { name: 'multiply' })
+  ]));
+})();
+```
+
+</TabItem>
+</Tabs>
+
+Here's the worker file that defines multiple functions:
+
+<Tabs>
+<TabItem value="Javascript">
+
+```javascript title="worker.js"
+'use strict';
+
+function add ({ a, b }) { return a + b; }
+function multiply ({ a, b }) { return a * b; };
+
+add.add = add;
+add.multiply = multiply;
+
+// The add function is the default handler, but
+// additional named handlers are exported.
+module.exports = add;
+```
+
+```javascript title="worker.mjs"
+export function add ({ a, b }) { return a + b; }
+export function multiply ({ a, b }) { return a * b; };
+```
+
+</TabItem>
+
+<TabItem value="Typescript">
+
+```typescript title="worker.ts"
+import { resolve } from "path";
+
+interface TaskInput {
+  a: number;
+  b: number;
+}
+
+function add({ a, b }: TaskInput): number { return a + b; }
+function multiply({ a, b }: TaskInput): number { return a * b; }
+
+export { add, multiply };
+export const filename = resolve(__filename);
+```
+
+</TabItem>
+</Tabs>
+
+You can also check out this example on [github](https://github.com/piscinajs/piscina/tree/current/examples/multiple-workers-one-file).

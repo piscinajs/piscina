@@ -1,0 +1,74 @@
+---
+id: Simple
+sidebar_position: 19
+---
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+import { WorkerWrapperComponent } from '@site/src/components/WorkerWrapper.mdx'
+
+In this example, we create a Piscina instance that uses a worker file to perform a simple addition operation. The main script (`index.js`) creates the Piscina instance and runs a task, while the worker script (`worker.js`) defines the task to be executed.
+
+<Tabs>
+<TabItem value="Javascript">
+
+```javascript title="index.js"
+'use strict';
+
+const Piscina = require('../..');
+const { resolve } = require('path');
+
+const piscina = new Piscina({
+  filename: resolve(__dirname, 'worker.js')
+});
+
+(async function () {
+  const result = await piscina.run({ a: 4, b: 6 });
+  console.log(result); // Prints 10
+})();
+```
+
+```javascript title="worker.js"
+'use strict';
+
+module.exports = ({ a, b }) => {
+  return a + b;
+};
+```
+
+</TabItem>
+<TabItem value="Typescript">
+
+```typescript title="index.ts"
+import Piscina from 'piscina';
+import { resolve } from 'path';
+import { filename } from './worker';
+
+const piscina = new Piscina({
+  filename: resolve(__dirname, 'workerWrapper.js'),
+  workerData: { fullpath: filename },
+});
+
+(async function () {
+  const result = await piscina.run({ a: 4, b: 6 });
+  console.log(result); // Prints 10
+})();
+```
+
+```typescript title="worker.ts"
+export const filename = __filename;
+
+interface AdditionParams {
+  a: number;
+  b: number;
+}
+
+export default ({ a, b }: AdditionParams): number => {
+  return a + b;
+};
+```
+
+<WorkerWrapperComponent/>
+</TabItem>
+</Tabs>
+
+You can also check out this example on [github](https://github.com/piscinajs/piscina/tree/current/examples/simple).

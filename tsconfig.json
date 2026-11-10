@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "alwaysStrict": true,
+    "types": ["node"],
+    "target": "es2024",
+    "module": "commonjs",
+    "outDir": "dist",
+    "rootDir": "./src",
+    "declaration": true,
+    "sourceMap": true,
+
+    "strict": true,
+
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+
+    "skipDefaultLibCheck": true,
+    "resolveJsonModule": true,                /* Include modules imported with '.json' extension */
+    "forceConsistentCasingInFileNames": true,  /* Disallow inconsistently-cased references to the same file. */
+    "removeComments": true
+  },
+  "include": ["src"],
+}

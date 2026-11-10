@@ -1,0 +1,155 @@
+---
+id: Progress
+sidebar_position: 13
+---
+
+import {WorkerWrapperComponent} from '@site/src/components/WorkerWrapper.mdx';
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+
+You can track the progress of long-running tasks using a `MessageChannel`. This can be adapted for use cases where you need to track the progress of long-running tasks executed in worker threads.
+
+The example below shows how to add a progress bar for tasks running in worker threads. To get started, install the required dependency:
+
+```bash
+npm install progress
+```
+The main script creates progress bars for each task and updates them based on messages received from the workers.
+
+<Tabs>
+<TabItem value="Javascript">
+
+```javascript title="index.js"
+'use strict';
+
+const Piscina = require('piscina');
+const { resolve } = require('path');
+const ProgressBar = require('progress');
+
+// Initialize Piscina with the worker file
+const piscina = new Piscina({
+  filename: resolve(__dirname, 'worker.js')
+});
+
+// Function to create and run a task with progress tracking
+async function task(a, b) {
+  // Create a progress bar for this task
+  const bar = new ProgressBar(':bar [:current/:total]', { total: b });
+
+  // Set up a MessageChannel for communication with the worker
+  const mc = new MessageChannel();
+
+  // Update the progress bar when a message is received from the worker
+  mc.port2.onmessage = () => bar.tick();
+
+  // Prevent the port from keeping the event loop alive
+  mc.port2.unref();
+
+  // Run the task in a worker, passing one port of the channel
+  return await piscina.run({ a, b, port: mc.port1 }, { transferList: [mc.port1] });
+}
+
+// Run multiple tasks concurrently
+Promise.all([
+  task(0, 50),
+  task(0, 25),
+  task(0, 90)
+]).catch((err) => console.error(err));
+```
+</TabItem>
+<TabItem value="Typescript">
+
+```typescript title="index.ts"
+import Piscina from "piscina";
+import { resolve } from "path";
+import { filename } from "./worker";
+import ProgressBar from 'progress';
+
+const piscina = new Piscina({
+  filename: resolve(__dirname, "./workerWrapper.js"),
+  workerData: { fullpath: filename },
+});
+async function task(a: number, b: number): Promise<void> {
+  // Create a progress bar for this task
+  const bar = new ProgressBar(':bar [:current/:total]', { total: b });
+
+  // Set up a MessageChannel for communication with the worker
+  const mc = new MessageChannel();
+
+  // Update the progress bar when a message is received from the worker
+  mc.port2.onmessage = () => bar.tick();
+
+  // Prevent the port from keeping the event loop alive
+  mc.port2.unref();
+
+  // Run the task in a worker, passing one port of the channel
+  await piscina.run({ a, b, port: mc.port1 }, { transferList: [mc.port1], name: 'progressTask' });
+}
+
+// Run multiple tasks concurrently
+Promise.all([
+  task(0, 50),
+  task(0, 25),
+  task(0, 90)
+]).catch((err) => console.error(err));
+```
+<WorkerWrapperComponent/>
+
+</TabItem>
+</Tabs>
+
+In the worker file, the worker receives the `port` as part of its input. As it processes the task, it sends messages through the port to indicate progress. When the task is complete, it closes the port.
+
+<Tabs>
+<TabItem value="Javascript">
+```javascript title="worker.js"
+const { setTimeout } = require('timers/promises');
+
+// Worker function that simulates a time-consuming task
+module.exports = async ({ a, b, port }) => {
+  for (let n = a; n < b; n++) {
+    // Simulate some work
+    await setTimeout(10);
+
+    // Send a message to indicate progress
+    port.postMessage(n);
+  }
+
+  // Close the port when the task is complete
+  port.close();
+};
+```
+</TabItem>
+<TabItem value="Typescript">
+```typescript title="worker.ts"
+import { resolve } from "path";
+import { setTimeout } from 'timers/promises';
+
+
+export const filename = resolve(__filename);
+interface TaskInput {
+  a: number;
+  b: number;
+  port: MessagePort;
+}
+
+// Worker function that simulates a time-consuming task
+export async function progressTask({ a, b, port }: TaskInput): Promise<void> {
+  for (let n = a; n < b; n++) {
+    // Simulate some work
+    await setTimeout(10);
+
+    // Send a message to indicate progress
+    port.postMessage(n);
+  }
+
+  // Close the port when the task is complete
+  port.close();
+}
+```
+</TabItem>
+</Tabs>
+
+When you run this code, you should see progress bars for three concurrent tasks updating in real-time.
+
+You can also check out this example on [github](https://github.com/piscinajs/piscina/tree/current/examples/progress).

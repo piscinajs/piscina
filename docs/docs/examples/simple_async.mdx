@@ -1,0 +1,84 @@
+---
+id: Simple Async
+sidebar_position: 18
+---
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+import { WorkerWrapperComponent } from '@site/src/components/WorkerWrapper.mdx'
+
+This example builds upon the [simple addition](./simple.mdx) scenario in the previous section. In this section, we simulated an asynchronous operation in the worker file. The simulated delay (100ms) represents any asynchronous operation that might occur in a real-world scenario, such as database queries, file I/O, or network requests.
+
+<Tabs>
+<TabItem value="Javascript">
+
+```javascript title="index.js"
+'use strict';
+
+const Piscina = require('../..');
+const { resolve } = require('path');
+
+const piscina = new Piscina({
+  filename: resolve(__dirname, 'worker.js')
+});
+
+(async function () {
+  const result = await piscina.run({ a: 4, b: 6 });
+  console.log(result); // Prints 10
+})();
+```
+
+```javascript title="worker.js"
+'use strict';
+
+const { promisify } = require('util');
+const sleep = promisify(setTimeout);
+
+module.exports = async ({ a, b }) => {
+  // Fake some async activity
+  await sleep(100);
+  return a + b;
+};
+```
+
+</TabItem>
+<TabItem value="Typescript">
+
+```typescript title="index.ts"
+import Piscina from 'piscina';
+import { resolve } from 'path';
+import { filename } from './worker';
+
+const piscina = new Piscina({
+  filename: resolve(__dirname, 'workerWrapper.js'),
+  workerData: { fullpath: filename },
+});
+
+(async function () {
+  const result = await piscina.run({ a: 4, b: 6 });
+  console.log(result); // Prints 10
+})();
+```
+
+```typescript title="worker.ts"
+import { promisify } from 'util';
+
+const sleep = promisify(setTimeout);
+
+interface AdditionParams {
+  a: number;
+  b: number;
+}
+
+export default async ({ a, b }: AdditionParams): Promise<number> => {
+  // Fake some async activity
+  await sleep(100);
+  return a + b;
+};
+export const filename = __filename;
+```
+
+<WorkerWrapperComponent/>
+</TabItem>
+</Tabs>
+
+You can also check out this example on [github](https://github.com/piscinajs/piscina/tree/current/examples/simple_async).

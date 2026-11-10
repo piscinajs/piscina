@@ -1,0 +1,48 @@
+---
+id: Multiple Workers
+sidebar_position: 10
+---
+
+import { WorkerWrapperComponent } from "@site/src/components/WorkerWrapper.mdx";
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+
+It is possible for a single Piscina pool to run multiple workers at the same time. To do so, pass the worker `filename` to `run` method rather than to the Piscina constructor.
+
+To work with multiple workers using Typescript, check out [multiple workers in one file](./multiple-workers-one-file.mdx).
+
+```javascript title="index.js"
+"use strict";
+
+const Piscina = require("piscina");
+const { resolve } = require("path");
+
+const pool = new Piscina();
+
+(async () => {
+  console.log(
+    await Promise.all([
+      pool.run({ a: 2, b: 3 }, { filename: resolve(__dirname, "add_worker") }),
+      pool.run(
+        { a: 2, b: 3 },
+        { filename: resolve(__dirname, "multiply_worker") }
+      ),
+    ])
+  );
+})();
+```
+
+Here are the two worker files used in this example:
+
+```javascript title="add_worker.js"
+"use strict";
+
+module.exports = ({ a, b }) => a + b;
+```
+
+```javascript title="multiply_worker.js"
+"use strict";
+
+module.exports = ({ a, b }) => a * b;
+```
+You can also check out this example on [github](https://github.com/piscinajs/piscina/tree/current/examples/multiple-workers).

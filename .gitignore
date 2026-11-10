@@ -1,0 +1,6 @@
+.nyc_output
+.vscode
+node_modules
+dist
+lcov.info
+.worktrees

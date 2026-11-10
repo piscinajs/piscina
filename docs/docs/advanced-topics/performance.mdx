@@ -1,0 +1,124 @@
+---
+id: Performance Notes
+sidebar_position: 3
+---
+
+Workers are generally optimized for offloading synchronous,
+compute-intensive operations off the main Node.js event loop thread.
+While it is possible to perform asynchronous operations and I/O
+within a Worker, the performance advantages of doing so will be
+minimal.
+
+Specifically, it is worth noting that asynchronous operations
+within Node.js, including I/O such as file system operations
+or CPU-bound tasks such as crypto operations or compression
+algorithms, are already performed in parallel by Node.js and
+libuv on a per-process level. This means that there will be
+little performance impact on moving such async operations into
+a Piscina worker (see examples/scrypt for example).
+
+### Queue Size
+
+Piscina provides the ability to configure the minimum and
+maximum number of worker threads active in the pool, as well as
+set limits on the number of tasks that may be queued up waiting
+for a free worker. It is important to note that setting the
+`maxQueue` size too high relative to the number of worker threads
+can have a detrimental impact on performance and memory usage.
+Setting the `maxQueue` size too small can also be problematic
+as doing so could cause your worker threads to become idle and
+be shutdown. Our testing has shown that a `maxQueue` size of
+approximately the square of the maximum number of threads is
+generally sufficient and performs well for many cases, but this
+will vary significantly depending on your workload. It will be
+important to test and benchmark your worker pools to ensure you've
+effectively balanced queue wait times, memory usage, and worker
+pool utilization.
+
+### Queue Pressure and Idle Threads
+
+The thread pool maintained by Piscina has both a minimum and maximum
+limit to the number of threads that may be created. When a Piscina
+instance is created, it will spawn the minimum number of threads
+immediately, then create additional threads as needed up to the
+limit set by `maxThreads`. Whenever a worker completes a task, a
+check is made to determine if there is additional work for it to
+perform. If there is no additional work, the thread is marked idle.
+By default, idle threads are shutdown immediately, with Piscina
+ensuring that the pool always maintains at least the minimum.
+
+When a Piscina pool is processing a stream of tasks (for instance,
+processing http server requests as in the React server-side
+rendering example in examples/react-ssr), if the rate in which
+new tasks are received and queued is not sufficient to keep workers
+from going idle and terminating, the pool can experience a thrashing
+effect -- excessively creating and terminating workers that will
+cause a net performance loss. There are a couple of strategies to
+avoid this churn:
+
+- Strategy 1: Ensure that the queue rate of new tasks is sufficient to
+keep workers from going idle. We refer to this as "queue pressure".
+If the queue pressure is too low, workers will go idle and terminate.
+If the queue pressure is too high, tasks will stack up, experience
+increased wait latency, and consume additional memory.
+
+- Strategy 2: Increase the `idleTimeout` configuration option. By
+default, idle threads terminate immediately. The `idleTimeout` option
+can be used to specify a longer period of time to wait for additional
+tasks to be submitted before terminating the worker. If the queue
+pressure is not maintained, this could result in workers sitting idle
+but those will have less of a performance impact than the thrashing
+that occurs when threads are repeatedly terminated and recreated.
+
+- Strategy 3: Increase the `minThreads` configuration option. This has
+the same basic effect as increasing the `idleTimeout`. If the queue
+pressure is not high enough, workers may sit idle indefinitely but
+there will be less of a performance hit.
+
+In applications using Piscina, it will be most effective to use a
+combination of these three approaches and tune the various configuration
+parameters to find the optimum combination both for the application
+workload and the capabilities of the deployment environment. There
+are no one set of options that are going to work best.
+
+### Thread priority on Linux systems
+
+On Unix systems that support [`nice(2)`][https://linux.die.net/man/2/nice] and Windows, Piscina is capable of setting
+the priority of every worker in the pool. To use this mechanism, an additional
+optional native addon dependency (`@napi-rs/nice`, `npm i @napi-rs/nice`) is required.
+Once [`@napi-rs/nice`][https://www.npmjs.com/package/@napi-rs/nice] is installed, creating a `Piscina`instance with the`niceIncrement` configuration option will set the priority for the pool:
+
+```js
+const Piscina = require('piscina')
+const { WindowsThreadPriority } = require('@napi-rs/nice')
+const pool = new Piscina({
+  worker: '/absolute/path/to/worker.js',
+  niceIncrement:
+    process.platform !== 'win32'
+      ? 20
+      : WindowsThreadPriority.ThreadPriorityHighest,
+})
+```
+
+The higher the `niceIncrement`, the lower the CPU scheduling priority will be
+for the pooled workers which will generally extend the execution time of
+CPU-bound tasks but will help prevent those threads from stealing CPU time from
+the main Node.js event loop thread. Whether this is a good thing or not depends
+entirely on your application and will require careful profiling to get correct.
+
+The key metrics to pay attention to when tuning the `niceIncrement` are the
+sampled run times of the tasks in the worker pool (using the [`runTime`][]
+property) and the [delay of the Node.js main thread event loop][].
+
+### Multiple Thread Pools and Embedding Piscina as a Dependency
+
+Every `Piscina` instance creates a separate pool of threads and operates
+without any awareness of the other. When multiple pools are created in a
+single application the various threads may contend with one another, and
+with the Node.js main event loop thread, and may cause an overall reduction
+in system performance.
+
+Modules that embed Piscina as a dependency *should* make it clear via
+documentation that threads are being used. It would be ideal if those
+would make it possible for users to provide an existing `Piscina` instance
+as a configuration option in lieu of always creating their own.

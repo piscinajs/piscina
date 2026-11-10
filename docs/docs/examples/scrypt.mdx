@@ -1,0 +1,603 @@
+---
+id: Scrypt
+sidebar_position: 16
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+import { WorkerWrapperComponent } from '@site/src/components/WorkerWrapper.mdx';
+
+This example demonstrates the performance benefits of using Piscina for CPU-intensive cryptographic operations, specifically the scrypt key derivation function. It compares four different implementations: pooled and unpooled versions, each with both synchronous and asynchronous variants.
+
+### Setup
+
+The monitor script measures event loop delay, helping us to understand the impact of each implementation on the main thread's responsiveness.
+
+<Tabs>
+<TabItem value="Javascript">
+
+```javascript title="monitor.js"
+'use strict';
+
+const { monitorEventLoopDelay } = require('perf_hooks');
+const { isMainThread } = require('worker_threads');
+
+if (!isMainThread) return;
+
+const monitor = monitorEventLoopDelay({ resolution: 20 });
+
+monitor.enable();
+
+process.on('exit', () => {
+  monitor.disable();
+  console.log('Main Thread Mean/Max/99% Event Loop Delay:',
+    monitor.mean,
+    monitor.max,
+    monitor.percentile(99));
+});
+```
+</TabItem>
+<TabItem value="Typescript">
+```js title="monitor.ts"
+import { monitorEventLoopDelay } from 'perf_hooks';
+import { isMainThread } from 'worker_threads';
+
+if (!isMainThread) process.exit();
+
+const monitor = monitorEventLoopDelay({ resolution: 20 });
+
+monitor.enable();
+
+process.on('exit', () => {
+  monitor.disable();
+  console.log('Main Thread Mean/Max/99% Event Loop Delay:',
+    monitor.mean,
+    monitor.max,
+    monitor.percentile(99));
+});
+
+```
+</TabItem>
+</Tabs>
+
+### Pooled Asynchronous
+
+The pooled versions use Piscina to distribute the scrypt operations across multiple worker threads, potentially improving performance on multi-core systems.
+
+<Tabs>
+<TabItem value="Javascript">
+
+```javascript title="pooled.js"
+'use strict';
+
+const Piscina = require('piscina');
+const { resolve } = require('path');
+const crypto = require('crypto');
+const { promisify } = require('util');
+const randomFill = promisify(crypto.randomFill);
+const { performance, PerformanceObserver } = require('perf_hooks');
+
+const obs = new PerformanceObserver((entries) => {
+  console.log(entries.getEntries()[0].duration);
+});
+obs.observe({ entryTypes: ['measure'] });
+
+const piscina = new Piscina({
+  filename: resolve(__dirname, 'scrypt.js'),
+  concurrentTasksPerWorker: 10
+});
+
+process.on('exit', () => {
+  const { runTime, waitTime } = piscina;
+  console.log('Run Time Average:', runTime.average);
+  console.log('Run Time Mean/Stddev:', runTime.mean, runTime.stddev);
+  console.log('Run Time Min:', runTime.min);
+  console.log('Run Time Max:', runTime.max);
+  console.log('Wait Time Average:', waitTime.average);
+  console.log('Wait Time Mean/Stddev:', waitTime.mean, waitTime.stddev);
+  console.log('Wait Time Min:', waitTime.min);
+  console.log('Wait Time Max:', waitTime.max);
+});
+
+async function * generateInput () {
+  let max = parseInt(process.argv[2] || 10);
+  const data = Buffer.allocUnsafe(10);
+  while (max-- > 0) {
+    yield randomFill(data);
+  }
+}
+
+(async function () {
+  performance.mark('start');
+  const keylen = 64;
+
+  for await (const input of generateInput()) {
+    await piscina.run({ input, keylen });
+  }
+
+  performance.mark('end');
+  performance.measure('start to end', 'start', 'end');
+})();
+```
+
+```javascript title="scrypt.js"
+// eslint-disable no-unused-vars
+'use strict';
+
+const crypto = require('crypto');
+const { promisify } = require('util');
+const scrypt = promisify(crypto.scrypt);
+const randomFill = promisify(crypto.randomFill);
+
+const salt = Buffer.allocUnsafe(16);
+
+module.exports = async function ({
+  input,
+  keylen,
+  N = 16384,
+  r = 8,
+  p = 1,
+  maxmem = 32 * 1024 * 1024
+}) {
+  return (await scrypt(
+    input,
+    await randomFill(salt),
+    keylen, { N, r, p, maxmem })).toString('hex');
+};
+```
+</TabItem>
+
+<TabItem value="Typescript">
+```js title="pooled.ts"
+import { resolve } from 'path';
+import { promisify } from 'util';
+import { randomFill } from 'crypto';
+import { performance } from 'perf_hooks';
+import Piscina from 'piscina';
+import { filename } from './scrypt';
+
+// ... (performance observer setup)
+
+const piscina = new Piscina({
+  filename: resolve(__dirname, 'workerWrapper.js'),
+  workerData: { fullpath: filename },
+  concurrentTasksPerWorker: 10
+});
+
+// ... (process exit handler for statistics)
+
+async function* generateInput() {
+  let max = parseInt(process.argv[2] || '10', 10);
+  const data = Buffer.allocUnsafe(10);
+  while (max-- > 0) {
+    yield promisify(randomFill)(data);
+  }
+}
+
+(async function () {
+  performance.mark('start');
+  const keylen = 64;
+
+  for await (const input of generateInput()) {
+    await piscina.run({ input, keylen });
+  }
+
+  performance.mark('end');
+  performance.measure('start to end', 'start', 'end');
+})();
+
+```
+```js title="scrypt.ts"
+import crypto from 'crypto';
+import { promisify } from 'util';
+
+const scrypt: any = promisify(crypto.scrypt);
+const randomFill = promisify(crypto.randomFill);
+
+const salt = Buffer.allocUnsafe(16);
+
+export default async function ({
+  input,
+  keylen,
+  N = 16384,
+  r = 8,
+  p = 1,
+  maxmem = 32 * 1024 * 1024
+}: {
+  input: Buffer;
+  keylen: number;
+  N?: number;
+  r?: number;
+  p?: number;
+  maxmem?: number;
+}): Promise<string> {
+  return (
+    await scrypt(input, await randomFill(salt), keylen, { N, r, p, maxmem })
+  ).toString('hex');
+}
+export const filename = __filename;
+```
+<WorkerWrapperComponent/>
+</TabItem>
+</Tabs>
+
+### Unpooled Asynchronous
+
+The asynchronous versions use `promisify` versions of `scrypt` and `randomFill`, which don't block the event loop but may have slightly higher overhead.
+<Tabs>
+<TabItem value="Javascript">
+
+```javascript title="unpooled.js"
+'use strict';
+
+const crypto = require('crypto');
+const { promisify } = require('util');
+const randomFill = promisify(crypto.randomFill);
+const scrypt = promisify(crypto.scrypt);
+const { performance, PerformanceObserver } = require('perf_hooks');
+
+const salt = Buffer.allocUnsafe(16);
+
+const obs = new PerformanceObserver((entries) => {
+  console.log(entries.getEntries()[0].duration);
+});
+obs.observe({ entryTypes: ['measure'] });
+
+async function * generateInput () {
+  let max = parseInt(process.argv[2] || 10);
+  const data = Buffer.allocUnsafe(10);
+  while (max-- > 0) {
+    yield randomFill(data);
+  }
+}
+
+(async function () {
+  performance.mark('start');
+  const keylen = 64;
+
+  for await (const input of generateInput()) {
+    (await scrypt(input, await randomFill(salt), keylen)).toString('hex');
+  }
+  performance.mark('end');
+  performance.measure('start to end', 'start', 'end');
+})();
+```
+</TabItem>
+<TabItem value="Typescript">
+```js title="unpooled.ts"
+'use strict';
+
+import crypto from 'crypto';
+import { promisify } from 'util';
+
+const randomFill = promisify(crypto.randomFill);
+const scrypt:any = promisify(crypto.scrypt);
+const { performance, PerformanceObserver } = require('perf_hooks');
+
+const salt = Buffer.allocUnsafe(16);
+
+const obs = new PerformanceObserver((entries: { getEntries: () => { duration: any; }[]; }) => {
+  console.log(entries.getEntries()[0].duration);
+});
+obs.observe({ entryTypes: ['measure'] });
+
+async function* generateInput() {
+  let max = parseInt(process.argv[2] || '10', 10);
+  const data = Buffer.allocUnsafe(10);
+  while (max-- > 0) {
+    yield randomFill(data);
+  }
+}
+
+(async function () {
+  performance.mark('start');
+  const keylen = 64;
+
+  for await (const input of generateInput()) {
+    (await scrypt(input, await randomFill(salt), keylen)).toString('hex');
+  }
+  performance.mark('end');
+  performance.measure('start to end', 'start', 'end');
+})();
+```
+</TabItem>
+</Tabs>
+
+### Pooled Synchronous
+
+The synchronous versions use `scryptSync` and `randomFillSync`, which can be more efficient but may block the event loop.
+
+<Tabs>
+<TabItem value="Javascript">
+
+```javascript title="pooled_sync.js"
+'use strict';
+
+const Piscina = require('../..');
+const { resolve } = require('path');
+const crypto = require('crypto');
+const { promisify } = require('util');
+const randomFill = promisify(crypto.randomFill);
+const { performance, PerformanceObserver } = require('perf_hooks');
+
+const obs = new PerformanceObserver((entries) => {
+  console.log(entries.getEntries()[0].duration);
+});
+obs.observe({ entryTypes: ['measure'] });
+
+const piscina = new Piscina({
+  filename: resolve(__dirname, 'scrypt_sync.js')
+});
+
+process.on('exit', () => {
+  const { runTime, waitTime } = piscina;
+  console.log('Run Time Average:', runTime.average);
+  console.log('Run Time Mean/Stddev:', runTime.mean, runTime.stddev);
+  console.log('Run Time Min:', runTime.min);
+  console.log('Run Time Max:', runTime.max);
+  console.log('Wait Time Average:', waitTime.average);
+  console.log('Wait Time Mean/Stddev:', waitTime.mean, waitTime.stddev);
+  console.log('Wait Time Min:', waitTime.min);
+  console.log('Wait Time Max:', waitTime.max);
+});
+
+async function * generateInput () {
+  let max = parseInt(process.argv[2] || 10);
+  const data = Buffer.allocUnsafe(10);
+  while (max-- > 0) {
+    yield randomFill(data);
+  }
+}
+
+(async function () {
+  performance.mark('start');
+  const keylen = 64;
+
+  for await (const input of generateInput()) {
+    await piscina.run({ input, keylen });
+  }
+
+  performance.mark('end');
+  performance.measure('start to end', 'start', 'end');
+})();
+```
+
+```javascript title="scrypt_sync.js"
+'use strict';
+
+const { scryptSync, randomFillSync } = require('crypto');
+
+const salt = Buffer.allocUnsafe(16);
+
+module.exports = function ({
+  input,
+  keylen,
+  N = 16384,
+  r = 8,
+  p = 1,
+  maxmem = 32 * 1024 * 1024
+}) {
+  return scryptSync(input,
+    randomFillSync(salt),
+    keylen,
+    { N, r, p, maxmem }).toString('hex');
+};
+```
+
+</TabItem>
+<TabItem value="Typescript">
+```js title="pooled_sync.ts"
+'use strict';
+
+import Piscina from 'piscina';
+import { resolve } from 'path';
+import crypto from 'crypto';
+import { promisify } from 'util';
+import { filename } from './scrypt_sync';
+
+const randomFill = promisify(crypto.randomFill);
+const { performance, PerformanceObserver } = require('perf_hooks');
+
+const obs = new PerformanceObserver((entries: { getEntries: () => { duration: any; }[]; }) => {
+  console.log(entries.getEntries()[0].duration);
+});
+obs.observe({ entryTypes: ['measure'] });
+
+const piscina = new Piscina({
+    filename: resolve(__dirname, 'workerWrapper.js'),
+    workerData: { fullpath: filename },
+});
+
+process.on('exit', () => {
+  const { runTime, waitTime } = piscina;
+  console.log('Run Time Average:', runTime.average);
+  console.log('Run Time Mean/Stddev:', runTime.mean, runTime.stddev);
+  console.log('Run Time Min:', runTime.min);
+  console.log('Run Time Max:', runTime.max);
+  console.log('Wait Time Average:', waitTime.average);
+  console.log('Wait Time Mean/Stddev:', waitTime.mean, waitTime.stddev);
+  console.log('Wait Time Min:', waitTime.min);
+  console.log('Wait Time Max:', waitTime.max);
+});
+
+async function* generateInput() {
+  let max = parseInt(process.argv[2] || '10', 10);
+  const data = Buffer.allocUnsafe(10);
+  while (max-- > 0) {
+    yield randomFill(data);
+  }
+}
+
+(async function () {
+  performance.mark('start');
+  const keylen = 64;
+
+  for await (const input of generateInput()) {
+    await piscina.run({ input, keylen });
+  }
+
+  performance.mark('end');
+  performance.measure('start to end', 'start', 'end');
+})();
+
+```
+```js title="scrypt_sync.ts"
+'use strict';
+
+import { scryptSync, randomFillSync } from 'crypto';
+
+const salt = Buffer.allocUnsafe(16);
+
+export default function ({
+  input,
+  keylen,
+  N = 16384,
+  r = 8,
+  p = 1,
+  maxmem = 32 * 1024 * 1024
+}: {
+  input: Buffer;
+  keylen: number;
+  N?: number;
+  r?: number;
+  p?: number;
+  maxmem?: number;
+}): string {
+  return scryptSync(input, randomFillSync(salt), keylen, { N, r, p, maxmem }).toString('hex');
+}
+export const filename = __filename;
+```
+<WorkerWrapperComponent/>
+</TabItem>
+</Tabs>
+
+### Unpooled Synchronous
+
+<Tabs>
+<TabItem value="Javascript">
+
+```javascript title="unpooled_sync.js"
+'use strict';
+
+const crypto = require('crypto');
+const { promisify } = require('util');
+const { scryptSync, randomFillSync } = crypto;
+const randomFill = promisify(crypto.randomFill);
+const { performance, PerformanceObserver } = require('perf_hooks');
+
+const salt = Buffer.allocUnsafe(16);
+
+const obs = new PerformanceObserver((entries) => {
+  console.log(entries.getEntries()[0].duration);
+});
+obs.observe({ entryTypes: ['measure'] });
+
+async function * generateInput () {
+  let max = parseInt(process.argv[2] || 10);
+  const data = Buffer.allocUnsafe(10);
+  while (max-- > 0) {
+    yield randomFill(data);
+  }
+}
+
+(async function () {
+  performance.mark('start');
+  const keylen = 64;
+
+  for await (const input of generateInput()) {
+    // Everything in here is intentionally sync
+    scryptSync(input, randomFillSync(salt), keylen).toString('hex');
+  }
+  performance.mark('end');
+  performance.measure('start to end', 'start', 'end');
+})();
+```
+
+</TabItem>
+<TabItem value="Typescript">
+```js title="unpooled_sync.ts"
+'use strict';
+
+import { scryptSync, randomFillSync } from 'crypto';
+
+const salt = Buffer.allocUnsafe(16);
+
+export default function ({
+  input,
+  keylen,
+  N = 16384,
+  r = 8,
+  p = 1,
+  maxmem = 32 * 1024 * 1024
+}: {
+  input: Buffer;
+  keylen: number;
+  N?: number;
+  r?: number;
+  p?: number;
+  maxmem?: number;
+}): string {
+  return scryptSync(input, randomFillSync(salt), keylen, { N, r, p, maxmem }).toString('hex');
+}
+```
+</TabItem>
+</Tabs>
+
+### Running the Example
+
+The `package.json` file includes scripts to run each variant of the scrypt implementation with the monitor.
+
+<Tabs>
+<TabItem value="Javascript">
+```json title="package.json"
+{
+  "name": "scrypt",
+  "version": "1.0.0",
+  "scripts": {
+    "pooled": "node -r ./monitor pooled",
+    "unpooled": "node -r ./monitor unpooled",
+    "pooled-sync": "node -r ./monitor pooled_sync",
+    "unpooled-sync": "node -r ./monitor unpooled_sync"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "description": ""
+}
+```
+
+</TabItem>
+<TabItem value="Typescript">
+```json title="package.json"
+{
+  "name": "scrypt",
+  "version": "1.0.0",
+  "scripts": {
+    "pooled": "ts-node -r ./monitor pooled",
+    "unpooled": "ts-node -r ./monitor unpooled",
+    "pooled-sync": "ts-node -r ./monitor pooled_sync",
+    "unpooled-sync": "ts-node -r ./monitor unpooled_sync"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "description": "",
+  "dependencies": {
+    "@types/node": "^20.14.10",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.3"
+  }
+}
+```
+</TabItem>
+</Tabs>
+
+To run the different implementations and compare their performance:
+
+```bash
+npm run pooled 100
+npm run unpooled 100
+npm run pooled-sync 100
+npm run unpooled-sync 100
+```
+You can also check out this example on [github](https://github.com/piscinajs/piscina/tree/current/examples/scrypt).

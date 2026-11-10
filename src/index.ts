@@ -1,0 +1,1058 @@
+import { Worker, MessageChannel, MessagePort } from 'node:worker_threads';
+import { once, EventEmitterAsyncResource } from 'node:events';
+import { resolve } from 'node:path';
+import { inspect, types } from 'node:util';
+import { performance } from 'node:perf_hooks';
+import { setTimeout as sleep } from 'node:timers/promises';
+
+import { version } from '../package.json';
+import type {
+  ResponseMessage,
+  StartupMessage,
+  Transferable,
+  ResourceLimits,
+  EnvSpecifier,
+} from './types';
+import {
+  kQueueOptions,
+  kTransferable,
+  kValue,
+  kWorkerData
+} from './symbols';
+import {
+  TaskQueue,
+  isTaskQueue,
+  ArrayTaskQueue,
+  FixedQueue,
+  TaskInfo,
+  PiscinaTask,
+  TransferList,
+  TransferListItem
+} from './task_queue';
+import {
+  WorkerInfo,
+  AsynchronouslyCreatedResourcePool,
+  PiscinaLoadBalancer,
+  PiscinaWorker,
+  LeastBusyBalancer
+} from './worker_pool';
+import {
+  PiscinaHistogram,
+  PiscinaHistogramHandler,
+} from './histogram';
+import { Errors } from './errors';
+import {
+  READY,
+  commonState,
+  isTransferable,
+  markMovable,
+  getAvailableParallelism,
+  maybeFileURLToPath,
+  withNullPrototype,
+} from './common';
+const cpuParallelism : number = getAvailableParallelism();
+
+interface Options {
+  filename? : string | null,
+  name?: string,
+  minThreads? : number,
+  maxThreads? : number,
+  idleTimeout? : number,
+  maxQueue? : number | 'auto',
+  concurrentTasksPerWorker? : number,
+  atomics? : 'sync' | 'async' | 'disabled',
+  resourceLimits? : ResourceLimits,
+  argv? : string[],
+  execArgv? : string[],
+  env? : EnvSpecifier,
+  workerData? : any,
+  taskQueue? : TaskQueue,
+  niceIncrement? : number,
+  trackUnmanagedFds? : boolean,
+  closeTimeout?: number,
+  recordTiming?: boolean,
+  stricterFIFO?: boolean,
+  loadBalancer?: PiscinaLoadBalancer,
+  workerHistogram?: boolean,
+}
+
+interface FilledOptions extends Options {
+  filename : string | null,
+  name: string,
+  minThreads : number,
+  maxThreads : number,
+  idleTimeout : number,
+  maxQueue : number,
+  concurrentTasksPerWorker : number,
+  atomics: Options['atomics'],
+  taskQueue : TaskQueue,
+  niceIncrement : number,
+  closeTimeout : number,
+  recordTiming : boolean,
+  stricterFIFO : boolean,
+  workerHistogram: boolean,
+}
+
+interface RunOptions<Func = string> {
+  transferList? : TransferList,
+  filename? : string | null,
+  signal? : AbortSignal | null,
+  name? : Func | null
+}
+
+interface FilledRunOptions<Func extends string = string> extends RunOptions<Func> {
+  transferList : TransferList | never,
+  filename : string | null,
+  signal : AbortSignal | null,
+  name : Func | null
+}
+
+interface CloseOptions {
+  force?: boolean,
+}
+
+const kDefaultOptions : FilledOptions = {
+  filename: null,
+  name: 'default',
+  minThreads: Math.max(Math.floor(cpuParallelism / 2), 1),
+  maxThreads: cpuParallelism * 1.5,
+  idleTimeout: 0,
+  maxQueue: Infinity,
+  concurrentTasksPerWorker: 1,
+  atomics: 'sync',
+  taskQueue: new ArrayTaskQueue(),
+  niceIncrement: 0,
+  trackUnmanagedFds: true,
+  closeTimeout: 30000,
+  recordTiming: true,
+  stricterFIFO: false,
+  workerHistogram: false
+};
+
+const kDefaultRunOptions : FilledRunOptions = {
+  transferList: undefined,
+  filename: null,
+  signal: null,
+  name: null
+};
+
+const kDefaultCloseOptions : Required<CloseOptions> = {
+  force: false
+};
+
+class DirectlyTransferable implements Transferable {
+  #value : object;
+  constructor (value : object) {
+    this.#value = value;
+  }
+
+  get [kTransferable] () : object { return this.#value; }
+
+  get [kValue] () : object { return this.#value; }
+}
+
+class ArrayBufferViewTransferable implements Transferable {
+  #view : ArrayBufferView;
+  constructor (view : ArrayBufferView) {
+    this.#view = view;
+  }
+
+  get [kTransferable] () : object { return this.#view.buffer; }
+
+  get [kValue] () : object { return this.#view; }
+}
+
+class ThreadPool {
+  publicInterface : Piscina;
+  workers : AsynchronouslyCreatedResourcePool<WorkerInfo>;
+  options : FilledOptions;
+  taskQueue : TaskQueue;
+  skipQueue : TaskInfo[] = [];
+  completed : number = 0;
+  histogram: PiscinaHistogramHandler | null = null;
+  _needsDrain : boolean;
+  start : number = performance.now();
+  inProcessPendingMessages : boolean = false;
+  _startingUp : boolean = false;
+  closingUp : boolean = false;
+  workerFailsDuringBootstrap : boolean = false;
+  destroying : boolean = false;
+  maxCapacity: number;
+  balancer: PiscinaLoadBalancer;
+
+  constructor (publicInterface : Piscina, options : Options) {
+    this.publicInterface = publicInterface;
+    this.taskQueue = options.taskQueue ?? new FixedQueue();
+
+    const filename =
+      options.filename ? maybeFileURLToPath(options.filename) : null;
+    this.options = withNullPrototype({
+      ...kDefaultOptions,
+      ...options,
+      filename,
+      maxQueue: 0,
+    });
+
+    if (this.options.recordTiming) {
+      this.histogram = new PiscinaHistogramHandler();
+    }
+
+    // The >= and <= could be > and < but this way we get 100 % coverage 🙃
+    if (options.maxThreads !== undefined &&
+        this.options.minThreads >= options.maxThreads) {
+      this.options.minThreads = options.maxThreads;
+    }
+    if (options.minThreads !== undefined &&
+        this.options.maxThreads <= options.minThreads) {
+      this.options.maxThreads = options.minThreads;
+    }
+    if (options.maxQueue === 'auto') {
+      this.options.maxQueue = this.options.maxThreads ** 2;
+    } else {
+      this.options.maxQueue = options.maxQueue ?? kDefaultOptions.maxQueue;
+    }
+
+    this.balancer = this.options.loadBalancer ?? LeastBusyBalancer({ maximumUsage: this.options.concurrentTasksPerWorker });
+    this.workers = new AsynchronouslyCreatedResourcePool<WorkerInfo>(
+      this.options.concurrentTasksPerWorker);
+    this.workers.onTaskDone(this._onWorkerTaskDone.bind(this));
+    this.maxCapacity = this.options.maxThreads * this.options.concurrentTasksPerWorker;
+
+    this._startingUp = true;
+    this._needsDrain = false;
+    this._ensureMinimumWorkers();
+    this._startingUp = false;
+  }
+
+  _ensureMinimumWorkers () : void {
+    if (this.closingUp || this.destroying) {
+      return;
+    }
+    while (this.workers.size < this.options.minThreads) {
+      this._addNewWorker();
+    }
+  }
+
+  _addNewWorker () : void {
+    if (this.closingUp === true) return;
+
+    const { port1, port2 } = new MessageChannel();
+    const workerInfo = new WorkerInfo({
+      worker: {
+        filename: resolve(__dirname, 'worker.js'),
+        env: this.options.env,
+        argv: this.options.argv,
+        execArgv: this.options.execArgv,
+        resourceLimits: this.options.resourceLimits,
+        workerData: this.options.workerData,
+        trackUnmanagedFds: this.options.trackUnmanagedFds
+      }, 
+      port: port1, 
+      enableHistogram: this.options.workerHistogram
+    }, onMessage.bind(this));
+    const message : StartupMessage = {
+      filename: this.options.filename,
+      name: this.options.name,
+      port: port2,
+      sharedBuffer: workerInfo.sharedBuffer,
+      atomics: this.options.atomics!,
+      niceIncrement: this.options.niceIncrement
+    };
+    
+    workerInfo.onDestroy(() => {
+      this.publicInterface.emit('workerDestroy', workerInfo.interface);
+    });
+    workerInfo.onWorkerMessage(onWorkerMessage.bind(this));
+    workerInfo.onWorkerError(onWorkerError.bind(this));
+    workerInfo.onWorkerExit(onWorkerExit.bind(this));
+    workerInfo.onPortClose(() => { workerInfo.workerRef(); });
+
+    if (this._startingUp === true) {
+      // There is no point in waiting for the initial set of Workers to indicate
+      // that they are ready, we just mark them as such from the start.
+      workerInfo.markAsReady();
+      // We need to emit the event in the next microtask, so that the user can
+      // attach event listeners before the event is emitted.
+      queueMicrotask(() => {
+        this.publicInterface.emit('workerCreate', workerInfo.interface);
+        this._onWorkerReady(workerInfo);
+      });
+    } else {
+      workerInfo.onReady(() => {
+        this.publicInterface.emit('workerCreate', workerInfo.interface);
+        this._onWorkerReady(workerInfo);
+      });
+    }
+    
+    workerInfo.init(message, [port2]).workerUnref();
+    this.workers.add(workerInfo);
+
+    function onMessage (this: ThreadPool, message : ResponseMessage) {
+      const { taskId, result } = message;
+      // In case of success: Call the callback that was passed to `runTask`,
+      // remove the `TaskInfo` associated with the Worker, which marks it as
+      // free again.
+      const taskInfo = workerInfo.popTask(taskId);
+      this.workers.taskDone(workerInfo);
+
+      
+      if (taskInfo == null) { /* c8 ignore next */
+        const err = new Error(
+          `Unexpected message from Worker: ${inspect(message)}`);
+        this.publicInterface.emit('error', err);
+      } else {
+        taskInfo.done(message.error, result);
+      }
+
+      this._processPendingMessages();
+    }
+
+    function onWorkerReady () {
+      workerInfo.currentUsage() === 0 && workerInfo.unref();
+      workerInfo.isReady() === false && workerInfo.markAsReady();
+    }
+
+    function onEventMessage (this: ThreadPool, message: any) {
+      this.publicInterface.emit('message', message);
+    }
+
+    function onWorkerMessage (this: ThreadPool, message: any) {
+      // is ready message?
+      if (message != null && typeof message === 'object' && message[READY]) {
+        onWorkerReady();
+        return
+      }
+
+      onEventMessage.call(this, message);
+    }
+
+    function onWorkerError (this: ThreadPool, err: Error) {
+      this._onError(workerInfo, err, false);
+    }
+
+    function onWorkerExit (this: ThreadPool, code: number) {
+      if (this.destroying === false) {
+        const err = new Error(`worker exited with code: ${code}`);
+        // Only error unfinished tasks on process exit, since there are legitimate
+        // reasons to exit workers and we want to handle that gracefully when possible.
+        this._onError(workerInfo, err, true);
+      }
+    }
+  }
+
+  _onError (workerInfo: WorkerInfo, err: Error, onlyErrorUnfinishedTasks: boolean) {
+    const taskInfos = [...workerInfo.taskInfos.values()];
+    workerInfo.taskInfos.clear();
+
+    // Remove the worker from the list and potentially start a new Worker to
+    // replace the current one.
+    this._removeWorker(workerInfo);
+
+    if (workerInfo.isReady() && !this.workerFailsDuringBootstrap) {
+      this._ensureMinimumWorkers();
+    } else {
+      // Do not start new workers over and over if they already fail during
+      // bootstrap, there's no point.
+      this.workerFailsDuringBootstrap = true;
+    }
+
+    if (taskInfos.length > 0) {
+      // If there are remaining unfinished tasks, call the callback that was
+      // passed to `postTask` with the error
+      for (const taskInfo of taskInfos) {
+        taskInfo.done(err, null);
+      }
+    } else if (!onlyErrorUnfinishedTasks) {
+      // If there are no unfinished tasks, instead emit an 'error' event
+      this.publicInterface.emit('error', err);
+    }
+  }
+
+  _processPendingMessages () {
+    if (this.inProcessPendingMessages || this.options.atomics === 'disabled') {
+      return;
+    }
+
+    this.inProcessPendingMessages = true;
+    try {
+      for (const workerInfo of this.workers) {
+        workerInfo.processPendingMessages();
+      }
+    } finally {
+      this.inProcessPendingMessages = false;
+    }
+  }
+
+  _removeWorker (workerInfo : WorkerInfo) : void {
+    workerInfo.destroy();
+
+    this.workers.delete(workerInfo);
+  }
+
+  _onWorkerReady (workerInfo : WorkerInfo) : void {
+    this._onWorkerAvailable(workerInfo);
+  }
+
+  _onWorkerTaskDone (workerInfo: WorkerInfo) : void {
+    this._onWorkerAvailable(workerInfo);
+  }
+
+  _onWorkerAvailable (workerInfo : WorkerInfo) : void {
+    let workers: PiscinaWorker[] | null = null;
+    while ((this.taskQueue.size > 0 || this.skipQueue.length > 0)) {
+      // The skipQueue will have tasks that we previously shifted off
+      // the task queue but had to skip over... we have to make sure
+      // we drain that before we drain the taskQueue.
+      const taskInfo = this.skipQueue.shift() ||
+                       this.taskQueue.shift() as TaskInfo;
+
+      if (workers == null) {
+        workers = [...this.workers.readyItems, ...this.workers.pendingItems]
+          .map(workerInfo => workerInfo.interface);
+      }
+
+      // The task was taken from the head of its queue, so with stricterFIFO
+      // it has to go back to the head to keep its place.
+      const distributed = this._distributeTask(taskInfo, workers, !this.options.stricterFIFO);
+
+      if (distributed) {
+        // If task was distributed, we should continue to distribute more tasks
+        continue;
+      }
+
+      if (this.workers.size < this.options.maxThreads) {
+        // We spawn if possible
+        // TODO: scheduler will intercept this.
+        this._addNewWorker();
+        continue;
+      }
+
+      break;
+    }
+
+    //If Infinity was sent as a parameter, we skip setting the Timeout that clears the worker
+    if (this.options.idleTimeout === Infinity) {
+      return;
+    }
+
+    // If more workers than minThreads, we can remove idle workers
+    if (workerInfo.currentUsage() === 0 &&
+        this.workers.size > this.options.minThreads) {
+      workerInfo.setIdleTimeout(() => {
+        // Exit early - we can't safely remove the worker as there is workload in the middle.
+        // Once task is exited, timeout will be set once more for tearing up idle worker
+        if (workerInfo.currentUsage() !== 0) {
+          return;
+        }
+
+        if (this.workers.size > this.options.minThreads) {
+          this._removeWorker(workerInfo);
+        }
+      }, this.options.idleTimeout);
+    }
+  }
+
+  _distributeTask (task: TaskInfo, workers: PiscinaWorker[], toTail: boolean): boolean {
+    // We need to verify if the task is aborted already
+    if (task.aborted) return true;
+
+    const candidate = this.balancer(task.interface, workers);
+
+    // Seeking for a real worker instead of customized one
+    if (candidate != null && candidate[kWorkerData] != null) {
+      const now = performance.now();
+      this.histogram?.recordWaitTime(now - task.created)
+      task.started = now;
+      candidate[kWorkerData].postTask(task);
+      this._maybeDrain();
+      // If candidate, let's try to distribute more tasks
+      return true;
+    }
+
+    this._returnUndistributedTask(task, toTail);
+    return false;
+  }
+
+  _returnUndistributedTask (task: TaskInfo, toTail = false) : void {
+    if (task.abortSignal != null) {
+      if (toTail) {
+        this.skipQueue.push(task);
+      } else {
+        this.skipQueue.unshift(task);
+      }
+      return;
+    }
+
+    if (toTail) {
+      this.taskQueue.push(task);
+    } else if (this.taskQueue.unshift != null) {
+      this.taskQueue.unshift(task);
+    } else {
+      this.taskQueue.push(task);
+    }
+  }
+
+  runTask (
+    task : any,
+    options : RunOptions<string>) : Promise<any> {
+    let {
+      filename,
+      name,
+      signal,
+    } = options;
+    const {
+      transferList = []
+    } = options;
+    filename = filename ?? this.options.filename;
+    name = name ??  this.options.name;
+
+    // If the AbortSignal has an aborted property and it's truthy,
+    // reject immediately.
+    if (signal?.aborted === true) {
+      return Promise.reject(Errors.AbortError(signal.reason));
+    }
+
+    if (this.closingUp || this.destroying) {
+      return Promise.reject(Errors.AbortError('pool is closing'));
+    }
+
+    if (typeof filename !== 'string') {
+      return Promise.reject(Errors.ValidationError('filename must be provided to run() or in options object'));
+    }
+
+    filename = maybeFileURLToPath(filename);
+
+    const { promise: ret, resolve, reject } = Promise.withResolvers();
+    const taskInfo = new TaskInfo({
+      task,
+      transferList,
+      filename,
+      name,
+      abortSignal: signal ?? null,
+      triggerAsyncId: this.publicInterface.asyncResource.asyncId()
+    },
+    (err : Error | null, result : any) => {
+        this.completed++;
+
+        if (taskInfo.started != null) {
+          this.histogram?.recordRunTime(performance.now() - taskInfo.started);
+        }
+
+        if (err !== null) {
+          reject(err);
+        } else {
+          resolve(result);
+        }
+
+        this._maybeDrain();
+    });
+
+    if (signal != null) {
+      taskInfo.onAbort(() => {
+        // Call reject() first to make sure we always reject with the AbortError
+        // if the task is aborted, not with an Error from the possible
+        // thread termination below.
+        if (taskInfo.workerInfo != null) {
+          reject(Errors.AbortError(signal.reason));
+          // Already running: We cancel the Worker this is running on.
+          this._removeWorker(taskInfo.workerInfo);
+          this._ensureMinimumWorkers();
+          return;
+        }
+
+        // Not yet running: Remove it from the queue and settle it through done(),
+        // which is what detaches the abort listener and destroys the async
+        // resource. Calling should be idempotent.
+        this.taskQueue.remove(taskInfo);
+        taskInfo.done(Errors.AbortError(signal.reason));
+      });
+
+      taskInfo.setAbortListener(signal);
+    }
+
+    if (this.taskQueue.size > 0) {
+      const totalCapacity = this.options.maxQueue + this.pendingCapacity();
+      if (this.taskQueue.size >= totalCapacity) {
+        // Settle through done(), not reject(): done() is what removes the abort
+        // listener and destroys the async resource. Rejecting directly leaked
+        // both, once per refused task, for as long as the caller's signal lived.
+        if (this.options.maxQueue === 0) {
+          taskInfo.done(Errors.NoTaskQueueAvailable());
+        } else {
+          taskInfo.done(Errors.TaskQueueAtLimit());
+        }
+      } else {
+        this.taskQueue.push(taskInfo);
+        // Eagerly spawn additional workers up to maxThreads while there is
+        // queued work. Without this, a cold pool serializes the initial burst
+        // because the next spawn only happens once the first worker is ready.
+        // The balancer still owns distribution once workers become available.
+        if (this.workers.size < this.options.maxThreads) {
+          this._addNewWorker();
+        }
+      }
+
+      this._maybeDrain();
+      return ret;
+    }
+
+    const workers = [...this.workers.readyItems].map(workerInfo => workerInfo.interface);
+    // A new task has never been queued, so it always goes to the tail.
+    const distributed = this._distributeTask(taskInfo, workers, true);
+
+    if (!distributed) {
+      // We spawn if possible
+      // TODO: scheduler will intercept this.
+      if (this.workers.size < this.options.maxThreads) {
+        this._addNewWorker();
+      }
+
+      // We reject if no task queue set and no more pending capacity.
+      // TODO(@metcoder95): maybe auto expand the queue if no task queue set and we're at capacity?
+      if (this.options.maxQueue <= 0 && this.pendingCapacity() === 0) {
+        taskInfo.done(Errors.NoTaskQueueAvailable());
+      }
+    };
+
+    this._maybeDrain();
+    return ret;
+  }
+
+  pendingCapacity () : number {
+    return this.workers.pendingItems.size *
+      this.options.concurrentTasksPerWorker;
+  }
+
+  _maybeDrain () {
+    /**
+     * Our goal is to make it possible for user space to use the pool
+     * in a way where always waiting === 0,
+     * since we want to avoid creating tasks that can't execute
+     * immediately in order to provide back pressure to the task source.
+     */
+    const { maxCapacity, } = this;
+    const currentUsage = this.workers.getCurrentUsage();
+    const maxQueueSize = this.options.maxQueue;
+    const queueSize = this.publicInterface.queueSize;
+
+    if (this._needsDrain === true) {
+      if (queueSize === 0) {
+        this._needsDrain = false;
+        queueMicrotask(() => this.publicInterface.emit('drain'));
+      }
+      return;
+    }
+
+    // Attempting to provide a similar behaviour to a Writable stream
+    // if maxquesize is already reached, let's attempt to inform that the
+    // queue needs drain before handling more tasks
+    if (maxCapacity === currentUsage && queueSize === maxQueueSize) {
+      this._needsDrain = true;
+      queueMicrotask(() => this.publicInterface.emit('needsDrain'));
+    } 
+  }
+
+  async destroy () {
+    this.destroying = true;
+    while (this.skipQueue.length > 0) {
+      const taskInfo : TaskInfo = this.skipQueue.shift() as TaskInfo;
+      taskInfo.done(Errors.AbortError('pool is being destroyed'));
+    }
+
+    while (this.taskQueue.size > 0) {
+      const taskInfo : TaskInfo = this.taskQueue.shift() as TaskInfo;
+      taskInfo.done(Errors.AbortError('pool is being destroyed'));
+    }
+
+    const exitEvents : Promise<any[]>[] = [];
+    while (this.workers.size > 0) {
+      const [workerInfo] = this.workers;
+      exitEvents.push(once(workerInfo.worker, 'exit'));
+      this._removeWorker(workerInfo);
+    }
+
+    await Promise.allSettled(exitEvents);
+    this.destroying = false;
+  }
+
+  async close (options : Required<CloseOptions>) {
+    this.closingUp = true;
+
+    if (options.force) {
+      const skipQueueLength = this.skipQueue.length;
+      for (let i = 0; i < skipQueueLength; ++i) {
+        const taskInfo : TaskInfo = this.skipQueue.shift() as TaskInfo;
+        if (taskInfo.workerInfo == null) {
+          taskInfo.done(Errors.AbortError('pool is closing'));
+        } else {
+          this.skipQueue.push(taskInfo);
+        }
+      }
+
+      const taskQueueLength = this.taskQueue.size;
+      for (let i = 0; i < taskQueueLength; ++i) {
+        const taskInfo : TaskInfo = this.taskQueue.shift() as TaskInfo;
+        if (taskInfo.workerInfo === null) {
+          taskInfo.done(Errors.AbortError('pool is closing'));
+        } else {
+          this.taskQueue.push(taskInfo);
+        }
+      }
+    }
+
+    const onPoolFlushed = () => new Promise<void>((resolve) => {
+      const numberOfWorkers = this.workers.size;
+
+      if (numberOfWorkers === 0) {
+        resolve();
+        return;
+      }
+
+      let numberOfWorkersDone = 0;
+
+      const checkIfWorkerIsDone = (workerInfo: WorkerInfo) => {
+        if (workerInfo.taskInfos.size === 0) {
+          numberOfWorkersDone++;
+        }
+
+        if (numberOfWorkers === numberOfWorkersDone) {
+          resolve();
+        }
+      };
+
+      this.workers.onTaskDone(checkIfWorkerIsDone);
+
+      for (const workerInfo of this.workers) {
+        checkIfWorkerIsDone(workerInfo);
+
+        this.workers.onTaskDone(checkIfWorkerIsDone);
+      }
+    });
+
+    const throwOnTimeOut = async (timeout: number) => {
+      await sleep(timeout, null, { ref: false });
+      throw Errors.CloseTimeout();
+    };
+
+    try {
+      await Promise.race([
+        onPoolFlushed(),
+        throwOnTimeOut(this.options.closeTimeout)
+      ]);
+    } catch (error) {
+      this.publicInterface.emit('error', error);
+    } finally {
+      await this.destroy();
+      this.publicInterface.emit('close');
+      this.closingUp = false;
+    }
+  }
+}
+
+export default class Piscina<Exports extends Record<string, (payload: any) => any> = Record<string, (payload: any) => any>> extends EventEmitterAsyncResource {
+  #pool : ThreadPool;
+  #histogram: PiscinaHistogram | null = null;
+
+  constructor (options : Options = {}) {
+    const opts = withNullPrototype(options);
+    super(withNullPrototype(opts, { name: 'Piscina' }));
+
+    if (typeof opts.filename !== 'string' && opts.filename != null) {
+      throw Errors.ValidationError('options.filename must be a string or null');
+    }
+    if (typeof opts.name !== 'string' && opts.name != null) {
+      throw Errors.ValidationError('options.name must be a string or null');
+    }
+    if (opts.minThreads != null &&
+        (typeof opts.minThreads !== 'number' || opts.minThreads < 0)) {
+      throw Errors.ValidationError('options.minThreads must be a non-negative integer');
+    }
+    if (opts.maxThreads != null &&
+        (typeof opts.maxThreads !== 'number' || opts.maxThreads < 1)) {
+      throw Errors.ValidationError('options.maxThreads must be a positive integer');
+    }
+    if (opts.minThreads != null && opts.maxThreads != null &&
+        opts.minThreads > opts.maxThreads) {
+      throw Errors.ValidationError('options.minThreads and options.maxThreads must not conflict');
+    }
+    if (opts.idleTimeout != null &&
+        (typeof opts.idleTimeout !== 'number' || opts.idleTimeout < 0)) {
+      throw Errors.ValidationError('options.idleTimeout must be a non-negative integer');
+    }
+    if (opts.maxQueue != null &&
+        opts.maxQueue !== 'auto' &&
+          (typeof opts.maxQueue !== 'number' || opts.maxQueue < 0)) {
+      throw Errors.ValidationError('options.maxQueue must be a non-negative integer');
+    }
+    if (opts.concurrentTasksPerWorker != null &&
+        (typeof opts.concurrentTasksPerWorker !== 'number' ||
+         opts.concurrentTasksPerWorker < 1)) {
+      throw Errors.ValidationError(
+        'options.concurrentTasksPerWorker must be a positive integer');
+    }
+    if (opts.atomics != null && (typeof opts.atomics !== 'string' ||
+        !['sync', 'async', 'disabled'].includes(opts.atomics))) {
+      throw Errors.ValidationError('options.atomics should be a value of sync, sync or disabled.');
+    }
+    if (opts.resourceLimits != null && typeof opts.resourceLimits !== 'object') {
+      throw Errors.ValidationError('options.resourceLimits must be an object');
+    }
+    if (opts.taskQueue != null && !isTaskQueue(opts.taskQueue)) {
+      throw Errors.ValidationError('options.taskQueue must be a TaskQueue object');
+    }
+    if (opts.niceIncrement != null &&
+        (typeof opts.niceIncrement !== 'number' || (opts.niceIncrement < 0 && process.platform !== 'win32'))) {
+      throw Errors.ValidationError('options.niceIncrement must be a non-negative integer on Unix systems');
+    }
+    if (opts.trackUnmanagedFds != null &&
+        typeof opts.trackUnmanagedFds !== 'boolean') {
+      throw Errors.ValidationError('options.trackUnmanagedFds must be a boolean value');
+    }
+    if (opts.closeTimeout != null && (typeof opts.closeTimeout !== 'number' || opts.closeTimeout < 0)) {
+      throw Errors.ValidationError('options.closeTimeout must be a non-negative integer');
+    }
+    if (opts.loadBalancer != null && (typeof opts.loadBalancer !== 'function' || opts.loadBalancer.length < 1)) {
+      throw Errors.ValidationError('options.loadBalancer must be a function with at least two args');
+    }
+    if (opts.workerHistogram != null && (typeof opts.workerHistogram !== 'boolean')) {
+      throw Errors.ValidationError('options.workerHistogram must be a boolean');
+    }
+    if (opts.stricterFIFO !== undefined && (typeof opts.stricterFIFO !== 'boolean')) {
+      throw new TypeError('options.stricterFIFO must be a boolean');
+    }
+
+    this.#pool = new ThreadPool(this, opts);
+  }
+
+  run <Func extends keyof Exports = 'default'>(task : Parameters<Exports[Func]>[0], options : RunOptions<Func> = kDefaultRunOptions as RunOptions<Func>): Promise<ReturnType<Exports[Func]>> {
+    if (options === null || typeof options !== 'object') {
+      return Promise.reject(
+        Errors.ValidationError('options must be an object'));
+    }
+
+    options = withNullPrototype(options);
+
+    const transferList = options.transferList;
+    const signal = options.signal ?? null;
+    const filename = options.filename ?? null;
+    const name = options.name ?? null;
+
+    if (transferList !== undefined && !Array.isArray(transferList)) {
+      return Promise.reject(
+        Errors.ValidationError('transferList argument must be an Array'));
+    }
+    if (filename != null && typeof filename !== 'string') {
+      return Promise.reject(
+        Errors.ValidationError('filename argument must be a string'));
+    }
+    if (name != null && typeof name !== 'string') {
+      return Promise.reject(Errors.ValidationError('name argument must be a string'));
+    }
+    if (signal != null && typeof signal !== 'object') {
+      return Promise.reject(
+        Errors.ValidationError('signal argument must be an object'));
+    }
+
+    return this.#pool.runTask(task, { transferList, filename, name, signal });
+  }
+
+  async close (options : CloseOptions = kDefaultCloseOptions) {
+    if (options == null || typeof options !== 'object') {
+      throw Errors.ValidationError('options must be an object');
+    }
+
+    options = withNullPrototype(options);
+
+    let { force } = options;
+
+    if (force != null && typeof force !== 'boolean') {
+      return Promise.reject(
+        Errors.ValidationError('force argument must be a boolean'));
+    }
+    force ??= kDefaultCloseOptions.force;
+
+    return this.#pool.close({
+      force
+    });
+  }
+
+  destroy () {
+    return this.#pool.destroy();
+  }
+
+  [Symbol.dispose]() {
+    this.close();
+  }
+
+  [Symbol.asyncDispose]() {
+    return this.close();
+  }
+
+  get maxThreads (): number {
+    return this.#pool.options.maxThreads;
+  }
+
+  get minThreads (): number {
+    return this.#pool.options.minThreads;
+  }
+
+  get options () : FilledOptions {
+    return this.#pool.options;
+  }
+
+  get threads () : Worker[] {
+    const ret : Worker[] = [];
+    for (const workerInfo of this.#pool.workers) { ret.push(workerInfo.worker); }
+    return ret;
+  }
+
+  get idleThreads () : number {
+    let count = 0;
+    for (const workerInfo of this.#pool.workers.readyItems) {
+      if (workerInfo.currentUsage() === 0) count++;
+    }
+    return count;
+  }
+
+  get queueSize () : number {
+    const pool = this.#pool;
+    return Math.max((pool.taskQueue.size + pool.skipQueue.length) - pool.pendingCapacity(), 0);
+  }
+
+  get completed () : number {
+    return this.#pool.completed;
+  }
+
+  get histogram () : PiscinaHistogram {
+    if (this.#histogram == null) {
+      const piscinahistogram = {
+        // @ts-expect-error
+        get runTime() { return this.histogram?.runTimeSummary! },
+        // @ts-expect-error
+        get waitTime() { return this.histogram?.waitTimeSummary! },
+        resetRunTime() {
+          // @ts-expect-error
+          this.histogram?.resetRunTime()
+        },
+        resetWaitTime() {
+          // @ts-expect-error
+          this.histogram?.resetWaitTime()
+        },
+      }
+  
+      Object.defineProperty(piscinahistogram, 'histogram', {
+        value: this.#pool.histogram,
+        writable: false,
+        enumerable: false,
+        configurable: false,
+      })
+  
+      this.#histogram = piscinahistogram;
+    };
+
+    return this.#histogram;
+  }
+
+  get utilization () : number {
+    if (this.#pool.histogram == null) {
+      return 0;
+    }
+
+    // count is available as of Node.js v16.14.0 but not present in the types
+    const count = this.#pool.histogram.runTimeCount;
+
+    if (count === 0) {
+      return 0;
+    }
+
+    // The capacity is the max compute time capacity of the
+    // pool to this point in time as determined by the length
+    // of time the pool has been running multiplied by the
+    // maximum number of threads.
+    const capacity = this.duration * this.#pool.options.maxThreads;
+    const totalMeanRuntime = (this.#pool.histogram.runTimeSummary.mean / 1000) * count;
+
+    // We calculate the approximate pool utilization by multiplying
+    // the mean run time of all tasks by the number of runtime
+    // samples taken and dividing that by the capacity. The
+    // theory here is that capacity represents the absolute upper
+    // limit of compute time this pool could ever attain (but
+    // never will for a variety of reasons. Multiplying the
+    // mean run time by the number of tasks sampled yields an
+    // approximation of the realized compute time. The utilization
+    // then becomes a point-in-time measure of how active the
+    // pool is.
+    return totalMeanRuntime / capacity;
+  }
+
+  get duration () : number {
+    return performance.now() - this.#pool.start;
+  }
+
+  get needsDrain () : boolean {
+    return this.#pool._needsDrain;
+  }
+
+  static get isWorkerThread () : boolean {
+    return commonState.isWorkerThread;
+  }
+
+  static get workerData () : any {
+    return commonState.workerData;
+  }
+
+  static get version () : string {
+    return version;
+  }
+
+  static get Piscina () {
+    return Piscina;
+  }
+
+  static get FixedQueue () {
+    return FixedQueue;
+  }
+
+  static get ArrayTaskQueue () {
+    return ArrayTaskQueue;
+  }
+
+  static move (val : Transferable | TransferListItem | ArrayBufferView | ArrayBuffer | MessagePort) {
+    if (val != null && typeof val === 'object' && typeof val !== 'function') {
+      if (!isTransferable(val)) {
+        if ((types as any).isArrayBufferView(val)) {
+          val = new ArrayBufferViewTransferable(val as ArrayBufferView);
+        } else {
+          val = new DirectlyTransferable(val);
+        }
+      }
+      markMovable(val);
+    }
+    return val;
+  }
+
+  static get transferableSymbol () { return kTransferable; }
+
+  static get valueSymbol () { return kValue; }
+
+  static get queueOptionsSymbol () { return kQueueOptions; }
+}
+
+const move = Piscina.move;
+const isWorkerThread = Piscina.isWorkerThread;
+const workerData = Piscina.workerData;
+
+export {
+  Piscina,
+  PiscinaTask,
+  TaskQueue,
+  kTransferable as transferableSymbol,
+  kValue as valueSymbol,
+  kQueueOptions as queueOptionsSymbol,
+  version,
+  FixedQueue,
+  ArrayTaskQueue,
+  move,
+  isWorkerThread,
+  workerData
+};

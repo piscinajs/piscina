@@ -1,0 +1,14 @@
+{
+  "name": "scrypt",
+  "version": "1.0.0",
+  "scripts": {
+    "pooled": "node -r ./monitor pooled",
+    "unpooled": "node -r ./monitor unpooled",
+    "pooled-sync": "node -r ./monitor pooled_sync",
+    "unpooled-sync": "node -r ./monitor unpooled_sync"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "description": ""
+}
