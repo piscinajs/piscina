@@ -233,22 +233,6 @@ class ThreadPool {
     }
   }
 
-  // Start workers, up to maxThreads, for tasks that are still queued after a
-  // worker was removed. Queued tasks are otherwise only handed out when a
-  // worker becomes available, so with no worker left (e.g. minThreads: 0) they
-  // would wait for the next run() call.
-  _deliverQueuedTasks () : void {
-    if (this.closingUp || this.destroying) {
-      return;
-    }
-    const queued = this.taskQueue.size + this.skipQueue.length;
-    let capacity = this.pendingCapacity();
-    while (capacity < queued && this.workers.size < this.options.maxThreads) {
-      this._addNewWorker();
-      capacity += this.options.concurrentTasksPerWorker;
-    }
-  }
-
   _addNewWorker () : void {
     if (this.closingUp === true) return;
 
@@ -366,7 +350,7 @@ class ThreadPool {
 
     if (workerInfo.isReady() && !this.workerFailsDuringBootstrap) {
       this._ensureMinimumWorkers();
-      this._deliverQueuedTasks();
+      this._distributeQueuedTasksAfterRemoval();
     } else {
       // Do not start new workers over and over if they already fail during
       // bootstrap, there's no point.
@@ -415,6 +399,34 @@ class ThreadPool {
   }
 
   _onWorkerAvailable (workerInfo : WorkerInfo) : void {
+    this._distributeQueuedTasks();
+
+    //If Infinity was sent as a parameter, we skip setting the Timeout that clears the worker
+    if (this.options.idleTimeout === Infinity) {
+      return;
+    }
+
+    // If more workers than minThreads, we can remove idle workers
+    if (workerInfo.currentUsage() === 0 &&
+        this.workers.size > this.options.minThreads) {
+      workerInfo.setIdleTimeout(() => {
+        // Exit early - we can't safely remove the worker as there is workload in the middle.
+        // Once task is exited, timeout will be set once more for tearing up idle worker
+        if (workerInfo.currentUsage() !== 0) {
+          return;
+        }
+
+        if (this.workers.size > this.options.minThreads) {
+          this._removeWorker(workerInfo);
+        }
+      }, this.options.idleTimeout);
+    }
+  }
+
+  // Hand queued tasks to workers, spawning new ones up to maxThreads when no
+  // worker can take them. Also called after a worker is removed, so tasks still
+  // queued behind it (e.g. with minThreads: 0) do not wait for the next run().
+  _distributeQueuedTasks () : void {
     let workers: PiscinaWorker[] | null = null;
     while ((this.taskQueue.size > 0 || this.skipQueue.length > 0)) {
       // The skipQueue will have tasks that we previously shifted off
@@ -446,27 +458,13 @@ class ThreadPool {
 
       break;
     }
+  }
 
-    //If Infinity was sent as a parameter, we skip setting the Timeout that clears the worker
-    if (this.options.idleTimeout === Infinity) {
+  _distributeQueuedTasksAfterRemoval () : void {
+    if (this.closingUp || this.destroying) {
       return;
     }
-
-    // If more workers than minThreads, we can remove idle workers
-    if (workerInfo.currentUsage() === 0 &&
-        this.workers.size > this.options.minThreads) {
-      workerInfo.setIdleTimeout(() => {
-        // Exit early - we can't safely remove the worker as there is workload in the middle.
-        // Once task is exited, timeout will be set once more for tearing up idle worker
-        if (workerInfo.currentUsage() !== 0) {
-          return;
-        }
-
-        if (this.workers.size > this.options.minThreads) {
-          this._removeWorker(workerInfo);
-        }
-      }, this.options.idleTimeout);
-    }
+    this._distributeQueuedTasks();
   }
 
   _distributeTask (task: TaskInfo, workers: PiscinaWorker[], toTail: boolean): boolean {
@@ -575,7 +573,7 @@ class ThreadPool {
           // Already running: We cancel the Worker this is running on.
           this._removeWorker(taskInfo.workerInfo);
           this._ensureMinimumWorkers();
-          this._deliverQueuedTasks();
+          this._distributeQueuedTasksAfterRemoval();
           return;
         }
 
