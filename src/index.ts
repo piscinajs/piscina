@@ -52,6 +52,8 @@ import {
 } from './common';
 const cpuParallelism : number = getAvailableParallelism();
 
+function noop () : void {}
+
 interface Options {
   filename? : string | null,
   name?: string,
@@ -177,7 +179,7 @@ class ThreadPool {
   closingUp : boolean = false;
   workerFailsDuringBootstrap : boolean = false;
   destroying : boolean = false;
-  _onWorkerRemoved : (() => void) | null = null;
+  _onWorkerRemoved : () => void = noop;
   maxCapacity: number;
   balancer: PiscinaLoadBalancer;
 
@@ -388,7 +390,7 @@ class ThreadPool {
     workerInfo.destroy();
 
     this.workers.delete(workerInfo);
-    this._onWorkerRemoved?.();
+    this._onWorkerRemoved();
   }
 
   _onWorkerReady (workerInfo : WorkerInfo) : void {
@@ -715,7 +717,7 @@ class ThreadPool {
         }
 
         flushed = true;
-        this._onWorkerRemoved = null;
+        this._onWorkerRemoved = noop;
         resolve();
       };
 
@@ -737,7 +739,7 @@ class ThreadPool {
     } catch (error) {
       this.publicInterface.emit('error', error);
     } finally {
-      this._onWorkerRemoved = null;
+      this._onWorkerRemoved = noop;
       await this.destroy();
       this.publicInterface.emit('close');
       this.closingUp = false;
