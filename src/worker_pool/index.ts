@@ -1,5 +1,4 @@
 import { Worker, MessagePort, receiveMessageOnPort, WorkerOptions, Transferable } from 'node:worker_threads';
-import { createHistogram, RecordableHistogram } from 'node:perf_hooks';
 import assert from 'node:assert';
 
 import { RequestMessage, ResponseMessage, StartupMessage } from '../types';
@@ -7,7 +6,6 @@ import { Errors } from '../errors';
 
 import { TaskInfo } from '../task_queue';
 import { kFieldCount, kRequestCountField, kResponseCountField, kWorkerData } from '../symbols';
-import { PiscinaHistogramHandler, PiscinaHistogramSummary } from '../histogram';
 import { taskDoneChannel } from '../diagnostics';
 
 import { AsynchronouslyCreatedResource, AsynchronouslyCreatedResourcePool } from './base';
@@ -19,7 +17,6 @@ export type PiscinaWorker = {
   id: number;
   currentUsage: number;
   isRunningAbortableTask: boolean;
-  histogram: PiscinaHistogramSummary | null;
   terminating: boolean;
   destroyed: boolean;
   [kWorkerData]: WorkerInfo;
@@ -30,7 +27,6 @@ type WorkerInfoParams = {
     filename: string,
   } & WorkerOptions,
   port: MessagePort,
-  enableHistogram: boolean,
 }
 
 export class WorkerInfo extends AsynchronouslyCreatedResource {
@@ -41,7 +37,6 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
     sharedBuffer : Int32Array;
     lastSeenResponseCount : number = 0;
     onMessage : ResponseCallback;
-    histogram: RecordableHistogram | null;
     terminating = false;
     destroyed = false;
     // When the Worker was first known to have booted: its READY message or
@@ -56,8 +51,7 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
     constructor (
       {
         worker,
-        port,
-        enableHistogram
+        port
       }: WorkerInfoParams,
       onMessage: ResponseCallback
     ) {
@@ -71,7 +65,6 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
       this.taskInfos = new Map();
       this.sharedBuffer = new Int32Array(
         new SharedArrayBuffer(kFieldCount * Int32Array.BYTES_PER_ELEMENT));
-      this.histogram = enableHistogram ? createHistogram() : null;
     }
 
     get id (): number {
@@ -149,9 +142,6 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
     }
 
     _handleResponse (message : ResponseMessage) : void {
-      // Both cannot be in different state if histogram enabled.
-      this.histogram?.record(PiscinaHistogramHandler.toHistogramIntegerNano(message?.time!));
-
       this.onMessage(message);
 
       if (this.taskInfos.size === 0) {
@@ -173,7 +163,6 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
         taskId: taskInfo.taskId,
         filename: taskInfo.filename,
         name: taskInfo.name,
-        histogramEnabled: this.histogram != null ? 1 : 0,
         reportStartTime: taskDoneChannel.hasSubscribers ? 1 : 0
       };
 
@@ -246,9 +235,6 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
         },
         get isRunningAbortableTask () {
           return worker.isRunningAbortableTask();
-        },
-        get histogram () {
-          return worker.histogram != null ? PiscinaHistogramHandler.createHistogramSummary(worker.histogram) : null;
         },
         get terminating () {
           return worker.terminating;

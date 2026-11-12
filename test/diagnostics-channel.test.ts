@@ -329,17 +329,6 @@ test('publishes drain whenever the pool emits drain', async (t: TestContext) => 
   await pool.destroy();
 });
 
-test('reports wait and run time when recordTiming is false', async (t: TestContext) => {
-  const pool = new Piscina({ filename: evalFile, maxThreads: 1, recordTiming: false });
-  const dones = record<PiscinaTaskDoneMessage>(t, 'piscina:task:done', () => pool);
-
-  await pool.run('42');
-
-  assert.strictEqual(typeof dones[0].waitTime, 'number');
-  assert.strictEqual(typeof dones[0].runTime, 'number');
-  await pool.destroy();
-});
-
 test('a done subscriber that aborts the finished task does not affect the next task', async (t: TestContext) => {
   const pool = new Piscina({ filename: evalFile, maxThreads: 1 });
   await pool.run('0');

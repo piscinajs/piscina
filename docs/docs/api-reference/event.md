@@ -78,10 +78,7 @@ subscriber can read the caller's `AsyncLocalStorage` stores.
   includes the time a new worker spent starting up. A task that never reports
   back (aborted while running, or its worker crashed), or that was sent before
   any `piscina:task:done` subscriber existed, ends its wait when it was sent,
-  or when its worker became ready if that was later. These values
-  are reported even when `recordTiming` is `false`, and can differ from
-  `histogram.waitTime` and `histogram.runTime`, which end the wait when the
-  task is sent.
+  or when its worker became ready if that was later.
 - `error` is the value the task ended with: usually an `Error`, but whatever
   the task threw otherwise; `null` on success. For a task aborted while
   running, it is the worker termination error; check `aborted` to tell aborts
@@ -121,4 +118,30 @@ subscribe(channels.taskDone, ({ pool: source, queued, waitTime, task }) => {
   if (source !== pool || !queued) return;
   console.log(`task ${task.taskId} waited ${waitTime ?? 'without starting'} ms`);
 });
+```
+
+**Example**: build wait and run time percentiles with
+[`perf_hooks.createHistogram()`](https://nodejs.org/api/perf_hooks.html#perf_hookscreatehistogramoptions).
+
+```js
+const { subscribe } = require('node:diagnostics_channel');
+const { createHistogram } = require('node:perf_hooks');
+const { Piscina, channels } = require('piscina');
+
+const pool = new Piscina({ filename: require.resolve('./worker.js') });
+const waitTimes = createHistogram();
+const runTimes = createHistogram();
+
+// A histogram records integers of at least 1, so record microseconds.
+const toMicros = (ms) => Math.max(1, Math.round(ms * 1000));
+
+subscribe(channels.taskDone, ({ pool: source, started, waitTime, runTime }) => {
+  if (source !== pool || !started) return;
+  waitTimes.record(toMicros(waitTime));
+  runTimes.record(toMicros(runTime));
+});
+
+// Later, eg. on an interval: read percentiles in ms, then reset().
+console.log('p99 run time', runTimes.percentile(99) / 1000, 'ms');
+console.log('mean wait time', waitTimes.mean / 1000, 'ms');
 ```

@@ -36,10 +36,6 @@ import {
   PiscinaWorker,
   LeastBusyBalancer
 } from './worker_pool';
-import {
-  PiscinaHistogram,
-  PiscinaHistogramHandler,
-} from './histogram';
 import { Errors } from './errors';
 import {
   channels,
@@ -85,10 +81,8 @@ interface Options {
   niceIncrement? : number,
   trackUnmanagedFds? : boolean,
   closeTimeout?: number,
-  recordTiming?: boolean,
   stricterFIFO?: boolean,
   loadBalancer?: PiscinaLoadBalancer,
-  workerHistogram?: boolean,
 }
 
 interface FilledOptions extends Options {
@@ -103,9 +97,7 @@ interface FilledOptions extends Options {
   taskQueue : TaskQueue,
   niceIncrement : number,
   closeTimeout : number,
-  recordTiming : boolean,
   stricterFIFO : boolean,
-  workerHistogram: boolean,
 }
 
 interface RunOptions<Func = string> {
@@ -139,9 +131,7 @@ const kDefaultOptions : FilledOptions = {
   niceIncrement: 0,
   trackUnmanagedFds: true,
   closeTimeout: 30000,
-  recordTiming: true,
-  stricterFIFO: false,
-  workerHistogram: false
+  stricterFIFO: false
 };
 
 const kDefaultRunOptions : FilledRunOptions = {
@@ -184,7 +174,8 @@ class ThreadPool {
   taskQueue : TaskQueue;
   skipQueue : TaskInfo[] = [];
   completed : number = 0;
-  histogram: PiscinaHistogramHandler | null = null;
+  // Summed run time of completed tasks, in ms; feeds utilization.
+  totalRunTime : number = 0;
   _needsDrain : boolean;
   start : number = performance.now();
   inProcessPendingMessages : boolean = false;
@@ -207,10 +198,6 @@ class ThreadPool {
       filename,
       maxQueue: 0,
     });
-
-    if (this.options.recordTiming) {
-      this.histogram = new PiscinaHistogramHandler();
-    }
 
     // The >= and <= could be > and < but this way we get 100 % coverage 🙃
     if (options.maxThreads !== undefined &&
@@ -261,9 +248,8 @@ class ThreadPool {
         resourceLimits: this.options.resourceLimits,
         workerData: this.options.workerData,
         trackUnmanagedFds: this.options.trackUnmanagedFds
-      }, 
-      port: port1, 
-      enableHistogram: this.options.workerHistogram
+      },
+      port: port1
     }, onMessage.bind(this));
     const message : StartupMessage = {
       filename: this.options.filename,
@@ -554,9 +540,7 @@ class ThreadPool {
 
     // Seeking for a real worker instead of customized one
     if (candidate != null && candidate[kWorkerData] != null) {
-      const now = performance.now();
-      this.histogram?.recordWaitTime(now - task.created)
-      task.started = now;
+      task.started = performance.now();
       const workerInfo = candidate[kWorkerData];
       if (workerInfo.postTask(task)) {
         this._publishTaskStart(task, workerInfo);
@@ -634,7 +618,7 @@ class ThreadPool {
         this.completed++;
 
         if (taskInfo.started != null) {
-          this.histogram?.recordRunTime(performance.now() - taskInfo.started);
+          this.totalRunTime += performance.now() - taskInfo.started;
         }
 
         if (err !== null) {
@@ -868,7 +852,6 @@ class ThreadPool {
 
 export default class Piscina<Exports extends Record<string, (payload: any) => any> = Record<string, (payload: any) => any>> extends EventEmitterAsyncResource {
   #pool : ThreadPool;
-  #histogram: PiscinaHistogram | null = null;
 
   constructor (options : Options = {}) {
     const opts = withNullPrototype(options);
@@ -930,9 +913,6 @@ export default class Piscina<Exports extends Record<string, (payload: any) => an
     }
     if (opts.loadBalancer != null && (typeof opts.loadBalancer !== 'function' || opts.loadBalancer.length < 1)) {
       throw Errors.ValidationError('options.loadBalancer must be a function with at least two args');
-    }
-    if (opts.workerHistogram != null && (typeof opts.workerHistogram !== 'boolean')) {
-      throw Errors.ValidationError('options.workerHistogram must be a boolean');
     }
     if (opts.stricterFIFO !== undefined && (typeof opts.stricterFIFO !== 'boolean')) {
       throw new TypeError('options.stricterFIFO must be a boolean');
@@ -1040,66 +1020,20 @@ export default class Piscina<Exports extends Record<string, (payload: any) => an
     return this.#pool.completed;
   }
 
-  get histogram () : PiscinaHistogram {
-    if (this.#histogram == null) {
-      const piscinahistogram = {
-        // @ts-expect-error
-        get runTime() { return this.histogram?.runTimeSummary! },
-        // @ts-expect-error
-        get waitTime() { return this.histogram?.waitTimeSummary! },
-        resetRunTime() {
-          // @ts-expect-error
-          this.histogram?.resetRunTime()
-        },
-        resetWaitTime() {
-          // @ts-expect-error
-          this.histogram?.resetWaitTime()
-        },
-      }
-  
-      Object.defineProperty(piscinahistogram, 'histogram', {
-        value: this.#pool.histogram,
-        writable: false,
-        enumerable: false,
-        configurable: false,
-      })
-  
-      this.#histogram = piscinahistogram;
-    };
-
-    return this.#histogram;
-  }
-
   get utilization () : number {
-    if (this.#pool.histogram == null) {
-      return 0;
-    }
-
-    // count is available as of Node.js v16.14.0 but not present in the types
-    const count = this.#pool.histogram.runTimeCount;
-
-    if (count === 0) {
-      return 0;
-    }
-
     // The capacity is the max compute time capacity of the
     // pool to this point in time as determined by the length
     // of time the pool has been running multiplied by the
     // maximum number of threads.
     const capacity = this.duration * this.#pool.options.maxThreads;
-    const totalMeanRuntime = (this.#pool.histogram.runTimeSummary.mean / 1000) * count;
 
-    // We calculate the approximate pool utilization by multiplying
-    // the mean run time of all tasks by the number of runtime
-    // samples taken and dividing that by the capacity. The
-    // theory here is that capacity represents the absolute upper
+    // The theory here is that capacity represents the absolute upper
     // limit of compute time this pool could ever attain (but
-    // never will for a variety of reasons. Multiplying the
-    // mean run time by the number of tasks sampled yields an
-    // approximation of the realized compute time. The utilization
+    // never will for a variety of reasons). The summed run time of
+    // completed tasks is the realized compute time. The utilization
     // then becomes a point-in-time measure of how active the
     // pool is.
-    return totalMeanRuntime / capacity;
+    return this.#pool.totalRunTime / capacity;
   }
 
   get duration () : number {

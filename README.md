@@ -48,13 +48,11 @@ For Node.js 24.x and higher.
     - [Property: `completed` (readonly)](#property-completed-readonly)
     - [Property: `duration` (readonly)](#property-duration-readonly)
     - [Property: `options` (readonly)](#property-options-readonly)
-    - [Property: `runTime` (readonly)](#property-runtime-readonly)
     - [Property: `threads` (readonly)](#property-threads-readonly)
     - [Property: `idleThreads` (readonly)](#property-idlethreads-readonly)
     - [Property: `queueSize` (readonly)](#property-queuesize-readonly)
     - [Property: `needsDrain` (readonly)](#property-needsdrain-readonly)
     - [Property: `utilization` (readonly)](#property-utilization-readonly)
-    - [Property: `waitTime` (readonly)](#property-waittime-readonly)
     - [Static property: `isWorkerThread` (readonly)](#static-property-isworkerthread-readonly)
     - [Static property: `version` (readonly)](#static-property-version-readonly)
     - [Static method: `move(value)`](#static-method-movevalue)
@@ -461,8 +459,6 @@ This class extends [`EventEmitter`][] from Node.js.
     all Node.js versions higher than 14.6.0).
   - `closeTimeout`: (`number`) An optional time (in milliseconds) to wait for the pool to
     complete all in-flight tasks when `close()` is called. The default is `30000`
-  - `recordTiming`: (`boolean`) By default, run and wait time will be recorded
-    for the pool. To disable, set to `false`.
   - `stricterFIFO`: (`boolean`) When `true`, tasks that cannot be dispatched
     immediately are returned to the front of the queue instead of the back.
     This avoids head-of-line blocking under sustained load (especially with a
@@ -574,47 +570,6 @@ created.
 A copy of the options that are currently being used by this instance. This
 object has the same properties as the options object passed to the constructor.
 
-### Property: `runTime` (readonly)
-
-A histogram summary object summarizing the collected run times of completed
-tasks. All values are expressed in milliseconds.
-
-- `runTime.average` {`number`} The average run time of all tasks
-- `runTime.mean` {`number`} The mean run time of all tasks
-- `runTime.stddev` {`number`} The standard deviation of collected run times
-- `runTime.min` {`number`} The fastest recorded run time
-- `runTime.max` {`number`} The slowest recorded run time
-
-All properties following the pattern `p{N}` where N is a number (e.g. `p1`, `p99`)
-represent the percentile distributions of run time observations. For example,
-`p99` is the 99th percentile indicating that 99% of the observed run times were
-faster or equal to the given value.
-
-```js
-{
-  average: 1880.25,
-  mean: 1880.25,
-  stddev: 1.93,
-  min: 1877,
-  max: 1882.0190887451172,
-  p0_001: 1877,
-  p0_01: 1877,
-  p0_1: 1877,
-  p1: 1877,
-  p2_5: 1877,
-  p10: 1877,
-  p25: 1877,
-  p50: 1881,
-  p75: 1881,
-  p90: 1882,
-  p97_5: 1882,
-  p99: 1882,
-  p99_9: 1882,
-  p99_99: 1882,
-  p99_999: 1882
-}
-```
-
 ### Property: `threads` (readonly)
 
 An Array of the `Worker` instances used by this pool.
@@ -638,61 +593,19 @@ over the number of tasks submitted to the pool.
 
 ### Property: `utilization` (readonly)
 
-A point-in-time ratio comparing the approximate total mean run time
-of completed tasks to the total runtime capacity of the pool.
+A point-in-time ratio comparing the total run time of completed tasks
+to the total runtime capacity of the pool.
 
 A pools runtime capacity is determined by multiplying the `duration`
 by the `options.maxThread` count. This provides an absolute theoretical
 maximum aggregate compute time that the pool would be capable of.
 
-The approximate total mean run time is determined by multiplying the
-mean run time of all completed tasks by the total number of completed
-tasks. This number represents the approximate amount of time the
-pool as been actively processing tasks.
+The total run time is the sum of the run times of all completed tasks.
+This number represents the amount of time the pool has been actively
+processing tasks.
 
-The utilization is then calculated by dividing the approximate total
-mean run time by the capacity, yielding a fraction between `0` and `1`.
-
-### Property: `waitTime` (readonly)
-
-A histogram summary object summarizing the collected times tasks spent
-waiting in the queue. All values are expressed in milliseconds.
-
-- `waitTime.average` {`number`} The average wait time of all tasks
-- `waitTime.mean` {`number`} The mean wait time of all tasks
-- `waitTime.stddev` {`number`} The standard deviation of collected wait times
-- `waitTime.min` {`number`} The fastest recorded wait time
-- `waitTime.max` {`number`} The longest recorded wait time
-
-All properties following the pattern `p{N}` where N is a number (e.g. `p1`, `p99`)
-represent the percentile distributions of wait time observations. For example,
-`p99` is the 99th percentile indicating that 99% of the observed wait times were
-faster or equal to the given value.
-
-```js
-{
-  average: 1880.25,
-  mean: 1880.25,
-  stddev: 1.93,
-  min: 1877,
-  max: 1882.0190887451172,
-  p0_001: 1877,
-  p0_01: 1877,
-  p0_1: 1877,
-  p1: 1877,
-  p2_5: 1877,
-  p10: 1877,
-  p25: 1877,
-  p50: 1881,
-  p75: 1881,
-  p90: 1882,
-  p97_5: 1882,
-  p99: 1882,
-  p99_9: 1882,
-  p99_99: 1882,
-  p99_999: 1882
-}
-```
+The utilization is then calculated by dividing the total run time by
+the capacity, yielding a fraction between `0` and `1`.
 
 ### Static property: `isWorkerThread` (readonly)
 
@@ -974,8 +887,8 @@ the main Node.js event loop thread. Whether this is a good thing or not depends
 entirely on your application and will require careful profiling to get correct.
 
 The key metrics to pay attention to when tuning the `niceIncrement` are the
-sampled run times of the tasks in the worker pool (using the [`runTime`][]
-property) and the [delay of the Node.js main thread event loop][].
+run times of the tasks in the worker pool (the `runTime` of
+[`piscina:task:done`](#diagnostics-channels) messages) and the [delay of the Node.js main thread event loop][].
 
 ### Multiple Thread Pools and Embedding Piscina as a Dependency
 
@@ -1021,7 +934,6 @@ Looking to support the development of Piscina? Consider sponsoring us on [Open C
 [`examples/task-queue`]: https://github.com/jasnell/piscina/blob/master/examples/task-queue/index.js
 [`nice(2)`]: https://linux.die.net/man/2/nice
 [`@napi-rs/nice`]: https://npmjs.org/package/@napi-rs/nice
-[`runTime`]: #property-runtime-readonly
 [Custom Task Queues]: #custom-task-queues
 [ES modules]: https://nodejs.org/api/esm.html
 [Node.js new Worker options]: https://nodejs.org/api/worker_threads.html#worker_threads_new_worker_filename_options
