@@ -157,6 +157,48 @@ test('will reject items when task queue is unavailable (fixed thread count)', as
   await pool.destroy();
 });
 
+test('a task rejected because the task queue is unavailable does not run later', async () => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js'),
+    minThreads: 1,
+    maxThreads: 1,
+    maxQueue: 0
+  });
+
+  const first = pool.run('new Promise(resolve => setTimeout(resolve, 100))');
+  await assert.rejects(
+    pool.run('new Promise(resolve => setTimeout(resolve, 500))'),
+    /No task queue available and all Workers are busy/);
+  assert.strictEqual(pool.queueSize, 0);
+
+  await first;
+  // If the rejected task ran, it would occupy the only Worker here.
+  assert.strictEqual(await pool.run('42'), 42);
+
+  await pool.destroy();
+});
+
+test('an abortable task rejected because the task queue is unavailable does not run later', async () => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js'),
+    minThreads: 1,
+    maxThreads: 1,
+    maxQueue: 0
+  });
+
+  const first = pool.run('new Promise(resolve => setTimeout(resolve, 100))');
+  await assert.rejects(
+    pool.run('new Promise(resolve => setTimeout(resolve, 500))', { signal: new AbortController().signal }),
+    /No task queue available and all Workers are busy/);
+  assert.strictEqual(pool.queueSize, 0);
+
+  await first;
+  // If the rejected task ran, it would occupy the only Worker here.
+  assert.strictEqual(await pool.run('42'), 42);
+
+  await pool.destroy();
+});
+
 test('tasks can share a Worker if requested (both tests blocking)', async (t) => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/wait-for-notify.ts'),
