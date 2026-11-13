@@ -411,14 +411,16 @@ class ThreadPool {
           .map(workerInfo => workerInfo.interface);
       }
 
-      // The task was taken from the head of its queue, so with stricterFIFO
-      // it has to go back to the head to keep its place.
-      const distributed = this._distributeTask(taskInfo, workers, !this.options.stricterFIFO);
+      const distributed = this._distributeTask(taskInfo, workers);
 
       if (distributed) {
         // If task was distributed, we should continue to distribute more tasks
         continue;
       }
+
+      // The task was taken from the head of its queue, so with stricterFIFO
+      // it has to go back to the head to keep its place.
+      this._returnUndistributedTask(taskInfo, !this.options.stricterFIFO);
 
       if (this.workers.size < this.options.maxThreads) {
         // We spawn if possible
@@ -452,7 +454,7 @@ class ThreadPool {
     }
   }
 
-  _distributeTask (task: TaskInfo, workers: PiscinaWorker[], toTail: boolean): boolean {
+  _distributeTask (task: TaskInfo, workers: PiscinaWorker[]): boolean {
     // We need to verify if the task is aborted already
     if (task.aborted) return true;
 
@@ -469,7 +471,6 @@ class ThreadPool {
       return true;
     }
 
-    this._returnUndistributedTask(task, toTail);
     return false;
   }
 
@@ -593,8 +594,7 @@ class ThreadPool {
     }
 
     const workers = [...this.workers.readyItems].map(workerInfo => workerInfo.interface);
-    // A new task has never been queued, so it always goes to the tail.
-    const distributed = this._distributeTask(taskInfo, workers, true);
+    const distributed = this._distributeTask(taskInfo, workers);
 
     if (!distributed) {
       // We spawn if possible
@@ -607,6 +607,9 @@ class ThreadPool {
       // TODO(@metcoder95): maybe auto expand the queue if no task queue set and we're at capacity?
       if (this.options.maxQueue <= 0 && this.pendingCapacity() === 0) {
         reject(Errors.NoTaskQueueAvailable());
+      } else {
+        // A new task has never been queued, so it always goes to the tail.
+        this._returnUndistributedTask(taskInfo, true);
       }
     };
 
