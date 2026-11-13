@@ -264,6 +264,7 @@ class ThreadPool {
     
     workerInfo.onDestroy(() => {
       this.publicInterface.emit('workerDestroy', workerInfo.interface);
+      this._onWorkerDestroyed(workerInfo);
     });
     workerInfo.onWorkerMessage(onWorkerMessage.bind(this));
     workerInfo.onWorkerError(onWorkerError.bind(this));
@@ -391,6 +392,29 @@ class ThreadPool {
 
     this.workers.delete(workerInfo);
     this._onWorkerRemoved();
+  }
+
+  _onWorkerDestroyed (workerInfo : WorkerInfo) : void {
+    // Do not replace workers that failed during bootstrap.
+    if (this.closingUp || this.destroying || !workerInfo.isReady() ||
+        this.workerFailsDuringBootstrap) {
+      return;
+    }
+
+    // Queued tasks are only handed out when a worker becomes available. With
+    // no other worker left to finish a task (e.g. minThreads: 0), spawn
+    // workers, up to maxThreads, for the tasks that are still queued; each
+    // one takes from the queue once it is ready.
+    // The destroyed worker is still in the pool while the destroy listeners
+    // run, so leave it out of the count.
+    let size = this.workers.size - (this.workers.readyItems.has(workerInfo) ? 1 : 0);
+    let capacity = this.pendingCapacity();
+    const queued = this.taskQueue.size + this.skipQueue.length;
+    while (queued > capacity && size < this.options.maxThreads) {
+      this._addNewWorker();
+      size++;
+      capacity += this.options.concurrentTasksPerWorker;
+    }
   }
 
   _onWorkerReady (workerInfo : WorkerInfo) : void {
