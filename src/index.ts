@@ -58,6 +58,8 @@ import {
 } from './common';
 const cpuParallelism : number = getAvailableParallelism();
 
+function noop () : void {}
+
 interface Options {
   filename? : string | null,
   name?: string,
@@ -183,6 +185,7 @@ class ThreadPool {
   closingUp : boolean = false;
   workerFailsDuringBootstrap : boolean = false;
   destroying : boolean = false;
+  _onWorkerRemoved : () => void = noop;
   maxCapacity: number;
   balancer: PiscinaLoadBalancer;
 
@@ -394,6 +397,7 @@ class ThreadPool {
     workerInfo.destroy();
 
     this.workers.delete(workerInfo);
+    this._onWorkerRemoved();
   }
 
   _removeTaskFromQueue (taskInfo : TaskInfo) : void {
@@ -705,32 +709,29 @@ class ThreadPool {
     }
 
     const onPoolFlushed = () => new Promise<void>((resolve) => {
-      const numberOfWorkers = this.workers.size;
+      let flushed = false;
+      // Resolve once nothing is queued and no worker has a task left. This is
+      // checked whenever a task finishes or a worker goes away (crash, abort of
+      // a running task), since either can be the last thing being waited on.
+      const checkIfPoolIsFlushed = () => {
+        if (flushed || this.taskQueue.size > 0 || this.skipQueue.length > 0) {
+          return;
+        }
 
-      if (numberOfWorkers === 0) {
+        for (const workerInfo of this.workers) {
+          if (workerInfo.taskInfos.size > 0) {
+            return;
+          }
+        }
+
+        flushed = true;
+        this._onWorkerRemoved = noop;
         resolve();
-        return;
-      }
-
-      let numberOfWorkersDone = 0;
-
-      const checkIfWorkerIsDone = (workerInfo: WorkerInfo) => {
-        if (workerInfo.taskInfos.size === 0) {
-          numberOfWorkersDone++;
-        }
-
-        if (numberOfWorkers === numberOfWorkersDone) {
-          resolve();
-        }
       };
 
-      this.workers.onTaskDone(checkIfWorkerIsDone);
-
-      for (const workerInfo of this.workers) {
-        checkIfWorkerIsDone(workerInfo);
-
-        this.workers.onTaskDone(checkIfWorkerIsDone);
-      }
+      this.workers.onTaskDone(checkIfPoolIsFlushed);
+      this._onWorkerRemoved = checkIfPoolIsFlushed;
+      checkIfPoolIsFlushed();
     });
 
     const throwOnTimeOut = async (timeout: number) => {
@@ -746,6 +747,7 @@ class ThreadPool {
     } catch (error) {
       this.publicInterface.emit('error', error);
     } finally {
+      this._onWorkerRemoved = noop;
       await this.destroy();
       this.publicInterface.emit('close');
       this.closingUp = false;
