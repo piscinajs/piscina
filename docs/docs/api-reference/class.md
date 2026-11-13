@@ -100,9 +100,6 @@ This class extends [`EventEmitter`](https://nodejs.org/api/events.html) from Nod
     all Node.js versions higher than 14.6.0).
   - `closeTimeout`: (`number`) An optional time (in milliseconds) to wait for the pool to
     complete all in-flight tasks when `close()` is called. The default is `30000`
-  - `recordTiming`: (`boolean`) By default, run and wait time will be recorded
-    for the pool. To disable, set to `false`.
-  - `workerHistogram`: (`boolean`) By default `false`. It will hint the Worker pool to record statistics for each individual Worker
   - `loadBalancer`: ([`PiscinaLoadBalancer`](#piscinaloadbalancer)) By default, Piscina uses a least-busy algorithm. The `loadBalancer`
     option can be used to provide an alternative implementation. See [Custom Load Balancers](../advanced-topics/loadbalancer.mdx) for additional detail.
 
@@ -117,91 +114,6 @@ This class extends [`EventEmitter`](https://nodejs.org/api/events.html) from Nod
 
   For more information, see the [Explicit Resource Management](https://github.com/tc39/proposal-explicit-resource-management).
 :::
-
-## `PiscinaHistogram`
-
-The `PiscinaHistogram` allows you to access the histogram data for the pool of worker threads.
-It can be reset upon request in case of a need to clear the data.
-
-**Example**:
-
-```js
-import { Piscina } from 'piscina';
-
-const pool = new Piscina({
-  filename: resolve(__dirname, 'path/to/worker.js'),
-});
-
-const firstBatch = [];
-
-for (let n = 0; n < 10; n++) {
-  firstBatch.push(pool.run('42'));
-}
-
-await Promise.all(firstBatch);
-
-console.log(pool.histogram.runTime); // Print run time histogram summary
-console.log(pool.histogram.waitTime); // Print wait time histogram summary
-
-// If in need to reset the histogram data for a new set of tasks
-pool.histogram.resetRunTime();
-pool.histogram.resetWaitTime();
-
-const secondBatch = [];
-
-for (let n = 0; n < 10; n++) {
-  secondBatch.push(pool.run('42'));
-}
-
-await Promise.all(secondBatch);
-
-// The histogram data will only contain the data for the second batch of tasks
-console.log(pool.histogram.runTime);
-console.log(pool.histogram.waitTime);
-```
-
-### Interface: `PiscinaHistogram`
-
-- `runTime`: (`PiscinaHistogramSummary`) Run Time Histogram Summary. Time taken to execute a task.
-- `waitTime`: (`PiscinaHistogramSummary`) Wait Time Histogram Summary. Time between a task being submitted and the task starting to run.
-
-> **Note**: The histogram data is only available if `recordTiming` is set to `true`.
-
-```ts
-type PiscinaHistogram = {
-  runTime: PiscinaHistogramSummary;
-  waitTime: PiscinaHistogramSummary;
-  resetRunTime(): void; // Reset Run Time Histogram
-  resetWaitTime(): void; // Reset Wait Time Histogram
-}
-```
-
-### Interface: `PiscinaHistogramSummary`
-
-```ts
-type PiscinaHistogramSummary = {
-  average: number;
-  mean: number;
-  stddev: number;
-  min: number;
-  max: number;
-  p0_001: number;
-  p0_01: number;
-  p0_1: number;
-  p1: number;
-  p2_5: number;
-  p10: number;
-  p25: number;
-  p50: number;
-  p75: number;
-  p90: number;
-  p97_5: number;
-  p99: number;
-  p99_9: number;
-  p99_99: number;
-  p99_999: number;
-}
-```
 
 ## `PiscinaLoadBalancer`
 
@@ -239,7 +151,6 @@ interface PiscinaWorker {
   id: number; // Unique identifier for the worker
   currentUsage: number; // Number of tasks currently running on the worker
   isRunningAbortableTask: boolean; // Indicates if the worker is running an abortable task
-  histogram: HistogramSummary | null; // Worker histogram
   terminating: boolean; // Indicates if the worker is terminating
   destroyed: boolean; // Indicates if the worker has been destroyed
 }

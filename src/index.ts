@@ -36,11 +36,22 @@ import {
   PiscinaWorker,
   LeastBusyBalancer
 } from './worker_pool';
-import {
-  PiscinaHistogram,
-  PiscinaHistogramHandler,
-} from './histogram';
 import { Errors } from './errors';
+import {
+  channels,
+  taskSubmitChannel,
+  taskStartChannel,
+  taskDoneChannel,
+  newWorkerChannel,
+  evictWorkerChannel,
+  drainChannel,
+  PiscinaTaskSubmitMessage,
+  PiscinaTaskStartMessage,
+  PiscinaTaskDoneMessage,
+  PiscinaNewWorkerMessage,
+  PiscinaEvictWorkerMessage,
+  PiscinaDrainMessage
+} from './diagnostics';
 import {
   READY,
   commonState,
@@ -72,10 +83,8 @@ interface Options {
   niceIncrement? : number,
   trackUnmanagedFds? : boolean,
   closeTimeout?: number,
-  recordTiming?: boolean,
   stricterFIFO?: boolean,
   loadBalancer?: PiscinaLoadBalancer,
-  workerHistogram?: boolean,
 }
 
 interface FilledOptions extends Options {
@@ -90,9 +99,7 @@ interface FilledOptions extends Options {
   taskQueue : TaskQueue,
   niceIncrement : number,
   closeTimeout : number,
-  recordTiming : boolean,
   stricterFIFO : boolean,
-  workerHistogram: boolean,
 }
 
 interface RunOptions<Func = string> {
@@ -126,9 +133,7 @@ const kDefaultOptions : FilledOptions = {
   niceIncrement: 0,
   trackUnmanagedFds: true,
   closeTimeout: 30000,
-  recordTiming: true,
-  stricterFIFO: false,
-  workerHistogram: false
+  stricterFIFO: false
 };
 
 const kDefaultRunOptions : FilledRunOptions = {
@@ -171,7 +176,8 @@ class ThreadPool {
   taskQueue : TaskQueue;
   skipQueue : TaskInfo[] = [];
   completed : number = 0;
-  histogram: PiscinaHistogramHandler | null = null;
+  // Summed run time of completed tasks, in ms; feeds utilization.
+  totalRunTime : number = 0;
   _needsDrain : boolean;
   start : number = performance.now();
   inProcessPendingMessages : boolean = false;
@@ -195,10 +201,6 @@ class ThreadPool {
       filename,
       maxQueue: 0,
     });
-
-    if (this.options.recordTiming) {
-      this.histogram = new PiscinaHistogramHandler();
-    }
 
     // The >= and <= could be > and < but this way we get 100 % coverage 🙃
     if (options.maxThreads !== undefined &&
@@ -249,9 +251,8 @@ class ThreadPool {
         resourceLimits: this.options.resourceLimits,
         workerData: this.options.workerData,
         trackUnmanagedFds: this.options.trackUnmanagedFds
-      }, 
-      port: port1, 
-      enableHistogram: this.options.workerHistogram
+      },
+      port: port1
     }, onMessage.bind(this));
     const message : StartupMessage = {
       filename: this.options.filename,
@@ -278,11 +279,13 @@ class ThreadPool {
       // attach event listeners before the event is emitted.
       queueMicrotask(() => {
         this.publicInterface.emit('workerCreate', workerInfo.interface);
+        this._publishNewWorker(workerInfo);
         this._onWorkerReady(workerInfo);
       });
     } else {
       workerInfo.onReady(() => {
         this.publicInterface.emit('workerCreate', workerInfo.interface);
+        this._publishNewWorker(workerInfo);
         this._onWorkerReady(workerInfo);
       });
     }
@@ -292,6 +295,13 @@ class ThreadPool {
 
     function onMessage (this: ThreadPool, message : ResponseMessage) {
       const { taskId, result } = message;
+      const workerStartedAt = message.startTime == null
+        ? null
+        : performance.now() - Number(process.hrtime.bigint() - message.startTime) / 1e6;
+      // A response proves the Worker booted, even if its READY message, sent
+      // on another port, has not been handled yet. Set this before taskDone()
+      // hands the Worker its next task.
+      workerInfo.bootedAt ??= workerStartedAt ?? performance.now();
       // In case of success: Call the callback that was passed to `runTask`,
       // remove the `TaskInfo` associated with the Worker, which marks it as
       // free again.
@@ -304,6 +314,7 @@ class ThreadPool {
           `Unexpected message from Worker: ${inspect(message)}`);
         this.publicInterface.emit('error', err);
       } else {
+        taskInfo.workerStartedAt = workerStartedAt;
         taskInfo.done(message.error, result);
       }
 
@@ -311,6 +322,7 @@ class ThreadPool {
     }
 
     function onWorkerReady () {
+      workerInfo.bootedAt ??= performance.now();
       workerInfo.currentUsage() === 0 && workerInfo.unref();
       workerInfo.isReady() === false && workerInfo.markAsReady();
     }
@@ -349,7 +361,7 @@ class ThreadPool {
 
     // Remove the worker from the list and potentially start a new Worker to
     // replace the current one.
-    this._removeWorker(workerInfo);
+    this._removeWorker(workerInfo, () => err);
 
     if (workerInfo.isReady() && !this.workerFailsDuringBootstrap) {
       this._ensureMinimumWorkers();
@@ -386,11 +398,80 @@ class ThreadPool {
     }
   }
 
-  _removeWorker (workerInfo : WorkerInfo) : void {
+  _removeWorker (workerInfo : WorkerInfo, getReason : () => Error) : void {
+    // A removed Worker also exits and comes back here through _onError;
+    // only the first removal is an eviction.
+    const firstRemoval = !workerInfo.terminating && !workerInfo.destroyed;
+
     workerInfo.destroy();
 
     this.workers.delete(workerInfo);
+
+    if (firstRemoval && evictWorkerChannel.hasSubscribers) {
+      evictWorkerChannel.publish({
+        pool: this.publicInterface,
+        worker: workerInfo.interface,
+        reason: getReason()
+      } satisfies PiscinaEvictWorkerMessage);
+    }
+
     this._onWorkerRemoved();
+  }
+
+  _publishNewWorker (workerInfo : WorkerInfo) : void {
+    if (!newWorkerChannel.hasSubscribers) return;
+
+    newWorkerChannel.publish({
+      pool: this.publicInterface,
+      worker: workerInfo.interface
+    } satisfies PiscinaNewWorkerMessage);
+  }
+
+  // Task events are published in the task's async scope, so subscribers see
+  // the run() caller's context wherever piscina happens to be running.
+  _publishTaskStart (taskInfo : TaskInfo, workerInfo : WorkerInfo) : void {
+    if (!taskStartChannel.hasSubscribers) return;
+
+    taskInfo.runInAsyncScope(taskStartChannel.publish, taskStartChannel, {
+      pool: this.publicInterface,
+      task: taskInfo.interface,
+      worker: workerInfo.interface,
+      workerReady: workerInfo.bootedAt !== null
+    } satisfies PiscinaTaskStartMessage);
+  }
+
+  _publishTaskDone (taskInfo : TaskInfo, error : unknown) : void {
+    // Some tasks reach two terminal paths (e.g. aborted while in the
+    // skipQueue, then flushed by destroy()); report only the first.
+    if (taskInfo.donePublished) return;
+    taskInfo.donePublished = true;
+
+    if (!taskDoneChannel.hasSubscribers) return;
+
+    // workerInfo is only set once postTask() has posted the task.
+    const { workerInfo } = taskInfo;
+    const started = workerInfo !== null;
+    let waitTime : number | null = null;
+    let runTime : number | null = null;
+    if (started) {
+      const runStart = taskInfo.workerStartedAt ??
+        Math.max(taskInfo.started, workerInfo.bootedAt ?? 0);
+      waitTime = runStart - taskInfo.created;
+      runTime = performance.now() - runStart;
+    }
+
+    taskInfo.runInAsyncScope(taskDoneChannel.publish, taskDoneChannel, {
+      pool: this.publicInterface,
+      task: taskInfo.interface,
+      queued: taskInfo.queued,
+      started,
+      waitTime,
+      runTime,
+      error,
+      aborted: taskInfo.aborted,
+      queueSize: this.publicInterface.queueSize,
+      idleThreads: this.publicInterface.idleThreads
+    } satisfies PiscinaTaskDoneMessage);
   }
 
   _onWorkerReady (workerInfo : WorkerInfo) : void {
@@ -452,7 +533,7 @@ class ThreadPool {
         }
 
         if (this.workers.size > this.options.minThreads) {
-          this._removeWorker(workerInfo);
+          this._removeWorker(workerInfo, Errors.WorkerIdle);
         }
       }, this.options.idleTimeout);
     }
@@ -466,10 +547,11 @@ class ThreadPool {
 
     // Seeking for a real worker instead of customized one
     if (candidate != null && candidate[kWorkerData] != null) {
-      const now = performance.now();
-      this.histogram?.recordWaitTime(now - task.created)
-      task.started = now;
-      candidate[kWorkerData].postTask(task);
+      task.started = performance.now();
+      const workerInfo = candidate[kWorkerData];
+      if (workerInfo.postTask(task)) {
+        this._publishTaskStart(task, workerInfo);
+      }
       this._maybeDrain();
       // If candidate, let's try to distribute more tasks
       return true;
@@ -479,6 +561,8 @@ class ThreadPool {
   }
 
   _returnUndistributedTask (task: TaskInfo, toTail = false) : void {
+    task.queued = true;
+
     if (task.abortSignal != null) {
       if (toTail) {
         this.skipQueue.push(task);
@@ -540,7 +624,7 @@ class ThreadPool {
         this.completed++;
 
         if (taskInfo.started != null) {
-          this.histogram?.recordRunTime(performance.now() - taskInfo.started);
+          this.totalRunTime += performance.now() - taskInfo.started;
         }
 
         if (err !== null) {
@@ -549,6 +633,7 @@ class ThreadPool {
           resolve(result);
         }
 
+        this._publishTaskDone(taskInfo, err);
         this._maybeDrain();
     });
 
@@ -557,11 +642,12 @@ class ThreadPool {
         // Call reject() first to make sure we always reject with the AbortError
         // if the task is aborted, not with an Error from the possible
         // thread termination below.
-        reject(Errors.AbortError(signal.reason));
+        const abortError = Errors.AbortError(signal.reason);
+        reject(abortError);
 
         if (taskInfo.workerInfo != null) {
           // Already running: We cancel the Worker this is running on.
-          this._removeWorker(taskInfo.workerInfo);
+          this._removeWorker(taskInfo.workerInfo, () => abortError);
           this._ensureMinimumWorkers();
           return;
         }
@@ -569,20 +655,30 @@ class ThreadPool {
         // Not yet running: Remove it from the queue.
         // Call should be idempotent
         this.taskQueue.remove(taskInfo);
+        this._publishTaskDone(taskInfo, abortError);
       });
 
       taskInfo.setAbortListener(signal);
     }
 
+    if (taskSubmitChannel.hasSubscribers) {
+      taskSubmitChannel.publish({
+        pool: this.publicInterface,
+        task: taskInfo.interface,
+        queueSize: this.publicInterface.queueSize
+      } satisfies PiscinaTaskSubmitMessage);
+    }
+
     if (this.taskQueue.size > 0) {
       const totalCapacity = this.options.maxQueue + this.pendingCapacity();
       if (this.taskQueue.size >= totalCapacity) {
-        if (this.options.maxQueue === 0) {
-          reject(Errors.NoTaskQueueAvailable());
-        } else {
-          reject(Errors.TaskQueueAtLimit());
-        }
+        const error = this.options.maxQueue === 0
+          ? Errors.NoTaskQueueAvailable()
+          : Errors.TaskQueueAtLimit();
+        reject(error);
+        this._publishTaskDone(taskInfo, error);
       } else {
+        taskInfo.queued = true;
         this.taskQueue.push(taskInfo);
         // Eagerly spawn additional workers up to maxThreads while there is
         // queued work. Without this, a cold pool serializes the initial burst
@@ -610,7 +706,9 @@ class ThreadPool {
       // We reject if no task queue set and no more pending capacity.
       // TODO(@metcoder95): maybe auto expand the queue if no task queue set and we're at capacity?
       if (this.options.maxQueue <= 0 && this.pendingCapacity() === 0) {
-        reject(Errors.NoTaskQueueAvailable());
+        const error = Errors.NoTaskQueueAvailable();
+        reject(error);
+        this._publishTaskDone(taskInfo, error);
       } else {
         // A new task has never been queued, so it always goes to the tail.
         this._returnUndistributedTask(taskInfo, true);
@@ -641,7 +739,12 @@ class ThreadPool {
     if (this._needsDrain === true) {
       if (queueSize === 0) {
         this._needsDrain = false;
-        queueMicrotask(() => this.publicInterface.emit('drain'));
+        queueMicrotask(() => {
+          this.publicInterface.emit('drain');
+          if (drainChannel.hasSubscribers) {
+            drainChannel.publish({ pool: this.publicInterface } satisfies PiscinaDrainMessage);
+          }
+        });
       }
       return;
     }
@@ -655,7 +758,7 @@ class ThreadPool {
     } 
   }
 
-  async destroy () {
+  async destroy (cause?: unknown) {
     this.destroying = true;
     while (this.skipQueue.length > 0) {
       const taskInfo : TaskInfo = this.skipQueue.shift() as TaskInfo;
@@ -668,10 +771,11 @@ class ThreadPool {
     }
 
     const exitEvents : Promise<any[]>[] = [];
+    const getReason = () => Errors.PoolDestroyed(cause);
     while (this.workers.size > 0) {
       const [workerInfo] = this.workers;
       exitEvents.push(once(workerInfo.worker, 'exit'));
-      this._removeWorker(workerInfo);
+      this._removeWorker(workerInfo, getReason);
     }
 
     await Promise.allSettled(exitEvents);
@@ -734,16 +838,18 @@ class ThreadPool {
       throw Errors.CloseTimeout();
     };
 
+    let closeError : unknown;
     try {
       await Promise.race([
         onPoolFlushed(),
         throwOnTimeOut(this.options.closeTimeout)
       ]);
     } catch (error) {
+      closeError = error;
       this.publicInterface.emit('error', error);
     } finally {
       this._onWorkerRemoved = noop;
-      await this.destroy();
+      await this.destroy(closeError);
       this.publicInterface.emit('close');
       this.closingUp = false;
     }
@@ -752,7 +858,6 @@ class ThreadPool {
 
 export default class Piscina<Exports extends Record<string, (payload: any) => any> = Record<string, (payload: any) => any>> extends EventEmitterAsyncResource {
   #pool : ThreadPool;
-  #histogram: PiscinaHistogram | null = null;
 
   constructor (options : Options = {}) {
     const opts = withNullPrototype(options);
@@ -814,9 +919,6 @@ export default class Piscina<Exports extends Record<string, (payload: any) => an
     }
     if (opts.loadBalancer != null && (typeof opts.loadBalancer !== 'function' || opts.loadBalancer.length < 1)) {
       throw Errors.ValidationError('options.loadBalancer must be a function with at least two args');
-    }
-    if (opts.workerHistogram != null && (typeof opts.workerHistogram !== 'boolean')) {
-      throw Errors.ValidationError('options.workerHistogram must be a boolean');
     }
     if (opts.stricterFIFO !== undefined && (typeof opts.stricterFIFO !== 'boolean')) {
       throw new TypeError('options.stricterFIFO must be a boolean');
@@ -924,66 +1026,20 @@ export default class Piscina<Exports extends Record<string, (payload: any) => an
     return this.#pool.completed;
   }
 
-  get histogram () : PiscinaHistogram {
-    if (this.#histogram == null) {
-      const piscinahistogram = {
-        // @ts-expect-error
-        get runTime() { return this.histogram?.runTimeSummary! },
-        // @ts-expect-error
-        get waitTime() { return this.histogram?.waitTimeSummary! },
-        resetRunTime() {
-          // @ts-expect-error
-          this.histogram?.resetRunTime()
-        },
-        resetWaitTime() {
-          // @ts-expect-error
-          this.histogram?.resetWaitTime()
-        },
-      }
-  
-      Object.defineProperty(piscinahistogram, 'histogram', {
-        value: this.#pool.histogram,
-        writable: false,
-        enumerable: false,
-        configurable: false,
-      })
-  
-      this.#histogram = piscinahistogram;
-    };
-
-    return this.#histogram;
-  }
-
   get utilization () : number {
-    if (this.#pool.histogram == null) {
-      return 0;
-    }
-
-    // count is available as of Node.js v16.14.0 but not present in the types
-    const count = this.#pool.histogram.runTimeCount;
-
-    if (count === 0) {
-      return 0;
-    }
-
     // The capacity is the max compute time capacity of the
     // pool to this point in time as determined by the length
     // of time the pool has been running multiplied by the
     // maximum number of threads.
     const capacity = this.duration * this.#pool.options.maxThreads;
-    const totalMeanRuntime = (this.#pool.histogram.runTimeSummary.mean / 1000) * count;
 
-    // We calculate the approximate pool utilization by multiplying
-    // the mean run time of all tasks by the number of runtime
-    // samples taken and dividing that by the capacity. The
-    // theory here is that capacity represents the absolute upper
+    // The theory here is that capacity represents the absolute upper
     // limit of compute time this pool could ever attain (but
-    // never will for a variety of reasons. Multiplying the
-    // mean run time by the number of tasks sampled yields an
-    // approximation of the realized compute time. The utilization
+    // never will for a variety of reasons). The summed run time of
+    // completed tasks is the realized compute time. The utilization
     // then becomes a point-in-time measure of how active the
     // pool is.
-    return totalMeanRuntime / capacity;
+    return this.#pool.totalRunTime / capacity;
   }
 
   get duration () : number {
@@ -1018,6 +1074,10 @@ export default class Piscina<Exports extends Record<string, (payload: any) => an
     return ArrayTaskQueue;
   }
 
+  static get channels () {
+    return channels;
+  }
+
   static move (val : Transferable | TransferListItem | ArrayBufferView | ArrayBuffer | MessagePort) {
     if (val != null && typeof val === 'object' && typeof val !== 'function') {
       if (!isTransferable(val)) {
@@ -1047,12 +1107,19 @@ export {
   Piscina,
   PiscinaTask,
   TaskQueue,
+  PiscinaTaskSubmitMessage,
+  PiscinaTaskStartMessage,
+  PiscinaTaskDoneMessage,
+  PiscinaNewWorkerMessage,
+  PiscinaEvictWorkerMessage,
+  PiscinaDrainMessage,
   kTransferable as transferableSymbol,
   kValue as valueSymbol,
   kQueueOptions as queueOptionsSymbol,
   version,
   FixedQueue,
   ArrayTaskQueue,
+  channels,
   move,
   isWorkerThread,
   workerData

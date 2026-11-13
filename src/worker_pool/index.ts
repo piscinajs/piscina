@@ -1,5 +1,4 @@
 import { Worker, MessagePort, receiveMessageOnPort, WorkerOptions, Transferable } from 'node:worker_threads';
-import { createHistogram, RecordableHistogram } from 'node:perf_hooks';
 import assert from 'node:assert';
 
 import { RequestMessage, ResponseMessage, StartupMessage } from '../types';
@@ -7,7 +6,7 @@ import { Errors } from '../errors';
 
 import { TaskInfo } from '../task_queue';
 import { kFieldCount, kRequestCountField, kResponseCountField, kWorkerData } from '../symbols';
-import { PiscinaHistogramHandler, PiscinaHistogramSummary } from '../histogram';
+import { taskDoneChannel } from '../diagnostics';
 
 import { AsynchronouslyCreatedResource, AsynchronouslyCreatedResourcePool } from './base';
 export * from './balancer';
@@ -18,7 +17,6 @@ export type PiscinaWorker = {
   id: number;
   currentUsage: number;
   isRunningAbortableTask: boolean;
-  histogram: PiscinaHistogramSummary | null;
   terminating: boolean;
   destroyed: boolean;
   [kWorkerData]: WorkerInfo;
@@ -29,7 +27,6 @@ type WorkerInfoParams = {
     filename: string,
   } & WorkerOptions,
   port: MessagePort,
-  enableHistogram: boolean,
 }
 
 export class WorkerInfo extends AsynchronouslyCreatedResource {
@@ -40,32 +37,38 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
     sharedBuffer : Int32Array;
     lastSeenResponseCount : number = 0;
     onMessage : ResponseCallback;
-    histogram: RecordableHistogram | null;
     terminating = false;
     destroyed = false;
+    // When the Worker was first known to have booted: its READY message or
+    // its first response, whichever was handled first. A task handed over
+    // before then started no earlier than this; used when the Worker never
+    // reports the task's start (it was aborted or crashed).
+    bootedAt : number | null = null;
+    // threadId reads as -1 once the thread exits, which is when an exit
+    // removes the Worker; keep the original for its interface.
+    threadId : number;
 
     constructor (
       {
         worker,
-        port,
-        enableHistogram
+        port
       }: WorkerInfoParams,
       onMessage: ResponseCallback
     ) {
       super();
       const { filename, ...workerOpts } = worker;
       this.worker = new Worker(filename, workerOpts);
+      this.threadId = this.worker.threadId;
       this.port = port;
       this.onMessage = onMessage;
       this.port.on('message', this._handleResponse.bind(this));
       this.taskInfos = new Map();
       this.sharedBuffer = new Int32Array(
         new SharedArrayBuffer(kFieldCount * Int32Array.BYTES_PER_ELEMENT));
-      this.histogram = enableHistogram ? createHistogram() : null;
     }
 
     get id (): number {
-      return this.worker.threadId;
+      return this.threadId;
     }
 
     onWorkerMessage(handler: (msg: any) => void): void {
@@ -139,9 +142,6 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
     }
 
     _handleResponse (message : ResponseMessage) : void {
-      // Both cannot be in different state if histogram enabled.
-      this.histogram?.record(PiscinaHistogramHandler.toHistogramIntegerNano(message?.time!));
-
       this.onMessage(message);
 
       if (this.taskInfos.size === 0) {
@@ -151,7 +151,8 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
       }
     }
 
-    postTask (taskInfo : TaskInfo) {
+    // Returns false if the task could not be posted; it is then already done.
+    postTask (taskInfo : TaskInfo) : boolean {
       // Avoid duplicates
       assert(!this.taskInfos.has(taskInfo.taskId));
       // Avoid posting when pool is shutting down or worker already destroyed
@@ -162,7 +163,7 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
         taskId: taskInfo.taskId,
         filename: taskInfo.filename,
         name: taskInfo.name,
-        histogramEnabled: this.histogram != null ? 1 : 0
+        reportStartTime: taskDoneChannel.hasSubscribers ? 1 : 0
       };
 
       try {
@@ -176,10 +177,12 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
         // if it is waiting for one.
         Atomics.add(this.sharedBuffer, kRequestCountField, 1);
         Atomics.notify(this.sharedBuffer, kRequestCountField, 1);
+        return true;
       } catch (err) {
         // This would mostly happen if e.g. message contains unserializable data
         // or transferList is invalid.
         taskInfo.done(<Error>err);
+        return false;
       }
     }
 
@@ -225,16 +228,13 @@ export class WorkerInfo extends AsynchronouslyCreatedResource {
       const worker = this;
       return {
         get id () {
-          return worker.worker.threadId;
+          return worker.threadId;
         },
         get currentUsage () {
           return worker.currentUsage();
         },
         get isRunningAbortableTask () {
           return worker.isRunningAbortableTask();
-        },
-        get histogram () {
-          return worker.histogram != null ? PiscinaHistogramHandler.createHistogramSummary(worker.histogram) : null;
         },
         get terminating () {
           return worker.terminating;

@@ -1,6 +1,5 @@
 import { parentPort, MessagePort, receiveMessageOnPort, workerData } from 'node:worker_threads';
 import { pathToFileURL } from 'node:url';
-import { performance } from 'node:perf_hooks';
 
 import type {
   ReadyMessage,
@@ -182,7 +181,8 @@ async function onMessage (
   const { taskId, task, filename, name } = message;
   let response : ResponseMessage;
   let transferList : any[] = [];
-  const start = message.histogramEnabled === 1 ? performance.now() : null;
+  // The parent only asks for this while piscina:task:done has subscribers.
+  const startTime = message.reportStartTime === 1 ? process.hrtime.bigint() : null;
 
   try {
     const handler = await getHandler(filename, name);
@@ -198,7 +198,7 @@ async function onMessage (
       taskId,
       result,
       error: null,
-      time: start == null ? null : Math.round(performance.now() - start)
+      startTime
     };
 
     if (useAtomics && !useAsyncAtomics) {
@@ -221,7 +221,7 @@ async function onMessage (
       // It may be worth taking a look at the error cloning algorithm we
       // use in Node.js core here, it's quite a bit more flexible
       error: <Error>error,
-      time: start == null ? null : Math.round(performance.now() - start)
+      startTime
     };
   }
   currentTasks--;
