@@ -87,3 +87,32 @@ test('timed out close operation destroys the pool', async () => {
     })),
   ]);
 });
+
+test('waits for every running task, not only the first one to finish', async () => {
+  const pool = new Piscina({ filename: resolve(__dirname, 'fixtures/sleep.js'), minThreads: 3, maxThreads: 3 });
+
+  const short = pool.run({ time: 50 });
+  const long = pool.run({ time: 300 });
+
+  await pool.close();
+
+  await assert.doesNotReject(short, 'complete running task');
+  await assert.doesNotReject(long, 'complete running task');
+});
+
+test('does not wait for the close timeout when the last running task\'s worker goes away', async () => {
+  const pool = new Piscina({ filename: resolve(__dirname, 'fixtures/sleep.js'), minThreads: 2, maxThreads: 2, closeTimeout: 2000 });
+  const errors: Error[] = [];
+  pool.on('error', (err) => errors.push(err));
+
+  const controller = new AbortController();
+  const task = pool.run({ time: 1000 }, { signal: controller.signal }).then(() => null, (err) => err);
+  setTimeout(() => controller.abort(), 50);
+
+  const start = performance.now();
+  await pool.close();
+
+  assert.match((await task)?.message, /The task has been aborted/);
+  assert.deepEqual(errors, []);
+  assert.ok(performance.now() - start < 1000, 'close resolved once the aborted task was gone');
+});
