@@ -574,9 +574,15 @@ class ThreadPool {
       taskInfo.setAbortListener(signal);
     }
 
-    if (this.taskQueue.size > 0) {
+    // Tasks submitted with an AbortSignal are held in `skipQueue` instead of
+    // `taskQueue` when no Worker is ready, so the queue limit has to account
+    // for both. Checking only `taskQueue` let signalled tasks queue without
+    // any bound when no other task was waiting.
+    const queuedTasks = this.taskQueue.size + this.skipQueue.length;
+
+    if (queuedTasks > 0) {
       const totalCapacity = this.options.maxQueue + this.pendingCapacity();
-      if (this.taskQueue.size >= totalCapacity) {
+      if (queuedTasks >= totalCapacity) {
         if (this.options.maxQueue === 0) {
           reject(Errors.NoTaskQueueAvailable());
         } else {
