@@ -49,7 +49,7 @@ import {
   toHistogramIntegerNano,
   getAvailableParallelism,
   maybeFileURLToPath,
-  withNullPrototype,
+  withNullPrototype
 } from './common';
 const cpuParallelism : number = getAvailableParallelism();
 
@@ -183,7 +183,7 @@ class ThreadPool {
       ...kDefaultOptions,
       ...options,
       filename,
-      maxQueue: 0,
+      maxQueue: 0
     });
 
     if (this.options.recordTiming) {
