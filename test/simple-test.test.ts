@@ -215,6 +215,25 @@ test('duration and utilization calculations work', async () => {
   assert.ok(worker.duration > 0);
 });
 
+test('queued tasks flushed by destroy() do not count towards utilization', async () => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js'),
+    maxThreads: 1
+  });
+
+  const tasks = Promise.allSettled([
+    pool.run('new Promise(resolve => setTimeout(resolve, 1000))'),
+    pool.run('42'),
+    pool.run('42')
+  ]);
+  await pool.destroy();
+  await tasks;
+
+  // A run time for a task that never started would be measured from 0, i.e.
+  // from process start, which is far longer than this pool has existed.
+  assert.ok(pool.utilization <= 1, `utilization was ${pool.utilization}`);
+});
+
 test('run works also', async () => {
   const worker = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js')

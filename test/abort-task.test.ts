@@ -30,6 +30,28 @@ test('abortable tasks will not share workers (abortable posted second)', async (
   await task1;
 });
 
+test('aborting a queued task removes it from the queue', async () => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js'),
+    maxThreads: 1
+  });
+  // A new pool hands out its first worker in a microtask, which also discards
+  // aborted tasks from the queue and would hide a leftover one.
+  await pool.run('0');
+
+  const first = pool.run('new Promise(resolve => setTimeout(resolve, 100))');
+  const ee = new AbortController();
+  const aborted = assert.rejects(pool.run('42', { signal: ee.signal }), /The task has been aborted/);
+  assert.strictEqual(pool.queueSize, 1);
+
+  ee.abort();
+  await aborted;
+  assert.strictEqual(pool.queueSize, 0);
+
+  await first;
+  await pool.destroy();
+});
+
 // TODO: move to testing balancer
 test('abortable tasks will not share workers (abortable posted first)', async () => {
   const pool = new Piscina({
