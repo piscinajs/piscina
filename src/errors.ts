@@ -67,6 +67,22 @@ class CloseTimeoutError extends PiscinaError {
   }
 }
 
+class WorkerIdleError extends PiscinaError {
+  constructor() {
+    super('Worker was idle for longer than idleTimeout');
+    this.name = 'WorkerIdleError';
+    this.code = 'PISCINA_ERR_WORKER_IDLE';
+  }
+}
+
+class PoolDestroyedError extends PiscinaError {
+  constructor(cause?: unknown) {
+    super('Pool was destroyed', cause === undefined ? undefined : { cause });
+    this.name = 'PoolDestroyedError';
+    this.code = 'PISCINA_ERR_POOL_DESTROYED';
+  }
+}
+
 // Dictionary
 export const Errors = {
   ThreadTermination: () => new ThreadTerminationError(),
@@ -74,6 +90,8 @@ export const Errors = {
   NoTaskQueueAvailable: () =>
     new NoTaskQueueAvailableError(),
   CloseTimeout: () => new CloseTimeoutError(),
+  WorkerIdle: () => new WorkerIdleError(),
+  PoolDestroyed: (cause?: unknown) => new PoolDestroyedError(cause),
   ValidationError: (msg: string) => new ValidationError(msg),
   AbortError: (reason?: any) => new AbortError(reason)
 };
