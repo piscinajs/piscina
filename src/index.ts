@@ -582,12 +582,15 @@ class ThreadPool {
   }
 
   _removeTaskFromQueue (taskInfo : TaskInfo) : void {
-    this.taskQueue.remove(taskInfo);
-
+    // Only call taskQueue.remove() for a task it holds: ArrayTaskQueue asserts
+    // and a custom queue may remove the wrong task.
     const skipQueueIndex = this.skipQueue.indexOf(taskInfo);
     if (skipQueueIndex !== -1) {
       this.skipQueue.splice(skipQueueIndex, 1);
+      return;
     }
+
+    this.taskQueue.remove(taskInfo);
   }
 
   runTask (
