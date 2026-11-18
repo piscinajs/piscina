@@ -116,3 +116,24 @@ test('does not wait for the close timeout when the last running task\'s worker g
   assert.deepEqual(errors, []);
   assert.ok(performance.now() - start < 1000, 'close resolved once the aborted task was gone');
 });
+
+test('does not wait for the close timeout when the last queued task is aborted', async () => {
+  // The worker is still starting up when the task is queued, so nothing is
+  // running when the task is aborted. idleTimeout keeps the worker once it is
+  // ready, since removing it would also end the wait.
+  const pool = new Piscina({ filename: resolve(__dirname, 'fixtures/slow-boot.js'), minThreads: 0, maxThreads: 1, idleTimeout: Infinity, closeTimeout: 2000 });
+  const errors: Error[] = [];
+  pool.on('error', (err) => errors.push(err));
+
+  const controller = new AbortController();
+  const task = pool.run('42', { signal: controller.signal }).then(() => null, (err) => err);
+
+  const start = performance.now();
+  const closed = pool.close();
+  controller.abort();
+
+  assert.match((await task)?.message, /The task has been aborted/);
+  await closed;
+  assert.deepEqual(errors, []);
+  assert.ok(performance.now() - start < 1000, 'close resolved once the aborted task was gone');
+});
