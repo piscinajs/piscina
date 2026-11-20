@@ -30,6 +30,78 @@ test('abortable tasks will not share workers (abortable posted second)', async (
   await task1;
 });
 
+test('aborting a queued task removes it from the queue', async () => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js'),
+    maxThreads: 1
+  });
+  // A new pool hands out its first worker in a microtask, which also discards
+  // aborted tasks from the queue and would hide a leftover one.
+  await pool.run('0');
+
+  const first = pool.run('new Promise(resolve => setTimeout(resolve, 100))');
+  const ee = new AbortController();
+  const aborted = assert.rejects(pool.run('42', { signal: ee.signal }), /The task has been aborted/);
+  assert.strictEqual(pool.queueSize, 1);
+
+  ee.abort();
+  await aborted;
+  assert.strictEqual(pool.queueSize, 0);
+
+  await first;
+  await pool.destroy();
+});
+
+test('aborting a queued task works with ArrayTaskQueue', async () => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js'),
+    minThreads: 1,
+    maxThreads: 1,
+    taskQueue: new Piscina.ArrayTaskQueue()
+  });
+  await pool.run('0');
+
+  const first = pool.run('new Promise(resolve => setTimeout(resolve, 100))');
+  const ee = new AbortController();
+  // Queued behind the busy worker, in the queue for abortable tasks.
+  const aborted = assert.rejects(pool.run('42', { signal: ee.signal }), /The task has been aborted/);
+  ee.abort();
+
+  await aborted;
+  await first;
+  await pool.destroy();
+});
+
+test('aborting a queued task leaves other queued tasks in a custom queue', { timeout: 5000 }, async () => {
+  // Removes by index, like many custom queues, so it must not be asked to
+  // remove a task it doesn't hold.
+  class SpliceQueue {
+    tasks: any[] = [];
+    get size () { return this.tasks.length; }
+    shift () { return this.tasks.shift() ?? null; }
+    push (task: any) { this.tasks.push(task); }
+    remove (task: any) { this.tasks.splice(this.tasks.indexOf(task), 1); }
+  }
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js'),
+    minThreads: 1,
+    maxThreads: 1,
+    taskQueue: new SpliceQueue()
+  });
+  await pool.run('0');
+
+  const first = pool.run('new Promise(resolve => setTimeout(resolve, 100))');
+  const ee = new AbortController();
+  const aborted = assert.rejects(pool.run('42', { signal: ee.signal }), /The task has been aborted/);
+  const other = pool.run('43');
+  ee.abort();
+
+  await aborted;
+  await first;
+  assert.strictEqual(await other, 43);
+  await pool.destroy();
+});
+
 // TODO: move to testing balancer
 test('abortable tasks will not share workers (abortable posted first)', async () => {
   const pool = new Piscina({
