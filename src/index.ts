@@ -510,8 +510,11 @@ class ThreadPool {
       if (this.workers.size < this.options.maxThreads) {
         // We spawn if possible
         // TODO: scheduler will intercept this.
+        const workerCount = this.workers.size;
         this._addNewWorker();
-        continue;
+        // No worker is added while the pool is closing; retrying the same
+        // task would then loop forever.
+        if (this.workers.size > workerCount) continue;
       }
 
       break;
