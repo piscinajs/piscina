@@ -230,3 +230,24 @@ test('tasks can be aborted through AbortController while running', async () => {
     assert.strictEqual(error.cause, reason);
   }
 });
+
+test('queued tasks run after the only running task is aborted with minThreads: 0', { timeout: 10000 }, async () => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js'),
+    minThreads: 0,
+    maxThreads: 1
+  });
+  // Start the worker so the abortable task runs instead of waiting in the queue.
+  await pool.run('0');
+
+  const ee = new AbortController();
+  const aborted = assert.rejects(pool.run('while(true);', { signal: ee.signal }), /The task has been aborted/);
+  const queued = pool.run('42');
+  assert.strictEqual(pool.queueSize, 1);
+
+  ee.abort();
+  await aborted;
+
+  assert.strictEqual(await queued, 42);
+  await pool.destroy();
+});
