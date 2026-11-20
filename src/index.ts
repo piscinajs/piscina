@@ -444,12 +444,14 @@ class ThreadPool {
       if (this.workers.size < this.options.maxThreads) {
         // We spawn if possible
         // TODO: scheduler will intercept this.
+        const workerCount = this.workers.size;
         this._addNewWorker();
-        continue;
-      } else {
-        // If balancer states that pool is busy, we should stop trying to distribute tasks
-        break;
+        // No worker is added while the pool is closing; retrying the same
+        // task would then loop forever.
+        if (this.workers.size > workerCount) continue;
       }
+
+      break;
     }
 
     //If Infinity was sent as a parameter, we skip setting the Timeout that clears the worker
