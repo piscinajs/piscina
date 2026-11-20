@@ -21,18 +21,15 @@ class Shared {
   }
 }
 
-let time;
+let data;
 module.exports = {
   send: async () => {
-    const data = new ArrayBuffer(128);
+    data = new ArrayBuffer(128);
     const shared = new Shared(data);
-    try {
-      return shared.make();
-    } finally {
-      setTimeout(() => { time = data.byteLength; }, 5);
-    }
+    return shared.make();
   },
+  // Runs after send()'s response was posted, which detached the buffer.
   get: () => {
-    return time;
+    return data.byteLength;
   }
 };

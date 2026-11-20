@@ -2,17 +2,14 @@
 
 const Piscina = require('../../dist');
 
-let time;
+let data;
 module.exports = {
   send: async () => {
-    const data = new ArrayBuffer(128);
-    try {
-      return Piscina.move(data);
-    } finally {
-      setTimeout(() => { time = data.byteLength; }, 5);
-    }
+    data = new ArrayBuffer(128);
+    return Piscina.move(data);
   },
+  // Runs after send()'s response was posted, which detached the buffer.
   get: () => {
-    return time;
+    return data.byteLength;
   }
 };
