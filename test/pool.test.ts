@@ -121,3 +121,21 @@ test('#805 - Concurrent Aborts', async (t) => {
 
   await Promise.all(tasks);
 });
+
+test('queued tasks run after a crashed worker is removed with minThreads: 0', { timeout: 10000 }, async () => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js'),
+    minThreads: 0,
+    maxThreads: 1
+  });
+
+  const crashed = assert.rejects(
+    pool.run('setImmediate(() => { throw new Error("boom") }); new Promise(() => {})'),
+    /boom/
+  );
+  const queued = pool.run('42');
+
+  await crashed;
+  assert.strictEqual(await queued, 42);
+  await pool.destroy();
+});
