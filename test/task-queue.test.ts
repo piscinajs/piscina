@@ -90,6 +90,55 @@ test('will reject items over task queue limit', async (t) => {
   await Promise.all(promises);
 });
 
+test('will reject items with an AbortSignal over task queue limit', async () => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/wait-for-notify.ts'),
+    minThreads: 1,
+    maxThreads: 1,
+    maxQueue: 2
+  });
+
+  const buffers = Array.from({ length: 5 }, () => new Int32Array(new SharedArrayBuffer(4)));
+  const controller = new AbortController();
+  const promises: Promise<unknown>[] = [];
+
+  try {
+    // Wait for a ready Worker so the next task keeps it busy.
+    buffers[0][0] = 1;
+    await pool.run(buffers[0]);
+
+    // Tasks submitted with an AbortSignal that cannot be dispatched are held in
+    // the skipQueue, the others go to the taskQueue; both count towards maxQueue.
+    promises.push(pool.run(buffers[1]));
+    promises.push(pool.run(buffers[2], { signal: controller.signal }));
+    promises.push(pool.run(buffers[3], { signal: controller.signal }));
+
+    assert.strictEqual(pool.queueSize, 2);
+
+    const limited = pool.run(buffers[4], { signal: controller.signal });
+    promises.push(limited);
+
+    await assert.rejects(
+      Promise.race([
+        limited,
+        new Promise((_resolve, reject) => {
+          setTimeout(() => reject(new Error('the task was queued instead of being rejected')), 2000).unref();
+        })
+      ]),
+      { code: 'PISCINA_ERR_TASK_QUEUE_LIMIT' }
+    );
+  } finally {
+    // Let the blocked Worker and the queued tasks finish, then clean up.
+    for (const buffer of buffers) {
+      buffer[0] = 1;
+      Atomics.notify(buffer, 0, 1);
+    }
+
+    await Promise.allSettled(promises);
+    await pool.destroy();
+  }
+});
+
 test('will reject items when task queue is unavailable', async () => {
   const pool = new Piscina({
     filename: resolve(__dirname, 'fixtures/eval.js'),
