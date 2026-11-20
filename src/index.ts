@@ -581,6 +581,18 @@ class ThreadPool {
     }
   }
 
+  _removeTaskFromQueue (taskInfo : TaskInfo) : void {
+    // Only call taskQueue.remove() for a task it holds: ArrayTaskQueue asserts
+    // and a custom queue may remove the wrong task.
+    const skipQueueIndex = this.skipQueue.indexOf(taskInfo);
+    if (skipQueueIndex !== -1) {
+      this.skipQueue.splice(skipQueueIndex, 1);
+      return;
+    }
+
+    this.taskQueue.remove(taskInfo);
+  }
+
   runTask (
     task : any,
     options : RunOptions<string>) : Promise<any> {
@@ -623,7 +635,8 @@ class ThreadPool {
     (err : Error | null, result : any) => {
         this.completed++;
 
-        if (taskInfo.started != null) {
+        // started stays 0 for a task that never reached a worker.
+        if (taskInfo.started) {
           this.totalRunTime += performance.now() - taskInfo.started;
         }
 
@@ -654,7 +667,7 @@ class ThreadPool {
 
         // Not yet running: Remove it from the queue.
         // Call should be idempotent
-        this.taskQueue.remove(taskInfo);
+        this._removeTaskFromQueue(taskInfo);
         this._publishTaskDone(taskInfo, abortError);
       });
 
