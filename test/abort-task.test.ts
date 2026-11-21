@@ -313,7 +313,7 @@ test('queued tasks run after the only running task is aborted with minThreads: 0
   await pool.run('0');
 
   const ee = new AbortController();
-  const aborted = assert.rejects(pool.run('while(true);', { signal: ee.signal }), /The task has been aborted/);
+  const aborted = assert.rejects(pool.run('new Promise(() => {})', { signal: ee.signal }), /The task has been aborted/);
   const queued = pool.run('42');
   assert.strictEqual(pool.queueSize, 1);
 
