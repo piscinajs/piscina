@@ -111,7 +111,7 @@ test('abortable tasks will not share workers (abortable posted first)', async ()
   });
 
   const ee = new AbortController();
-  assert.rejects(pool.run('while(true);', { signal: ee.signal }), /The task has been aborted/);
+  assert.rejects(pool.run('new Promise(() => {})', { signal: ee.signal }), /The task has been aborted/);
   const task2 = pool.run('42');
   assert.strictEqual(pool.queueSize, 1);
 
