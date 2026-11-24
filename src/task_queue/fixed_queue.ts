@@ -177,6 +177,7 @@ export class FixedQueue implements TaskQueue {
       } else {
         // removing head
         if (buffer.next === null) {
+          prev.next = null;
           this.head = prev;
         } else {
           // removing buffer from middle

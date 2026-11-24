@@ -184,6 +184,32 @@ test('removing elements from last CircularBuffer should not lead to issues', asy
   assert.deepEqual(actual, expected);
 });
 
+test('items pushed after removing the head CircularBuffer can be shifted', () => {
+  const queue = new FixedQueue();
+
+  // size of single circular buffer
+  const batchSize = 2047;
+
+  const firstBatch = Array.from({ length: batchSize }, () => new QueueTask());
+  const onlyInHead = new QueueTask();
+  for (const task of firstBatch) {
+    queue.push(task);
+  }
+  queue.push(onlyInHead);
+
+  // Empties the head buffer, so the queue drops it.
+  queue.remove(onlyInHead);
+  for (const task of firstBatch) {
+    assert.strictEqual(queue.shift(), task);
+  }
+
+  const late = new QueueTask();
+  queue.push(late);
+  assert.strictEqual(queue.size, 1);
+  assert.strictEqual(queue.shift(), late);
+  assert.strictEqual(queue.isEmpty(), true);
+});
+
 test('simple integraion with Piscina', async () => {
   const queue = new FixedQueue();
   const pool = new Piscina({
