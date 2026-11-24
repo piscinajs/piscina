@@ -357,6 +357,9 @@ class ThreadPool {
   }
 
   _onError (workerInfo: WorkerInfo, err: Error, onlyErrorUnfinishedTasks: boolean) {
+    // A worker we already removed (eg. its task was aborted while it was
+    // still starting) didn't fail to start.
+    const removedByPool = workerInfo.destroyed;
     const taskInfos = [...workerInfo.taskInfos.values()];
     workerInfo.taskInfos.clear();
 
@@ -366,7 +369,7 @@ class ThreadPool {
 
     if (workerInfo.isReady() && !this.workerFailsDuringBootstrap) {
       this._ensureMinimumWorkers();
-    } else {
+    } else if (!removedByPool) {
       // Do not start new workers over and over if they already fail during
       // bootstrap, there's no point.
       this.workerFailsDuringBootstrap = true;
