@@ -696,6 +696,9 @@ class ThreadPool {
         // Call should be idempotent
         this._removeTaskFromQueue(taskInfo);
         this._publishTaskDone(taskInfo, abortError);
+        // close() may be waiting on this task; nothing else re-checks when
+        // a queued task leaves.
+        this._onWorkerRemoved();
       });
 
       taskInfo.setAbortListener(signal);
