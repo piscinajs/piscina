@@ -7,7 +7,7 @@ import * as assert from 'node:assert';
 import type { Task } from './common';
 import { TaskQueue } from '.';
 // Currently optimal queue size, tested on V8 6.0 - 6.6. Must be power of two.
-const kSize = 2048;
+export const kSize = 2048;
 const kMask = kSize - 1;
 
 // The FixedQueue is implemented as a singly-linked list of fixed-size

@@ -1,6 +1,7 @@
 import * as assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { kQueueOptions } from '../dist/symbols';
+import { kSize } from '../dist/task_queue/fixed_queue';
 import { FixedQueue, ArrayTaskQueue, PiscinaTask as Task } from '..';
 
 // @ts-expect-error - it misses several properties, but it's enough for the test
@@ -13,7 +14,7 @@ class NumberedTask implements Task {
 
 for (const QueueClass of [FixedQueue, ArrayTaskQueue]) {
   test(`${QueueClass.name} - unshift`, () => {
-    const bufferSize = 2048;
+    const bufferSize = kSize;
     let queue = new QueueClass();
 
     queue.unshift(new NumberedTask(1));
