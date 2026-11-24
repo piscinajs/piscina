@@ -185,6 +185,10 @@ class ThreadPool {
   closingUp : boolean = false;
   workerFailsDuringBootstrap : boolean = false;
   destroying : boolean = false;
+  // Set once close() or destroy() has begun and never cleared: shutdown is
+  // terminal, so a closed pool must not silently spawn new workers and run
+  // new tasks after it reported itself closed.
+  closed : boolean = false;
   _onWorkerRemoved : () => void = noop;
   maxCapacity: number;
   balancer: PiscinaLoadBalancer;
@@ -230,7 +234,7 @@ class ThreadPool {
   }
 
   _ensureMinimumWorkers () : void {
-    if (this.closingUp || this.destroying) {
+    if (this.closingUp || this.destroying || this.closed) {
       return;
     }
     while (this.workers.size < this.options.minThreads) {
@@ -239,7 +243,7 @@ class ThreadPool {
   }
 
   _addNewWorker () : void {
-    if (this.closingUp === true) return;
+    if (this.closingUp === true || this.closed === true) return;
 
     const { port1, port2 } = new MessageChannel();
     const workerInfo = new WorkerInfo({
@@ -644,6 +648,10 @@ class ThreadPool {
       return Promise.reject(Errors.AbortError('pool is closing'));
     }
 
+    if (this.closed) {
+      return Promise.reject(Errors.PoolDestroyed());
+    }
+
     if (typeof filename !== 'string') {
       return Promise.reject(Errors.ValidationError('filename must be provided to run() or in options object'));
     }
@@ -808,6 +816,7 @@ class ThreadPool {
   }
 
   async destroy (cause?: unknown) {
+    this.closed = true;
     this.destroying = true;
     while (this.skipQueue.length > 0) {
       const taskInfo : TaskInfo = this.skipQueue.shift() as TaskInfo;
@@ -832,6 +841,7 @@ class ThreadPool {
   }
 
   async close (options : Required<CloseOptions>) {
+    this.closed = true;
     this.closingUp = true;
 
     if (options.force) {
