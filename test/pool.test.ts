@@ -39,7 +39,7 @@ test('workerCreate/workerDestroy should be emitted while managing worker lifecyc
   const tasks = [];
   const controller = new AbortController();
   const signal = controller.signal;
-  tasks.push(pool.run('while (true) {}', {
+  tasks.push(pool.run('new Promise(() => {})', {
     signal
   }));
 
