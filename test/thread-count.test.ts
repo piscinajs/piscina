@@ -20,15 +20,15 @@ test('will start with minThreads and max out at maxThreads', async () => {
   });
 
   assert.strictEqual(pool.threads.length, 2);
-  assert.rejects(pool.run('while(true) {}'));
+  assert.rejects(pool.run('new Promise(() => {})'));
   assert.strictEqual(pool.threads.length, 2);
-  assert.rejects(pool.run('while(true) {}'));
+  assert.rejects(pool.run('new Promise(() => {})'));
   assert.strictEqual(pool.threads.length, 2);
-  assert.rejects(pool.run('while(true) {}'));
+  assert.rejects(pool.run('new Promise(() => {})'));
   assert.strictEqual(pool.threads.length, 3);
-  assert.rejects(pool.run('while(true) {}'));
+  assert.rejects(pool.run('new Promise(() => {})'));
   assert.strictEqual(pool.threads.length, 4);
-  assert.rejects(pool.run('while(true) {}'));
+  assert.rejects(pool.run('new Promise(() => {})'));
   assert.strictEqual(pool.threads.length, 4);
 
   await created;

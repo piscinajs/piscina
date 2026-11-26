@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { EventEmitter } from 'node:events';
+import { EventEmitter, once } from 'node:events';
 import Piscina from '..';
 import { resolve } from 'path';
 
@@ -95,15 +95,16 @@ test('abortable tasks will not share workers (abortable posted first)', async ()
     concurrentTasksPerWorker: 2
   });
 
-  const ee = new EventEmitter();
-  assert.rejects(pool.run('while(true);', { signal: ee }), /The task has been aborted/);
+  const ee = new AbortController();
+  const task1 = assert.rejects(pool.run('new Promise(() => {})', { signal: ee.signal }), /The task has been aborted/);
   const task2 = pool.run('42');
   assert.strictEqual(pool.queueSize, 1);
 
-  ee.emit('abort');
+  ee.abort();
 
   // Wake up the thread handling the second task.
   assert.strictEqual(await task2, 42);
+  await task1;
 });
 
 // TODO: move to testing balancer
@@ -235,6 +236,29 @@ test('tasks can be aborted through AbortController while running', async () => {
     assert.strictEqual(error.message, 'The task has been aborted');
     assert.strictEqual(error.cause, reason);
   }
+});
+
+test('tasks can be aborted while running a CPU-bound loop', async () => {
+  const pool = new Piscina({
+    filename: resolve(__dirname, 'fixtures/eval.js'),
+    minThreads: 1,
+    maxThreads: 1
+  });
+  const controller = new AbortController();
+
+  // The loop has a deadline because Node can miss terminate() on a busy worker
+  // with --enable-source-maps (nodejs/node#67682); an endless loop would hang the run.
+  const task = pool.run(`
+    require('node:worker_threads').parentPort.postMessage('started');
+    const end = Date.now() + 10_000;
+    while (Date.now() < end);
+  `, { signal: controller.signal });
+  await once(pool, 'message');
+  controller.abort();
+
+  await assert.rejects(task, /The task has been aborted/);
+  assert.strictEqual(await pool.run('42'), 42);
+  await pool.destroy();
 });
 
 test('aborted AbortSignal rejects task immediately (with reason)', async () => {
