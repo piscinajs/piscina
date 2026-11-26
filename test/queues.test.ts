@@ -1,8 +1,9 @@
 import * as assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { kQueueOptions } from '../dist/symbols';
-import { kSize } from '../dist/task_queue/fixed_queue';
 import { FixedQueue, ArrayTaskQueue, PiscinaTask as Task } from '..';
+
+const kSize = 2048;
 
 // @ts-expect-error - it misses several properties, but it's enough for the test
 class NumberedTask implements Task {
