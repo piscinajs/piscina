@@ -230,7 +230,13 @@ async function onMessage (
     // Post the response to the parent thread, and let it know that we have
     // an additional message available. If possible, use Atomics.wait()
     // to wait for the next message.
-    port.postMessage(response, transferList);
+    try {
+      port.postMessage(response, transferList);
+    } catch (error) {
+      // The result can't be cloned or transferred (eg. it holds a function):
+      // reject this task with that error instead of crashing the worker.
+      port.postMessage({ taskId, result: null, error: <Error>error, startTime });
+    }
     Atomics.add(sharedBuffer, kResponseCountField, 1);
     if (useAtomics) {
       const res = atomicsWaitLoop(port, sharedBuffer);
