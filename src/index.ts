@@ -687,13 +687,12 @@ class ThreadPool {
 
     if (signal != null) {
       taskInfo.onAbort(() => {
-        // Call reject() first to make sure we always reject with the AbortError
-        // if the task is aborted, not with an Error from the possible
-        // thread termination below.
         const abortError = Errors.AbortError(signal.reason);
-        reject(abortError);
 
         if (taskInfo.workerInfo != null) {
+          // Call reject() first to make sure we always reject with the
+          // AbortError, not with an Error from the thread termination below.
+          reject(abortError);
           // Already running: We cancel the Worker this is running on.
           this._removeWorker(taskInfo.workerInfo, () => abortError);
           this._ensureMinimumWorkers();
@@ -703,7 +702,7 @@ class ThreadPool {
         // Not yet running: Remove it from the queue.
         // Call should be idempotent
         this._removeTaskFromQueue(taskInfo);
-        this._publishTaskDone(taskInfo, abortError);
+        taskInfo.done(abortError);
         // close() may be waiting on this task; nothing else re-checks when
         // a queued task leaves.
         this._onWorkerRemoved();
@@ -732,8 +731,9 @@ class ThreadPool {
         const error = this.options.maxQueue === 0
           ? Errors.NoTaskQueueAvailable()
           : Errors.TaskQueueAtLimit();
-        reject(error);
-        this._publishTaskDone(taskInfo, error);
+        // done(), not reject(): done() also removes the abort listener and
+        // destroys the task's async resource.
+        taskInfo.done(error);
       } else {
         taskInfo.queued = true;
         this.taskQueue.push(taskInfo);
@@ -763,9 +763,7 @@ class ThreadPool {
       // We reject if no task queue set and no more pending capacity.
       // TODO(@metcoder95): maybe auto expand the queue if no task queue set and we're at capacity?
       if (this.options.maxQueue <= 0 && this.pendingCapacity() === 0) {
-        const error = Errors.NoTaskQueueAvailable();
-        reject(error);
-        this._publishTaskDone(taskInfo, error);
+        taskInfo.done(Errors.NoTaskQueueAvailable());
       } else {
         // A new task has never been queued, so it always goes to the tail.
         this._returnUndistributedTask(taskInfo, true);
