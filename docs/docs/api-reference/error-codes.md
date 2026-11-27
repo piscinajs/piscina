@@ -26,3 +26,4 @@ All errors thrown by `Piscina` follows are child of `PiscinaError` parent class.
 | PISCINA_ERR_VALIDATION              | Validation for given values has failed. Review the `message` property for more information                                            |
 | PISCINA_ERR_NO_TASK_QUEUE_AVAILABLE | Task queue has been disabled and workers are at full capacity. Listen to `drain` and `needsDrain` events to continue submitting tasks |
 | PISCINA_ERR_CLOSE_TIMEOUT           | Pool has exceeded timeout for closing up. Pool will be destroyed immediately.                                                         |
+| PISCINA_ERR_SERIALIZATION           | A task's return value or thrown error could not be cloned back from the worker. The `cause` property holds the `DataCloneError`.      |
