@@ -83,6 +83,14 @@ class PoolDestroyedError extends PiscinaError {
   }
 }
 
+class SerializationError extends PiscinaError {
+  constructor(cause: unknown) {
+    super('Task result could not be serialized', { cause });
+    this.name = 'SerializationError';
+    this.code = 'PISCINA_ERR_SERIALIZATION';
+  }
+}
+
 // Dictionary
 export const Errors = {
   ThreadTermination: () => new ThreadTerminationError(),
@@ -93,5 +101,6 @@ export const Errors = {
   WorkerIdle: () => new WorkerIdleError(),
   PoolDestroyed: (cause?: unknown) => new PoolDestroyedError(cause),
   ValidationError: (msg: string) => new ValidationError(msg),
+  Serialization: (cause: unknown) => new SerializationError(cause),
   AbortError: (reason?: any) => new AbortError(reason)
 };

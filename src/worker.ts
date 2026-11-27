@@ -235,7 +235,14 @@ async function onMessage (
     } catch (error) {
       // The result can't be cloned or transferred (eg. it holds a function):
       // reject this task with that error instead of crashing the worker.
-      port.postMessage({ taskId, result: null, error: <Error>error, startTime });
+      const fallback : ResponseMessage = {
+        taskId,
+        result: null,
+        error: <Error>error,
+        startTime,
+        serializationFailed: true
+      };
+      port.postMessage(fallback);
     }
     Atomics.add(sharedBuffer, kResponseCountField, 1);
     if (useAtomics) {
