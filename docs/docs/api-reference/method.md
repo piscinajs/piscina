@@ -28,6 +28,9 @@ made to the function exported from `filename`. If the (async) function throws
 an error, the returned `Promise` will be rejected with that error.
 If the task is aborted, the returned `Promise` is rejected with an error
 as well.
+If the return value or thrown error cannot be cloned, the returned `Promise`
+is rejected with a `SerializationError` (`PISCINA_ERR_SERIALIZATION`) whose
+`cause` is the `DataCloneError`. The Worker keeps running.
 
 ## Method: `runTask(task[, transferList][, filename][, abortSignal])`
 

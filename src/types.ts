@@ -31,6 +31,9 @@ export interface ResponseMessage {
   // process.hrtime.bigint() when the task began. Unlike performance.now(),
   // its clock is shared by every thread, so the parent can compare it.
   startTime: bigint | null
+  // Set when the worker could not post the task's result or error; `error`
+  // then holds the DataCloneError.
+  serializationFailed?: true
 }
 export const commonState = {
   isWorkerThread: false,

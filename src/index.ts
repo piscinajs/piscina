@@ -320,7 +320,11 @@ class ThreadPool {
         this.publicInterface.emit('error', err);
       } else {
         taskInfo.workerStartedAt = workerStartedAt;
-        taskInfo.done(message.error, result);
+        // Wrap here: a PiscinaError's name and code don't survive postMessage().
+        const error = message.serializationFailed === true
+          ? Errors.Serialization(message.error)
+          : message.error;
+        taskInfo.done(error, result);
       }
 
       this._processPendingMessages();
