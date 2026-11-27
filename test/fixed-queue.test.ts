@@ -4,6 +4,8 @@ import { resolve } from 'node:path';
 import { kQueueOptions } from '../dist/symbols';
 import { Piscina, FixedQueue, PiscinaTask as Task } from '..';
 
+const kSize = 2048;
+
 // @ts-expect-error - it misses several properties, but it's enough for the test
 class QueueTask implements Task {
   get [kQueueOptions] () {
@@ -76,7 +78,7 @@ test('removing elements from intermediate CircularBuffer should not lead to issu
   const queue = new FixedQueue();
 
   // size of single circular buffer
-  const batchSize = 2047;
+  const batchSize = kSize - 1;
 
   const firstBatch = Array.from({ length: batchSize }, () => new QueueTask());
   const secondBatch = Array.from({ length: batchSize }, () => new QueueTask());
@@ -116,7 +118,7 @@ test('removing elements from first CircularBuffer should not lead to issues', ()
   const queue = new FixedQueue();
 
   // size of single circular buffer
-  const batchSize = 2047;
+  const batchSize = kSize - 1;
 
   const firstBatch = Array.from({ length: batchSize }, () => new QueueTask());
   const secondBatch = Array.from({ length: batchSize }, () => new QueueTask());
@@ -156,7 +158,7 @@ test('removing elements from last CircularBuffer should not lead to issues', asy
   const queue = new FixedQueue();
 
   // size of single circular buffer
-  const batchSize = 2047;
+  const batchSize = kSize - 1;
 
   const firstBatch = Array.from({ length: batchSize }, () => new QueueTask());
   const secondBatch = Array.from({ length: batchSize }, () => new QueueTask());
@@ -182,6 +184,33 @@ test('removing elements from last CircularBuffer should not lead to issues', asy
     actual.push(task);
   }
   assert.deepEqual(actual, expected);
+});
+
+test('items pushed after removing the head CircularBuffer can be shifted', () => {
+  const queue = new FixedQueue();
+
+  // size of single circular buffer
+  const batchSize = kSize - 1;
+
+  const firstBatch = Array.from({ length: batchSize }, () => new QueueTask());
+  const onlyInHead = new QueueTask();
+  for (const task of firstBatch) {
+    queue.push(task);
+  }
+  queue.push(onlyInHead);
+  assert.notStrictEqual(queue.head, queue.tail, 'the last task should start a second buffer');
+
+  // Empties the head buffer, so the queue drops it.
+  queue.remove(onlyInHead);
+  for (const task of firstBatch) {
+    assert.strictEqual(queue.shift(), task);
+  }
+
+  const late = new QueueTask();
+  queue.push(late);
+  assert.strictEqual(queue.size, 1);
+  assert.strictEqual(queue.shift(), late);
+  assert.strictEqual(queue.isEmpty(), true);
 });
 
 test('simple integraion with Piscina', async () => {
