@@ -7,6 +7,7 @@ import assert from 'node:assert';
 import type { Task } from './common';
 import { TaskQueue } from '.';
 // Currently optimal queue size, tested on V8 6.0 - 6.6. Must be power of two.
+// test/fixed-queue.test.ts and test/queues.test.ts copy this value; update them with it.
 const kSize = 2048;
 const kMask = kSize - 1;
 
@@ -177,6 +178,7 @@ export class FixedQueue implements TaskQueue {
       } else {
         // removing head
         if (buffer.next === null) {
+          prev.next = null;
           this.head = prev;
         } else {
           // removing buffer from middle
